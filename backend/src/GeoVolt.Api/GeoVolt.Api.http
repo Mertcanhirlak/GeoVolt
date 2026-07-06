@@ -1,0 +1,6 @@
+@GeoVolt.Api_HostAddress = http://localhost:5032
+
+GET {{GeoVolt.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
