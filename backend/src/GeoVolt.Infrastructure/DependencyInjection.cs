@@ -2,11 +2,13 @@ using GeoVolt.Application.Admin.Abstractions;
 using GeoVolt.Application.Auth.Abstractions;
 using GeoVolt.Application.Auth.Options;
 using GeoVolt.Application.CandidatePoints.Abstractions;
+using GeoVolt.Application.Regions.Abstractions;
 using GeoVolt.Infrastructure.Admin;
 using GeoVolt.Infrastructure.Auth;
 using GeoVolt.Infrastructure.CandidatePoints;
 using GeoVolt.Infrastructure.Options;
 using GeoVolt.Infrastructure.Persistence;
+using GeoVolt.Infrastructure.Regions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -65,6 +67,7 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<ITokenService, JwtTokenService>();
         services.AddScoped<DatabaseSeeder>();
+        services.AddScoped<IRegionRepository, RegionRepository>();
 
         return services;
     }

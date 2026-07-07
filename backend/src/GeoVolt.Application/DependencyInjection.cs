@@ -4,6 +4,8 @@ using GeoVolt.Application.Auth;
 using GeoVolt.Application.Auth.Abstractions;
 using GeoVolt.Application.CandidatePoints;
 using GeoVolt.Application.CandidatePoints.Abstractions;
+using GeoVolt.Application.Regions;
+using GeoVolt.Application.Regions.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GeoVolt.Application;
@@ -15,6 +17,7 @@ public static class DependencyInjection
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IAdminService, AdminService>();
         services.AddScoped<ICandidatePointService, CandidatePointService>();
+        services.AddScoped<IRegionService, RegionService>();
 
         return services;
     }
