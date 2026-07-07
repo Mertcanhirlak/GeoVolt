@@ -8,7 +8,8 @@ using GeoVolt.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-
+using GeoVolt.Application.Regions.Abstractions;
+using GeoVolt.Infrastructure.Regions;
 namespace GeoVolt.Infrastructure;
 
 public static class DependencyInjection
@@ -62,7 +63,8 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<ITokenService, JwtTokenService>();
         services.AddScoped<DatabaseSeeder>();
-
+        // Region repository implementasyonunu kaydeder
+        services.AddScoped<IRegionRepository, RegionRepository>();
         return services;
     }
 }
