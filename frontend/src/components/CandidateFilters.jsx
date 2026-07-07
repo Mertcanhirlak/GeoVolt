@@ -11,13 +11,14 @@ export default function CandidateFilters({ filters, setFilters, onApply }) {
   }
 
   return (
-    <div className="filter-panel">
-      <h2>Aday Nokta Filtreleri</h2>
+    <div className="filter-panel" data-testid="candidate-filter-panel">
+      <h2 data-testid="candidate-filter-title">Aday Nokta Filtreleri</h2>
 
-      <div className="filter-grid">
+      <div className="filter-grid" data-testid="candidate-filter-grid">
         <label>
           Maliyet Skoru Min
           <input
+            data-testid="filter-cost-min-input"
             type="number"
             name="costMin"
             value={filters.costMin}
@@ -30,6 +31,7 @@ export default function CandidateFilters({ filters, setFilters, onApply }) {
         <label>
           Maliyet Skoru Max
           <input
+            data-testid="filter-cost-max-input"
             type="number"
             name="costMax"
             value={filters.costMax}
@@ -42,6 +44,7 @@ export default function CandidateFilters({ filters, setFilters, onApply }) {
         <label>
           Talep Skoru Min
           <input
+            data-testid="filter-demand-min-input"
             type="number"
             name="demandMin"
             value={filters.demandMin}
@@ -54,6 +57,7 @@ export default function CandidateFilters({ filters, setFilters, onApply }) {
         <label>
           Talep Skoru Max
           <input
+            data-testid="filter-demand-max-input"
             type="number"
             name="demandMax"
             value={filters.demandMax}
@@ -66,6 +70,7 @@ export default function CandidateFilters({ filters, setFilters, onApply }) {
         <label>
           Genel Skor Min
           <input
+            data-testid="filter-general-min-input"
             type="number"
             name="generalMin"
             value={filters.generalMin}
@@ -78,6 +83,7 @@ export default function CandidateFilters({ filters, setFilters, onApply }) {
         <label>
           Genel Skor Max
           <input
+            data-testid="filter-general-max-input"
             type="number"
             name="generalMax"
             value={filters.generalMax}
@@ -88,7 +94,9 @@ export default function CandidateFilters({ filters, setFilters, onApply }) {
         </label>
       </div>
 
-      <button onClick={onApply}>Filtrele</button>
+      <button data-testid="apply-score-filter-button" onClick={onApply}>
+        Filtrele
+      </button>
     </div>
   );
 }

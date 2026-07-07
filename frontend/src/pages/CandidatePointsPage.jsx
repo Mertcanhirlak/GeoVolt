@@ -131,10 +131,10 @@ export default function CandidatePointsPage() {
   }
 
   return (
-    <div className="candidate-page">
-      <h1>Aday Şarj İstasyonu Lokasyonları</h1>
+    <div className="candidate-page" data-testid="candidate-points-page">
+      <h1 data-testid="candidate-page-title">Aday Şarj İstasyonu Lokasyonları</h1>
 
-      <p className="page-description">
+      <p className="page-description" data-testid="candidate-page-description">
         Bu ekranda aday noktalar mock veri ile gösterilmektedir. Backend ve veri
         ekibi tamamlandığında aynı ekran API verisiyle çalışacaktır.
       </p>
@@ -150,9 +150,13 @@ export default function CandidatePointsPage() {
         onApply={applyFilters}
       />
 
-      {message && <div className="info-message">{message}</div>}
+      {message && (
+        <div className="info-message" data-testid="candidate-page-message">
+          {message}
+        </div>
+      )}
 
-      <div className="candidate-list">
+      <div className="candidate-list" data-testid="candidate-list">
         {filteredCandidates.map((candidate) => (
           <CandidateCard
             key={candidate.id}

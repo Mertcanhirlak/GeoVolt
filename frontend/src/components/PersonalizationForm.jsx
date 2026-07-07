@@ -24,7 +24,8 @@ export default function PersonalizationForm({ candidates, onResult }) {
     event.preventDefault();
 
     const budgetMin = form.budgetMin === "" ? 0 : Number(form.budgetMin);
-    const budgetMax = form.budgetMax === "" ? Number.MAX_SAFE_INTEGER : Number(form.budgetMax);
+    const budgetMax =
+      form.budgetMax === "" ? Number.MAX_SAFE_INTEGER : Number(form.budgetMax);
 
     if (budgetMin < 0 || budgetMax < 0) {
       setFormMessage("Bütçe değerleri negatif olamaz.");
@@ -83,13 +84,18 @@ export default function PersonalizationForm({ candidates, onResult }) {
   }
 
   return (
-    <div className="personalization-panel">
-      <h2>Kişiselleştirme Formu</h2>
+    <div className="personalization-panel" data-testid="personalization-panel">
+      <h2 data-testid="personalization-title">Kişiselleştirme Formu</h2>
 
-      <form onSubmit={handleSubmit} className="personalization-grid">
+      <form
+        onSubmit={handleSubmit}
+        className="personalization-grid"
+        data-testid="personalization-form"
+      >
         <label>
           Bütçe Min
           <input
+            data-testid="personalization-budget-min-input"
             type="number"
             name="budgetMin"
             value={form.budgetMin}
@@ -101,6 +107,7 @@ export default function PersonalizationForm({ candidates, onResult }) {
         <label>
           Bütçe Max
           <input
+            data-testid="personalization-budget-max-input"
             type="number"
             name="budgetMax"
             value={form.budgetMax}
@@ -112,6 +119,7 @@ export default function PersonalizationForm({ candidates, onResult }) {
         <label>
           Sistem Tipi
           <select
+            data-testid="personalization-system-type-select"
             name="systemType"
             value={form.systemType}
             onChange={handleChange}
@@ -125,6 +133,7 @@ export default function PersonalizationForm({ candidates, onResult }) {
         <label>
           Mekân Türü
           <select
+            data-testid="personalization-place-type-select"
             name="placeType"
             value={form.placeType}
             onChange={handleChange}
@@ -139,6 +148,7 @@ export default function PersonalizationForm({ candidates, onResult }) {
         <label>
           Bölge
           <select
+            data-testid="personalization-region-select"
             name="region"
             value={form.region}
             onChange={handleChange}
@@ -152,10 +162,16 @@ export default function PersonalizationForm({ candidates, onResult }) {
           </select>
         </label>
 
-        <button type="submit">Kişiselleştir</button>
+        <button data-testid="personalization-submit-button" type="submit">
+          Kişiselleştir
+        </button>
       </form>
 
-      {formMessage && <div className="info-message">{formMessage}</div>}
+      {formMessage && (
+        <div className="info-message" data-testid="personalization-message">
+          {formMessage}
+        </div>
+      )}
     </div>
   );
 }
