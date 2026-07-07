@@ -9,7 +9,7 @@ const defaultFilters = {
   costMin: "",
   costMax: "",
   demandMin: "",
-  demandMax: "",
+  demandMax: "",     
   generalMin: "",
   generalMax: ""
 };
