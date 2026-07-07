@@ -1,10 +1,5 @@
-<<<<<<< HEAD
-﻿import React, { useEffect, useState } from "react";
-import { mockCandidatePoints } from "../data/mockCandidatePoints";
-=======
 import React, { useEffect, useState } from "react";
-import CandidateCard from "../components/CandidateCard";
->>>>>>> main
+import { mockCandidatePoints } from "../data/mockCandidatePoints";
 import CandidateFilters from "../components/CandidateFilters";
 import SavedCandidates from "../components/SavedCandidates";
 import PersonalizationForm from "../components/PersonalizationForm";
