@@ -1,4 +1,3 @@
-// src/context/AuthContext.jsx
 import { createContext, useState, useContext, useEffect } from "react";
 import { decodeMockToken } from "../services/authService";
 
@@ -6,11 +5,10 @@ const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(localStorage.getItem("token"));
-  const [user, setUser] = useState(null); // { id, companyId, fullName, email, role }
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
     if (token) {
-      
       const decoded = decodeMockToken(token);
       setUser(decoded);
     } else {
