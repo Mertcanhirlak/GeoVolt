@@ -1,0 +1,18 @@
+using GeoVolt.Application.Admin;
+using GeoVolt.Application.Admin.Abstractions;
+using GeoVolt.Application.Auth;
+using GeoVolt.Application.Auth.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace GeoVolt.Application;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddApplication(this IServiceCollection services)
+    {
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IAdminService, AdminService>();
+
+        return services;
+    }
+}

@@ -65,6 +65,124 @@ VITE_API_BASE_URL=http://localhost:5000
 | `/api/manual-pin/evaluate` | POST | Haritada bırakılan pini değerlendirir. | Frontend manuel pin ekranı |
 | `/api/saved-candidates` | POST | Aday noktayı kaydeder. | Frontend kaydetme işlemi |
 | `/api/saved-candidates` | GET | Kaydedilen aday noktaları getirir. | Frontend kaydedilenler ekranı |
+| `/api/auth/login` | POST | Kullanıcı girişi yapar ve JWT token döner. | Frontend login ekranı |
+| `/api/auth/me` | GET | Token sahibi kullanıcının bilgilerini getirir. | Frontend oturum kontrolü |
+| `/api/admin/companies` | POST | Admin firma oluşturur. | Swagger/Admin işlemleri |
+| `/api/admin/companies` | GET | Admin firmaları listeler. | Swagger/Admin işlemleri |
+| `/api/admin/users` | POST | Admin firmaya bağlı kullanıcı oluşturur. | Swagger/Admin işlemleri |
+| `/api/admin/users` | GET | Admin kullanıcıları listeler. | Swagger/Admin işlemleri |
+
+---
+
+# 0. Login / Auth API
+
+## Ortak Not
+
+Auth endpointleri standart response formatını kullanır:
+
+```json
+{
+  "success": true,
+  "data": {},
+  "message": "İşlem başarılı."
+}
+```
+
+Herkese açık register endpointi yoktur. Firma ve kullanıcı hesaplarını sistem yöneticisi oluşturur.
+
+Login başarılı olduğunda backend JWT token döndürür. Frontend bu token'ı sonraki yetkili isteklerde `Authorization` header içinde göndermelidir.
+
+```http
+Authorization: Bearer JWT_TOKEN
+```
+
+## Login
+
+```http
+POST /api/auth/login
+```
+
+Request body:
+
+```json
+{
+  "email": "test@geovolt.com",
+  "password": "Test123!"
+}
+```
+
+Hatalı response:
+
+```json
+{
+  "success": false,
+  "data": null,
+  "message": "E-posta veya parola hatalı."
+}
+```
+
+## Me
+
+```http
+GET /api/auth/me
+Authorization: Bearer JWT_TOKEN
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "İşlem başarılı.",
+  "data": {
+    "id": 1,
+    "fullName": "Test User",
+    "email": "test@geovolt.com",
+    "role": "CompanyUser",
+    "companyId": 1,
+    "companyName": "VoltCharge A.Ş."
+  }
+}
+```
+
+## Admin Firma Oluşturma
+
+```http
+POST /api/admin/companies
+Authorization: Bearer ADMIN_JWT_TOKEN
+```
+
+```json
+{
+  "name": "VoltCharge A.Ş.",
+  "taxNumber": "1234567890",
+  "contactEmail": "info@voltcharge.com"
+}
+```
+
+## Admin Firma Kullanıcısı Oluşturma
+
+```http
+POST /api/admin/users
+Authorization: Bearer ADMIN_JWT_TOKEN
+```
+
+```json
+{
+  "fullName": "Firma Kullanıcısı",
+  "email": "user@voltcharge.com",
+  "password": "User123!",
+  "companyId": 1
+}
+```
+
+Kural: Bir firmaya en fazla 2 kullanıcı eklenebilir.
+
+Detaylı frontend teslim notu:
+
+```text
+docs/AUTH_FRONTEND_HANDOFF.md
+```
 
 ---
 
@@ -325,9 +443,9 @@ POST /api/saved-candidates
 
 Kullanıcının seçtiği aday noktayı kaydeder.
 
-Login/register yapılmayacaksa ilk aşamada bu işlem frontend local storage ile yapılabilir.
+Güncel auth kararına göre kullanıcılar admin tarafından oluşturulur ve firmaya bağlıdır.
 
-Login/register yapılırsa bu endpoint backend tarafında PostgreSQL'e kayıt atacaktır.
+Bu endpoint ileride backend tarafında token'daki kullanıcı/firma bilgisine göre PostgreSQL'e kayıt atacaktır.
 
 ## Request Body
 
@@ -365,9 +483,9 @@ GET /api/saved-candidates
 
 Kullanıcının kaydettiği aday noktaları getirir.
 
-Login/register yapılmayacaksa bu ekran frontend local storage üzerinden çalışabilir.
+Güncel auth kararına göre kullanıcılar admin tarafından oluşturulur ve firmaya bağlıdır.
 
-Login/register yapılırsa backend kullanıcıya bağlı kayıtları PostgreSQL'den getirecektir.
+Bu endpoint ileride token'daki kullanıcı/firma bilgisine göre PostgreSQL'den kayıtları getirecektir.
 
 ## Örnek Response
 

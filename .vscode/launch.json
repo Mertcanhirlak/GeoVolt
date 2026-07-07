@@ -1,0 +1,24 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "GeoVolt API",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build backend",
+      "program": "${workspaceFolder}/backend/src/GeoVolt.Api/bin/Debug/net10.0/GeoVolt.Api.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/backend/src/GeoVolt.Api",
+      "stopAtEntry": false,
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "\\bNow listening on:\\s+(https?://\\S+)",
+        "uriFormat": "%s/swagger"
+      },
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://localhost:5000"
+      }
+    }
+  ]
+}
