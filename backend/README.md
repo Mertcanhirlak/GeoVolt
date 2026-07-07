@@ -6,6 +6,75 @@ GeoVolt backend tarafı; frontend uygulamasından gelen istekleri karşılayacak
 
 ---
 
+## Güncel Durum
+
+İlk backend iskeleti oluşturuldu.
+
+```text
+backend/
+├── GeoVolt.slnx
+└── src/
+    ├── GeoVolt.Api/
+    ├── GeoVolt.Application/
+    ├── GeoVolt.Domain/
+    └── GeoVolt.Infrastructure/
+```
+
+İlk tamamlanan backend özelliği login/register altyapısıdır.
+
+Hazır endpointler:
+
+| Endpoint | Metot | Açıklama |
+|---|---|---|
+| `/api/health` | GET | API çalışıyor mu kontrolü |
+| `/api/auth/login` | POST | Giriş yapar ve JWT token döner |
+| `/api/auth/me` | GET | Token sahibi kullanıcıyı getirir |
+| `/api/admin/companies` | POST | Admin firma oluşturur |
+| `/api/admin/companies` | GET | Admin firmaları listeler |
+| `/api/admin/users` | POST | Admin firmaya bağlı kullanıcı oluşturur |
+| `/api/admin/users` | GET | Admin kullanıcıları listeler |
+
+Swagger:
+
+```text
+http://localhost:5000/swagger
+```
+
+Frontend bağlantı detayları:
+
+```text
+docs/AUTH_FRONTEND_HANDOFF.md
+```
+
+Default admin:
+
+```text
+Email: admin@geovolt.com
+Password: Admin123!
+```
+
+Not: Herkese açık register endpointi yoktur. Firma ve kullanıcı hesaplarını sistem yöneticisi oluşturur. Bir firmaya en fazla 2 kullanıcı eklenebilir.
+
+## Çalıştırma
+
+```bash
+cd backend
+dotnet restore
+dotnet build GeoVolt.slnx
+dotnet ef database update --project src/GeoVolt.Infrastructure --startup-project src/GeoVolt.Api
+dotnet run --project src/GeoVolt.Api
+```
+
+Varsayılan PostgreSQL bağlantısı:
+
+```text
+Host=localhost;Port=5432;Database=geovolt_db;Username=postgres;Password=postgres
+```
+
+Farklı bağlantı için `DATABASE_CONNECTION_STRING` environment variable kullanılabilir.
+
+---
+
 ## Kullanılacak Teknolojiler
 
 Backend tarafında planlanan teknolojiler:

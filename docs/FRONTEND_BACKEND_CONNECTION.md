@@ -84,6 +84,12 @@ https://localhost:7001
 
 Backend adresi kesinleştiğinde frontend tarafında `.env` dosyasına yazılacaktır.
 
+Bu projede ilk backend iskeleti için geliştirme adresi şu şekilde ayarlanmıştır:
+
+```text
+http://localhost:5000
+```
+
 ---
 
 ## .env Kullanımı
@@ -186,6 +192,12 @@ Planlanan temel endpointler:
 
 | Endpoint | Metot | Açıklama |
 |---|---|---|
+| `/api/auth/login` | POST | Kullanıcı girişi yapar ve JWT token döner. |
+| `/api/auth/me` | GET | Token sahibi kullanıcının bilgilerini getirir. |
+| `/api/admin/companies` | POST | Admin firma oluşturur. |
+| `/api/admin/companies` | GET | Admin firmaları listeler. |
+| `/api/admin/users` | POST | Admin firmaya bağlı kullanıcı oluşturur. |
+| `/api/admin/users` | GET | Admin kullanıcıları listeler. |
 | `/api/regions` | GET | Bölge listesini getirir. |
 | `/api/stations` | GET | Mevcut şarj istasyonlarını getirir. |
 | `/api/candidate-points` | GET | Aday şarj istasyonu noktalarını getirir. |
@@ -193,6 +205,14 @@ Planlanan temel endpointler:
 | `/api/manual-pin/evaluate` | POST | Haritada bırakılan pini değerlendirir. |
 | `/api/saved-candidates` | POST | Aday noktayı kaydeder. |
 | `/api/saved-candidates` | GET | Kaydedilen aday noktaları getirir. |
+
+Login frontend bağlantı detayları ayrıca şu dosyada tutulur:
+
+```text
+docs/AUTH_FRONTEND_HANDOFF.md
+```
+
+Güncel auth kararı: Herkese açık register ekranı olmayacaktır. Firma ve kullanıcı hesaplarını sistem yöneticisi Swagger veya admin arayüzü üzerinden oluşturacaktır.
 
 ---
 

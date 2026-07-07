@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/GeoVolt.Api/GeoVolt.Api.csproj" />
+    <Project Path="src/GeoVolt.Application/GeoVolt.Application.csproj" />
+    <Project Path="src/GeoVolt.Domain/GeoVolt.Domain.csproj" />
+    <Project Path="src/GeoVolt.Infrastructure/GeoVolt.Infrastructure.csproj" />
+  </Folder>
+</Solution>

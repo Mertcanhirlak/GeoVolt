@@ -1,0 +1,144 @@
+using System.Text;
+using GeoVolt.Application;
+using GeoVolt.Application.Auth.Options;
+using GeoVolt.Infrastructure;
+using GeoVolt.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtectionKeys")));
+
+builder.Services.AddControllers();
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure(builder.Configuration);
+
+var jwtOptions = GetJwtOptions(builder.Configuration);
+var frontendUrl = builder.Configuration["FRONTEND_URL"] ?? "http://localhost:5173";
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendPolicy", policy =>
+    {
+        policy
+            .WithOrigins(frontendUrl)
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtOptions.Issuer,
+            ValidAudience = jwtOptions.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey)),
+            ClockSkew = TimeSpan.FromMinutes(1)
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "GeoVolt API",
+        Version = "v1",
+        Description = "GeoVolt backend API"
+    });
+
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Sadece JWT token degerini girin. Swagger 'Bearer' on ekini otomatik ekler."
+    });
+
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>()
+    });
+});
+
+var app = builder.Build();
+
+await SeedDefaultAdminAsync(app);
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseCors("FrontendPolicy");
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapGet("/api/health", () =>
+{
+    return Results.Ok(new
+    {
+        success = true,
+        message = "GeoVolt API çalışıyor.",
+        utcTime = DateTime.UtcNow
+    });
+})
+.WithTags("Health");
+
+app.MapControllers();
+
+app.Run();
+
+static JwtOptions GetJwtOptions(IConfiguration configuration)
+{
+    var options = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
+    var environmentSecret = configuration["JWT_SECRET_KEY"];
+
+    if (!string.IsNullOrWhiteSpace(environmentSecret))
+    {
+        options.SecretKey = environmentSecret;
+    }
+
+    if (options.SecretKey.Length < 32)
+    {
+        throw new InvalidOperationException("JWT secret key must be at least 32 characters. Set Jwt:SecretKey or JWT_SECRET_KEY.");
+    }
+
+    return options;
+}
+
+static async Task SeedDefaultAdminAsync(WebApplication app)
+{
+    using var scope = app.Services.CreateScope();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DatabaseSeeder");
+
+    try
+    {
+        var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
+        await seeder.SeedDefaultAdminAsync();
+    }
+    catch (Exception exception)
+    {
+        logger.LogWarning(exception, "Default admin seed skipped. Run database migration and restart the API.");
+    }
+}
