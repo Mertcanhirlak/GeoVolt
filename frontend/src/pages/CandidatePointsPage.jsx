@@ -1,9 +1,9 @@
-﻿import React, { useEffect, useState } from "react";
-import { mockCandidatePoints } from "../data/mockCandidatePoints";
+import React, { useEffect, useState } from "react";
 import CandidateCard from "../components/CandidateCard";
 import CandidateFilters from "../components/CandidateFilters";
 import SavedCandidates from "../components/SavedCandidates";
 import PersonalizationForm from "../components/PersonalizationForm";
+import { getCandidatePoints } from "../services/candidatePointsApi";
 
 const defaultFilters = {
   costMin: "",
@@ -38,13 +38,33 @@ export default function CandidatePointsPage() {
   const [savedRefreshKey, setSavedRefreshKey] = useState(0);
 
   useEffect(() => {
-    setMessage("Hesaplanıyor...");
+    let isMounted = true;
 
-    setTimeout(() => {
-      setCandidates(mockCandidatePoints);
-      setFilteredCandidates(mockCandidatePoints);
+    async function loadCandidatePoints() {
+      setMessage("Hesaplanıyor...");
+
+      const result = await getCandidatePoints();
+
+      if (!isMounted) {
+        return;
+      }
+
+      setCandidates(result.data);
+      setFilteredCandidates(result.data);
+
+      if (result.source === "local-mock") {
+        setMessage("Backend erişilemedi. Lokal mock veri gösteriliyor.");
+        return;
+      }
+
       setMessage("");
-    }, 500);
+    }
+
+    loadCandidatePoints();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   function validateFilters() {
@@ -135,8 +155,8 @@ export default function CandidatePointsPage() {
       <h1 data-testid="candidate-page-title">Aday Şarj İstasyonu Lokasyonları</h1>
 
       <p className="page-description" data-testid="candidate-page-description">
-        Bu ekranda aday noktalar mock veri ile gösterilmektedir. Backend ve veri
-        ekibi tamamlandığında aynı ekran API verisiyle çalışacaktır.
+        Bu ekranda aday noktalar API üzerinden mock veri ile gösterilmektedir.
+        Veri ekibi tamamlandığında aynı ekran gerçek API verisiyle çalışacaktır.
       </p>
 
       <PersonalizationForm

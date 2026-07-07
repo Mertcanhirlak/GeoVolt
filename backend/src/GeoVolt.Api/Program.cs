@@ -21,14 +21,14 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var jwtOptions = GetJwtOptions(builder.Configuration);
-var frontendUrl = builder.Configuration["FRONTEND_URL"] ?? "http://localhost:5173";
+var frontendUrls = GetFrontendUrls(builder.Configuration);
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendPolicy", policy =>
     {
         policy
-            .WithOrigins(frontendUrl)
+            .WithOrigins(frontendUrls)
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -125,6 +125,19 @@ static JwtOptions GetJwtOptions(IConfiguration configuration)
     }
 
     return options;
+}
+
+static string[] GetFrontendUrls(IConfiguration configuration)
+{
+    var configuredUrls =
+        configuration["FRONTEND_URLS"]
+        ?? configuration["FRONTEND_URL"]
+        ?? "http://localhost:5173;http://127.0.0.1:5173";
+
+    return configuredUrls
+        .Split([';', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToArray();
 }
 
 static async Task SeedDefaultAdminAsync(WebApplication app)
