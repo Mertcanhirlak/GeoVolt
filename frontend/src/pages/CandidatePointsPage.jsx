@@ -1,6 +1,5 @@
 ﻿import React, { useEffect, useState } from "react";
 import { mockCandidatePoints } from "../data/mockCandidatePoints";
-import CandidateCard from "../components/CandidateCard";
 import CandidateFilters from "../components/CandidateFilters";
 import SavedCandidates from "../components/SavedCandidates";
 import PersonalizationForm from "../components/PersonalizationForm";
@@ -30,9 +29,28 @@ function isScoreInRange(score, min, max) {
   return score >= min && score <= max;
 }
 
+function formatMoney(value) {
+  if (value === null || value === undefined) {
+    return "Veri Eksik";
+  }
+
+  return `${value.toLocaleString("tr-TR")} TL`;
+}
+
+function showScore(value) {
+  if (value === null || value === undefined) {
+    return "Veri Eksik";
+  }
+
+  return value;
+}
+
 export default function CandidatePointsPage() {
+  const [activeTab, setActiveTab] = useState("home");
+  const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [candidates, setCandidates] = useState([]);
   const [filteredCandidates, setFilteredCandidates] = useState([]);
+  const [personalizedCandidates, setPersonalizedCandidates] = useState([]);
   const [filters, setFilters] = useState(defaultFilters);
   const [message, setMessage] = useState("");
   const [savedRefreshKey, setSavedRefreshKey] = useState(0);
@@ -43,6 +61,8 @@ export default function CandidatePointsPage() {
     setTimeout(() => {
       setCandidates(mockCandidatePoints);
       setFilteredCandidates(mockCandidatePoints);
+      setPersonalizedCandidates(mockCandidatePoints);
+      setSelectedCandidate(mockCandidatePoints[0]);
       setMessage("");
     }, 500);
   }, []);
@@ -95,11 +115,12 @@ export default function CandidatePointsPage() {
     });
 
     setFilteredCandidates(result);
+    setSelectedCandidate(result[0] || null);
 
     if (result.length === 0) {
       setMessage("Uygun aday nokta bulunamadı.");
     } else {
-      setMessage("");
+      setMessage("Filtreleme uygulandı.");
     }
   }
 
@@ -130,43 +151,240 @@ export default function CandidatePointsPage() {
     setMessage("Aday nokta kaydedildi.");
   }
 
+  function handlePersonalizedResult(result) {
+    setPersonalizedCandidates(result);
+    setFilteredCandidates(result);
+    setSelectedCandidate(result[0] || null);
+  }
+
+  function showCandidateOnMap(candidate) {
+    setActiveTab("candidateMap");
+    setSelectedCandidate(candidate);
+  }
+
   return (
     <div className="candidate-page" data-testid="candidate-points-page">
-      <h1 data-testid="candidate-page-title">Aday Şarj İstasyonu Lokasyonları</h1>
+      <aside className="left-menu" data-testid="left-menu">
+        <button
+          className={activeTab === "home" ? "menu-button active" : "menu-button"}
+          data-testid="home-tab-button"
+          onClick={() => setActiveTab("home")}
+          title="Mevcut istasyon haritası"
+        >
+          🏠
+        </button>
 
-      <p className="page-description" data-testid="candidate-page-description">
-        Bu ekranda aday noktalar mock veri ile gösterilmektedir. Backend ve veri
-        ekibi tamamlandığında aynı ekran API verisiyle çalışacaktır.
-      </p>
+        <button
+          className={activeTab === "candidateMap" ? "menu-button active" : "menu-button"}
+          data-testid="candidate-map-tab-button"
+          onClick={() => setActiveTab("candidateMap")}
+          title="Aday nokta haritası"
+        >
+          ⚡
+        </button>
 
-      <PersonalizationForm
-        candidates={candidates}
-        onResult={setFilteredCandidates}
-      />
+        <button
+          className={activeTab === "saved" ? "menu-button active" : "menu-button"}
+          data-testid="saved-tab-button"
+          onClick={() => setActiveTab("saved")}
+          title="Kaydedilenler"
+        >
+          ☰
+        </button>
 
-      <CandidateFilters
-        filters={filters}
-        setFilters={setFilters}
-        onApply={applyFilters}
-      />
+        <button
+          className={activeTab === "personalization" ? "menu-button active" : "menu-button"}
+          data-testid="personalization-tab-button"
+          onClick={() => setActiveTab("personalization")}
+          title="Kişiselleştirme"
+        >
+          🖌
+        </button>
+      </aside>
 
-      {message && (
-        <div className="info-message" data-testid="candidate-page-message">
-          {message}
-        </div>
-      )}
+      <main className="page-content">
+        {activeTab === "home" && (
+          <section className="map-screen" data-testid="home-map-screen">
+            <div className="map-topbar">
+              <input
+                className="map-search"
+                data-testid="home-search-input"
+                placeholder="Adres veya mahalle ara"
+              />
+              <span className="region-toggle">Bölgeler inaktif</span>
+            </div>
 
-      <div className="candidate-list" data-testid="candidate-list">
-        {filteredCandidates.map((candidate) => (
-          <CandidateCard
-            key={candidate.id}
-            candidate={candidate}
-            onSave={saveCandidate}
-          />
-        ))}
-      </div>
+            <div className="mock-map">
+              <h1>Mevcut İstasyon Haritası</h1>
+              <p>
+                Bu alan Talha'nın mevcut şarj istasyonlarını gösteren harita ekranı
+                ile birleşecek.
+              </p>
 
-      <SavedCandidates refreshKey={savedRefreshKey} />
+              <div className="station-dot dot-1"></div>
+              <div className="station-dot dot-2"></div>
+              <div className="station-dot dot-3"></div>
+              <div className="station-dot dot-4"></div>
+            </div>
+          </section>
+        )}
+
+        {activeTab === "candidateMap" && (
+          <section className="map-screen" data-testid="candidate-map-screen">
+            <div className="map-topbar">
+              <input
+                className="map-search"
+                data-testid="candidate-search-input"
+                placeholder="Aday nokta veya mahalle ara"
+              />
+              <span className="region-toggle">Bölgeler inaktif</span>
+            </div>
+
+            <div className="mock-map candidate-map">
+              <h1>Aday Nokta Haritası</h1>
+              <p>
+                Aday nokta pinlerine tıklayarak detay kartını harita üzerinde
+                görüntüleyebilirsiniz.
+              </p>
+
+              {filteredCandidates.map((candidate, index) => (
+                <button
+                  key={candidate.id}
+                  className={`candidate-pin pin-${index + 1} ${
+                    selectedCandidate?.id === candidate.id ? "selected-pin" : ""
+                  }`}
+                  data-testid={`candidate-map-pin-${candidate.id}`}
+                  title={candidate.name}
+                  onClick={() => setSelectedCandidate(candidate)}
+                ></button>
+              ))}
+
+              {selectedCandidate && (
+                <div
+                  className="map-candidate-popup"
+                  data-testid={`map-candidate-popup-${selectedCandidate.id}`}
+                >
+                  <button
+                    className="popup-close-button"
+                    data-testid="candidate-popup-close-button"
+                    onClick={() => setSelectedCandidate(null)}
+                  >
+                    ×
+                  </button>
+
+                  <small>{selectedCandidate.estimatedAddress}</small>
+
+                  <h3 data-testid={`popup-candidate-name-${selectedCandidate.id}`}>
+                    {selectedCandidate.name}
+                  </h3>
+
+                  <p>
+                    <strong>Tahmini Maliyet:</strong>{" "}
+                    {formatMoney(selectedCandidate.estimatedCost)}
+                  </p>
+
+                  <p>
+                    <strong>Maliyet Skoru:</strong>{" "}
+                    {showScore(selectedCandidate.costScore)}
+                  </p>
+
+                  <p>
+                    <strong>Talep Skoru:</strong>{" "}
+                    {showScore(selectedCandidate.demandScore)}
+                  </p>
+
+                  <p>
+                    <strong>Genel Skor:</strong>{" "}
+                    {showScore(selectedCandidate.generalScore)}
+                  </p>
+
+                  {selectedCandidate.status === "missing" && (
+                    <div className="popup-warning">
+                      Veri Eksik
+                    </div>
+                  )}
+
+                  <button
+                    className="popup-save-button"
+                    data-testid={`popup-save-candidate-button-${selectedCandidate.id}`}
+                    onClick={() => saveCandidate(selectedCandidate)}
+                  >
+                    +
+                  </button>
+                </div>
+              )}
+
+              <div className="map-filter-overlay" data-testid="map-filter-overlay">
+                <CandidateFilters
+                  filters={filters}
+                  setFilters={setFilters}
+                  onApply={applyFilters}
+                />
+              </div>
+            </div>
+
+            {message && (
+              <div className="info-message" data-testid="candidate-page-message">
+                {message}
+              </div>
+            )}
+          </section>
+        )}
+
+        {activeTab === "personalization" && (
+          <section className="standalone-panel" data-testid="personalization-screen">
+            <h1>Kişiselleştirme</h1>
+
+            <p className="page-description">
+              Firma bütçesi, sistem tipi, mekân türü ve bölgeye göre aday noktalar
+              kişiselleştirilir. Sonuçlardan “Haritada Gör” seçilerek aday nokta
+              haritasına gidilir.
+            </p>
+
+            <PersonalizationForm
+              candidates={candidates}
+              onResult={handlePersonalizedResult}
+            />
+
+            <h2 className="section-title">Kişiselleştirilmiş Sonuçlar</h2>
+
+            <div
+              className="personalized-result-list"
+              data-testid="personalized-candidate-list"
+            >
+              {personalizedCandidates.map((candidate) => (
+                <div
+                  key={candidate.id}
+                  className="personalized-result-card"
+                  data-testid={`personalized-candidate-card-${candidate.id}`}
+                >
+                  <div>
+                    <h3>{candidate.name}</h3>
+                    <p>{candidate.estimatedAddress}</p>
+                    <p>
+                      <strong>Genel Skor:</strong>{" "}
+                      {showScore(candidate.generalScore)}
+                    </p>
+                  </div>
+
+                  <button
+                    data-testid={`show-on-map-button-${candidate.id}`}
+                    onClick={() => showCandidateOnMap(candidate)}
+                  >
+                    Haritada Gör
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {activeTab === "saved" && (
+          <section className="standalone-panel" data-testid="saved-screen">
+            <SavedCandidates refreshKey={savedRefreshKey} />
+          </section>
+        )}
+      </main>
     </div>
   );
 }
