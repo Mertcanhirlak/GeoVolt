@@ -24,7 +24,9 @@ function LoginPage() {
     try {
       const data = await login(email, password);
       loginUser(data.token);
-      navigate("/");
+
+      // KANKA: Seni ana sayfada ezip geçen arkadaşının paneline fırlatıyoruz!
+      navigate("/dashboard");
     } catch (err) {
       setError(err.message);
     } finally {

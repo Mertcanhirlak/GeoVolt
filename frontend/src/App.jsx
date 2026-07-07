@@ -1,44 +1,22 @@
-import { useAuth } from "./context/AuthContext";
-import LoginPage from "./pages/LoginPage";
+﻿import React from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import CandidatePointsPage from "./pages/CandidatePointsPage";
+import LoginPage from "./pages/LoginPage"; 
 import "./App.css";
 
-function MainDashboard() {
-  const { user, logoutUser, role } = useAuth();
-
+export default function App() {
   return (
-    <div style={{ padding: "20px", color: "var(--color-text)" }}>
-      <h1>GeoVolt Projesine Hoş Geldiniz!</h1>
-      <p>Giriş Yapan: <strong>{user?.fullName}</strong></p>
-      <p>Rolünüz: <strong>{role}</strong></p>
-
-      {role === "CompanyAdmin" && (
-        <div style={{ border: "2px solid green", padding: "15px", margin: "10px 0" }}>
-          <h3>Firma Yönetici Paneli</h3>
-          <p>Buradan en fazla 2 adet çalışan (CompanyUser) ekleyebilirsiniz.</p>
-        </div>
-      )}
-
-      {role === "CompanyUser" && (
-        <div style={{ border: "2px solid blue", padding: "15px", margin: "10px 0" }}>
-          <h3>Firma Çalışan Paneli</h3>
-          <p>Harita ve Aday Noktalar modülü aktif.</p>
-        </div>
-      )}
-
-      <button
-        onClick={logoutUser}
-        style={{ padding: "10px", background: "red", color: "white", border: "none", cursor: "pointer", marginTop: "20px" }}
-      >
-        Çıkış Yap
-      </button>
-    </div>
+    <Router>
+      <Routes>
+        {/* İlk açılış*/}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        
+        {/* Login sayfsı */}
+        <Route path="/login" element={<LoginPage />} />
+        
+        {/*şarj istasyonları sayfası */}
+        <Route path="/dashboard" element={<CandidatePointsPage />} />
+      </Routes>
+    </Router>
   );
 }
-
-
-function App() {
-  const { isAuthenticated } = useAuth();
-  return isAuthenticated ? <MainDashboard /> : <LoginPage />;
-}
-
-export default App;

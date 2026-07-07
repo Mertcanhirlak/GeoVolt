@@ -1,118 +1,227 @@
-:root {
-  --geovolt-bg: #0b0f19;
-  --geovolt-surface: #151d30;
-  --geovolt-surface-light: #1f2a45;
-  --geovolt-border: #263554;
-  --geovolt-text: #f3f4f6;
-  --geovolt-text-muted: #9ca3af;
-  --geovolt-primary: #00ffcc; /* Elektrik/Neon Yeşili */
-  --geovolt-primary-hover: #00cc99;
-  --geovolt-accent: #ffb703; /* Enerji Sarısı */
-  --geovolt-danger: #ef4444;
-}
-
-* {
-  box-sizing: border-box;
+﻿body {
   margin: 0;
-  padding: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f4f6f8;
+  color: #1f2937;
 }
 
-body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background-color: var(--geovolt-bg);
-  color: var(--geovolt-text);
-  overflow-x: hidden;
+.candidate-page {
+  padding: 24px;
 }
 
-.geovolt-app {
+.page-description {
+  color: #4b5563;
+  margin-bottom: 20px;
+}
+
+.filter-panel {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+
+.filter-grid label {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-}
-
-/* Navbar Stili */
-.geovolt-nav {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 2rem;
-  background-color: var(--geovolt-surface);
-  border-bottom: 2px solid var(--geovolt-border);
-}
-
-.geovolt-logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 1.5rem;
   font-weight: bold;
-  color: var(--geovolt-primary);
+  font-size: 14px;
 }
 
-.geovolt-logo-icon {
-  width: 30px;
-  height: 30px;
-  background: linear-gradient(135deg, var(--geovolt-primary), var(--geovolt-accent));
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--geovolt-bg);
-  font-weight: 900;
-}
-
-.geovolt-menu {
-  display: flex;
-  gap: 1.5rem;
-}
-
-.geovolt-menu-item {
-  color: var(--geovolt-text-muted);
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.3s;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-}
-
-.geovolt-menu-item:hover, .geovolt-menu-item.active {
-  color: var(--geovolt-primary);
-  background-color: var(--geovolt-surface-light);
-}
-
-/* Modern Popup Formu */
-.geovolt-popup {
-  background-color: var(--geovolt-surface);
-  border: 1px solid var(--geovolt-border);
-  padding: 1.5rem;
+input,
+select {
+  margin-top: 6px;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-  color: var(--geovolt-text);
-  min-width: 280px;
 }
 
-.geovolt-input {
-  width: 100%;
-  padding: 0.75rem;
-  background-color: var(--geovolt-bg);
-  border: 1px solid var(--geovolt-border);
-  color: var(--geovolt-text);
-  border-radius: 4px;
-  margin-top: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.geovolt-btn {
-  background-color: var(--geovolt-primary);
-  color: var(--geovolt-bg);
+button {
+  margin-top: 15px;
+  padding: 10px 16px;
   border: none;
-  padding: 0.75rem 1.5rem;
-  font-weight: bold;
-  border-radius: 4px;
+  border-radius: 8px;
+  background-color: #2563eb;
+  color: white;
   cursor: pointer;
-  width: 100%;
+  font-weight: bold;
 }
 
-.geovolt-btn:hover {
-  background-color: var(--geovolt-primary-hover);
+button:hover {
+  background-color: #1d4ed8;
+}
+
+.info-message {
+  background: #fff7ed;
+  color: #9a3412;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid #fed7aa;
+}
+
+.candidate-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.candidate-card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  border-left: 5px solid #2563eb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.candidate-card h3 {
+  margin-top: 0;
+}
+
+.score-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #eff6ff;
+  padding: 10px;
+  border-radius: 8px;
+  margin: 12px 0;
+}
+
+.warning-box {
+  background: #fef2f2;
+  color: #991b1b;
+  padding: 10px;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+@media (max-width: 900px) {
+  .filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .candidate-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+.saved-panel {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-top: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.saved-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.saved-card {
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 10px;
+  border-left: 5px solid #16a34a;
+}
+
+.empty-message {
+  color: #64748b;
+}
+
+.delete-button {
+  background-color: #dc2626;
+}
+
+.delete-button:hover {
+  background-color: #b91c1c;
+}
+
+.filter-panel h2,
+.saved-panel h2 {
+  color: #1f2937;
+  text-align: center;
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+.candidate-page h1 {
+  color: #111827;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.candidate-card,
+.saved-card,
+.filter-panel,
+.saved-panel {
+  color: #1f2937;
+}
+
+.personalization-panel {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.personalization-panel h2 {
+  color: #1f2937;
+  text-align: center;
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+.personalization-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+
+.personalization-grid label {
+  display: flex;
+  flex-direction: column;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.personalization-grid button {
+  align-self: end;
+}
+
+@media (max-width: 900px) {
+  .personalization-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.candidate-page {
+  padding: 32px 24px;
+}
+
+.candidate-page h1 {
+  color: #111827;
+  text-align: center;
+  font-size: 36px;
+  line-height: 1.2;
+  margin: 0 0 14px 0;
+}
+
+.page-description {
+  color: #4b5563;
+  text-align: center;
+  max-width: 850px;
+  margin: 0 auto 28px auto;
+  font-size: 16px;
+  line-height: 1.6;
 }

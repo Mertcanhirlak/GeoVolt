@@ -1,5 +1,6 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const MOCK_MODE = true; 
+
+const API_BASE_URL = "http://localhost:5000"; 
+const MOCK_MODE = false; 
 
 const mockUsers = [
   { email: "admin@sistem.com", password: "123456", id: 1, companyId: null, fullName: "Sistem Yöneticisi", role: "SystemAdmin", isActive: true },
@@ -38,7 +39,11 @@ export async function login(email, password) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
-  if (!res.ok) throw new Error("Giriş başarısız");
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || "Email veya şifre hatalı");
+  }
   return res.json();
 }
 
