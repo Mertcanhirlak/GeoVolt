@@ -1,19 +1,14 @@
-﻿import React from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+﻿import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import CandidatePointsPage from "./pages/CandidatePointsPage";
-<<<<<<< HEAD
-import LoginPage from "./pages/LoginPage"; 
-=======
 import LoginPage from "./pages/LoginPage";
 import AdminPanel from "./pages/AdminPanel";
 import { useAuth } from "./context/AuthContext";
->>>>>>> origin/main
 import "./App.css";
 
 function ProtectedRoute({ children }) {
-  const { isAuthenticated } = useAuth();
+  const { token } = useAuth();
 
-  if (!isAuthenticated) {
+  if (!token) {
     return <Navigate to="/login" replace />;
   }
 
@@ -21,35 +16,29 @@ function ProtectedRoute({ children }) {
 }
 
 function AdminRoute({ children }) {
-  const { isAuthenticated, isAdmin } = useAuth();
+  const { token, user } = useAuth();
 
-  if (!isAuthenticated) {
+  if (!token) {
     return <Navigate to="/login" replace />;
   }
 
-  if (!isAdmin) {
+  const role = user?.role || user?.Role;
+
+  if (role !== "SystemAdmin" && role !== "Admin") {
     return <Navigate to="/dashboard" replace />;
   }
 
   return children;
 }
 
-export default function App() {
+function App() {
   return (
     <Router>
       <Routes>
-<<<<<<< HEAD
-        {/* İlk açılış*/}
         <Route path="/" element={<Navigate to="/login" replace />} />
-        
-        {/* Login sayfsı */}
+
         <Route path="/login" element={<LoginPage />} />
-        
-        {/*şarj istasyonları sayfası */}
-        <Route path="/dashboard" element={<CandidatePointsPage />} />
-=======
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="/login" element={<LoginPage />} />
+
         <Route
           path="/dashboard"
           element={
@@ -58,6 +47,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/admin"
           element={
@@ -66,8 +56,11 @@ export default function App() {
             </AdminRoute>
           }
         />
->>>>>>> origin/main
+
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>
   );
 }
+
+export default App;
