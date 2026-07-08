@@ -12,6 +12,8 @@ using GeoVolt.Application.Regions.Abstractions;
 using GeoVolt.Infrastructure.Regions;
 using GeoVolt.Application.ChargingStations.Abstractions;
 using GeoVolt.Infrastructure.ChargingStations;
+using GeoVolt.Application.Neighborhoods.Abstractions;
+using GeoVolt.Infrastructure.Neighborhoods;
 
 namespace GeoVolt.Infrastructure;
 
@@ -70,6 +72,8 @@ public static class DependencyInjection
         services.AddScoped<IRegionRepository, RegionRepository>();
         // Şarj istasyonu repository kaydı
         services.AddScoped<IChargingStationRepository, ChargingStationRepository>();
+        // Mahalle repository kaydı
+        services.AddScoped<INeighborhoodRepository, NeighborhoodRepository>();
         return services;
     }
 }
