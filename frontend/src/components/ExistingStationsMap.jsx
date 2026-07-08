@@ -1,16 +1,24 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Feature from "ol/Feature";
+import Map from "ol/Map";
+import Overlay from "ol/Overlay";
+import View from "ol/View";
+import GeoJSON from "ol/format/GeoJSON";
+import Point from "ol/geom/Point";
+import TileLayer from "ol/layer/Tile";
+import VectorLayer from "ol/layer/Vector";
+import "ol/ol.css";
+import { fromLonLat } from "ol/proj";
+import OSM from "ol/source/OSM";
+import VectorSource from "ol/source/Vector";
+import { Circle as CircleStyle, Fill, Icon, Stroke, Style, Text } from "ol/style";
 import { mockChargingStations } from "../data/mockChargingStations";
 import { getChargingStationDetail, getChargingStations, getRegions } from "../services/mapDataApi";
 import "./ExistingStationsMap.css";
 
-const ANKARA_BOUNDS = {
-  minLat: 39.82,
-  maxLat: 39.95,
-  minLng: 32.78,
-  maxLng: 32.89,
-};
+const CANKAYA_CENTER = fromLonLat([32.8541, 39.9208]);
 
-const regionPlacements = [
+const fallbackRegionPlacements = [
   { left: 34, top: 18, width: 19, height: 22 },
   { left: 18, top: 25, width: 20, height: 24 },
   { left: 48, top: 28, width: 19, height: 25 },
@@ -21,28 +29,17 @@ const regionPlacements = [
   { left: 43, top: 58, width: 18, height: 24 },
 ];
 
-function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max);
-}
-
-function getStationPosition(station) {
-  if (Number.isFinite(station.x) && Number.isFinite(station.y)) {
-    return { x: station.x, y: station.y };
-  }
-
-  const lngRatio = (station.longitude - ANKARA_BOUNDS.minLng) / (ANKARA_BOUNDS.maxLng - ANKARA_BOUNDS.minLng);
-  const latRatio = (ANKARA_BOUNDS.maxLat - station.latitude) / (ANKARA_BOUNDS.maxLat - ANKARA_BOUNDS.minLat);
-
-  return {
-    x: clamp(lngRatio * 100, 8, 92),
-    y: clamp(latRatio * 100, 12, 88),
-  };
-}
+const regionColors = [
+  "rgba(134, 239, 172, 0.34)",
+  "rgba(147, 197, 253, 0.34)",
+  "rgba(252, 211, 77, 0.36)",
+  "rgba(248, 113, 113, 0.28)",
+  "rgba(196, 181, 253, 0.34)",
+  "rgba(45, 212, 191, 0.28)",
+];
 
 function formatConnectors(connectors = []) {
-  if (!Array.isArray(connectors) || connectors.length === 0) {
-    return null;
-  }
+  if (!Array.isArray(connectors) || connectors.length === 0) return null;
 
   return connectors
     .map((connector) => {
@@ -53,12 +50,9 @@ function formatConnectors(connectors = []) {
 }
 
 function formatPower(connectors = []) {
-  if (!Array.isArray(connectors) || connectors.length === 0) {
-    return null;
-  }
+  if (!Array.isArray(connectors) || connectors.length === 0) return null;
 
   const maxPower = Math.max(...connectors.map((connector) => Number(connector.powerKw) || 0));
-
   return maxPower > 0 ? `${maxPower} kW` : null;
 }
 
@@ -79,13 +73,11 @@ function normalizeStation(station, regionLookup = new Map()) {
     socketType: station.socketType || station.connectorType || connectorText || "Detay icin tiklayin",
     status,
     power: station.power || powerText || station.operatorName || "Operator bilgisi yok",
-    ...getStationPosition(station),
   };
 }
 
 function matchesSearch(station, searchTerm) {
   const normalizedTerm = searchTerm.trim().toLocaleLowerCase("tr-TR");
-
   if (!normalizedTerm) return true;
 
   return [station.name, station.neighborhood, station.address, station.socketType]
@@ -94,26 +86,156 @@ function matchesSearch(station, searchTerm) {
     .includes(normalizedTerm);
 }
 
+function createPinStyle(station, isSelected) {
+  const color = station.status === "Aktif" ? "#ef233c" : "#f59e0b";
+
+  return new Style({
+    image: new Icon({
+      src:
+        "data:image/svg+xml;utf8," +
+        encodeURIComponent(
+          `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36"><path d="M14 34s11-10.6 11-21A11 11 0 1 0 3 13c0 10.4 11 21 11 21z" fill="${isSelected ? "#2563eb" : color}" stroke="white" stroke-width="3"/><circle cx="14" cy="13" r="4.5" fill="white"/></svg>`
+        ),
+      anchor: [0.5, 1],
+      scale: isSelected ? 1.18 : 0.86,
+    }),
+  });
+}
+
+function createRegionStyle(feature) {
+  const index = feature.get("regionIndex") ?? 0;
+
+  return new Style({
+    fill: new Fill({ color: regionColors[index % regionColors.length] }),
+    stroke: new Stroke({ color: "rgba(220, 38, 38, 0.82)", width: 2.5 }),
+    text: new Text({
+      text: feature.get("name") || "",
+      fill: new Fill({ color: "rgba(15, 23, 42, 0.72)" }),
+      stroke: new Stroke({ color: "rgba(255, 255, 255, 0.8)", width: 3 }),
+      font: "700 12px Arial, sans-serif",
+    }),
+  });
+}
+
+function createStationFeature(station, selectedStationId) {
+  const feature = new Feature({
+    geometry: new Point(fromLonLat([station.longitude, station.latitude])),
+    station,
+  });
+
+  feature.setStyle(createPinStyle(station, station.id === selectedStationId));
+  return feature;
+}
+
+function parseRegionFeatures(regions) {
+  const parser = new GeoJSON();
+
+  return regions.flatMap((region, index) => {
+    if (!region.boundaryGeoJson) return [];
+
+    try {
+      const geoJson = JSON.parse(region.boundaryGeoJson);
+      const features = parser.readFeatures(geoJson, {
+        dataProjection: "EPSG:4326",
+        featureProjection: "EPSG:3857",
+      });
+
+      return features.map((feature) => {
+        feature.set("name", region.name);
+        feature.set("regionIndex", index);
+        return feature;
+      });
+    } catch {
+      return [];
+    }
+  });
+}
+
 function getRegionVariant(index) {
   return `variant-${(index % 6) + 1}`;
 }
 
 export default function ExistingStationsMap({ searchTerm = "", regionsActive = false }) {
+  const mapElementRef = useRef(null);
+  const popupElementRef = useRef(null);
+  const mapRef = useRef(null);
+  const stationSourceRef = useRef(new VectorSource());
+  const regionSourceRef = useRef(new VectorSource());
+  const popupOverlayRef = useRef(null);
+
   const [selectedStationId, setSelectedStationId] = useState(null);
   const [stations, setStations] = useState(mockChargingStations);
   const [regions, setRegions] = useState([]);
   const [source, setSource] = useState("mock");
   const [loadingDetailId, setLoadingDetailId] = useState(null);
 
+  const visibleStations = useMemo(() => {
+    return stations.filter((station) => matchesSearch(station, searchTerm));
+  }, [searchTerm, stations]);
+
+  const selectedStation =
+    visibleStations.find((station) => station.id === selectedStationId) ?? visibleStations[0] ?? null;
+
+  useEffect(() => {
+    if (!mapElementRef.current || !popupElementRef.current || mapRef.current) return;
+
+    const popupOverlay = new Overlay({
+      element: popupElementRef.current,
+      positioning: "bottom-left",
+      offset: [16, -10],
+      stopEvent: true,
+    });
+
+    popupOverlayRef.current = popupOverlay;
+
+    const map = new Map({
+      target: mapElementRef.current,
+      layers: [
+        new TileLayer({
+          source: new OSM(),
+        }),
+        new VectorLayer({
+          source: regionSourceRef.current,
+          style: createRegionStyle,
+        }),
+        new VectorLayer({
+          source: stationSourceRef.current,
+          zIndex: 5,
+        }),
+      ],
+      overlays: [popupOverlay],
+      view: new View({
+        center: CANKAYA_CENTER,
+        zoom: 12.4,
+        minZoom: 11,
+        maxZoom: 17,
+      }),
+      controls: [],
+    });
+
+    map.on("singleclick", (event) => {
+      const feature = map.forEachFeatureAtPixel(event.pixel, (item) => item);
+      const station = feature?.get("station");
+
+      if (station) {
+        selectStation(station.id);
+      }
+    });
+
+    mapRef.current = map;
+
+    return () => {
+      map.setTarget(undefined);
+      mapRef.current = null;
+    };
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
 
     async function loadMapData() {
       try {
-        const [stationData, regionData] = await Promise.all([
-          getChargingStations(),
-          getRegions(),
-        ]);
+        const [stationData, regionData] = await Promise.all([getChargingStations(), getRegions()]);
 
         if (!isMounted) return;
 
@@ -139,21 +261,44 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
     };
   }, []);
 
-  const visibleStations = useMemo(() => {
-    return stations.filter((station) => matchesSearch(station, searchTerm));
-  }, [searchTerm, stations]);
+  useEffect(() => {
+    stationSourceRef.current.clear();
+    stationSourceRef.current.addFeatures(
+      visibleStations.map((station) => createStationFeature(station, selectedStation?.id))
+    );
 
-  const selectedStation =
-    visibleStations.find((station) => station.id === selectedStationId) ?? visibleStations[0] ?? null;
+    if (!selectedStation && popupOverlayRef.current) {
+      popupOverlayRef.current.setPosition(undefined);
+    }
+  }, [visibleStations, selectedStation]);
+
+  useEffect(() => {
+    regionSourceRef.current.clear();
+
+    if (!regionsActive) return;
+
+    const regionFeatures = parseRegionFeatures(regions);
+    regionSourceRef.current.addFeatures(regionFeatures);
+  }, [regions, regionsActive]);
 
   useEffect(() => {
     if (!selectedStation || selectedStationId !== null || source !== "api") return;
-
     selectStation(selectedStation.id);
   }, [selectedStation, selectedStationId, source]);
 
+  useEffect(() => {
+    if (!selectedStation || !popupOverlayRef.current) return;
+
+    popupOverlayRef.current.setPosition(fromLonLat([selectedStation.longitude, selectedStation.latitude]));
+  }, [selectedStation]);
+
   async function selectStation(stationId) {
     setSelectedStationId(stationId);
+
+    const station = stations.find((item) => item.id === stationId);
+    if (station && popupOverlayRef.current) {
+      popupOverlayRef.current.setPosition(fromLonLat([station.longitude, station.latitude]));
+    }
 
     if (source !== "api") return;
 
@@ -165,7 +310,7 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
       const normalizedDetail = normalizeStation(detail, regionLookup);
 
       setStations((currentStations) =>
-        currentStations.map((station) => (station.id === stationId ? normalizedDetail : station))
+        currentStations.map((item) => (item.id === stationId ? normalizedDetail : item))
       );
     } catch {
       // Keep the list data visible if the optional detail request fails.
@@ -176,10 +321,10 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
 
   return (
     <div className="existing-map" data-testid="existing-stations-map">
-      <div className="existing-map-grid" />
+      <div ref={mapElementRef} className="openlayers-map" />
 
-      {regionsActive && (
-        <div className="existing-region-layer" aria-hidden="true">
+      {regionsActive && regionSourceRef.current.getFeatures().length === 0 && (
+        <div className="existing-region-layer fallback-regions" aria-hidden="true">
           {(regions.length > 0 ? regions : [
             { id: 1, name: "Kizilay" },
             { id: 2, name: "Sogutozu" },
@@ -189,32 +334,28 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
             { id: 6, name: "Cukurambar" },
             { id: 7, name: "Bahcelievler" },
             { id: 8, name: "Kavaklidere" },
-          ]).slice(0, 8).map((region, index) => {
-            const placement = regionPlacements[index % regionPlacements.length];
+          ])
+            .slice(0, 8)
+            .map((region, index) => {
+              const placement = fallbackRegionPlacements[index % fallbackRegionPlacements.length];
 
-            return (
-              <div
-                key={region.id ?? region.name}
-                className={`existing-region ${getRegionVariant(index)}`}
-                style={{
-                  left: `${placement.left}%`,
-                  top: `${placement.top}%`,
-                  width: `${placement.width}%`,
-                  height: `${placement.height}%`,
-                }}
-              >
-                {region.name}
-              </div>
-            );
-          })}
+              return (
+                <div
+                  key={region.id ?? region.name}
+                  className={`existing-region ${getRegionVariant(index)}`}
+                  style={{
+                    left: `${placement.left}%`,
+                    top: `${placement.top}%`,
+                    width: `${placement.width}%`,
+                    height: `${placement.height}%`,
+                  }}
+                >
+                  {region.name}
+                </div>
+              );
+            })}
         </div>
       )}
-
-      <div className="existing-road road-main" />
-      <div className="existing-road road-secondary" />
-      <div className="existing-road road-ring" />
-      <div className="existing-road road-diagonal" />
-      <div className="existing-water" />
 
       {regionsActive && (
         <div className="selection-overlay" aria-hidden="true">
@@ -226,68 +367,34 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
         </div>
       )}
 
-      {visibleStations.map((station) => (
-        <button
-          key={station.id}
-          type="button"
-          className={`existing-station-marker ${
-            selectedStation?.id === station.id ? "selected" : ""
-          } ${station.status !== "Aktif" ? "maintenance" : ""}`}
-          style={{ left: `${station.x}%`, top: `${station.y}%` }}
-          title={station.name}
-          data-testid={`existing-station-marker-${station.id}`}
-          onClick={() => selectStation(station.id)}
-        >
-          <span className="marker-pin" />
-        </button>
-      ))}
-
-      {selectedStation && (
-        <article
-          className="existing-station-popup"
-          style={{
-            left: `${Math.min(selectedStation.x + 3, 74)}%`,
-            top: `${Math.max(selectedStation.y - 14, 14)}%`,
-          }}
-          data-testid="existing-station-popup"
-        >
-          <div>
-            <span>{selectedStation.neighborhood}</span>
-            <strong>{selectedStation.status}</strong>
-          </div>
-
-          <h2>{selectedStation.name}</h2>
-          <p>{selectedStation.address}</p>
-
-          <dl>
+      <div ref={popupElementRef} className="existing-station-popup" data-testid="existing-station-popup">
+        {selectedStation && (
+          <>
             <div>
-              <dt>Soket</dt>
-              <dd>
-                {loadingDetailId === selectedStation.id ? "Yukleniyor..." : selectedStation.socketType}
-              </dd>
+              <span>{selectedStation.neighborhood}</span>
+              <strong>{selectedStation.status}</strong>
             </div>
-            <div>
-              <dt>Guc</dt>
-              <dd>{selectedStation.power}</dd>
-            </div>
-          </dl>
-        </article>
-      )}
 
-      <div className="existing-map-scale" aria-hidden="true">
-        <button type="button">−</button>
-        <button type="button">+</button>
+            <h2>{selectedStation.name}</h2>
+            <p>{selectedStation.address}</p>
+
+            <dl>
+              <div>
+                <dt>Soket</dt>
+                <dd>
+                  {loadingDetailId === selectedStation.id ? "Yukleniyor..." : selectedStation.socketType}
+                </dd>
+              </div>
+              <div>
+                <dt>Guc</dt>
+                <dd>{selectedStation.power}</dd>
+              </div>
+            </dl>
+          </>
+        )}
       </div>
 
-      <button className="map-cube-control" type="button" title="Harita katmanlari">
-        <span />
-        <span />
-        <span />
-      </button>
-
-      <div className="existing-map-source">
-        {source === "api" ? "Canli veri" : "Mock veri"}
-      </div>
+      <div className="existing-map-source">{source === "api" ? "Canli veri" : "Mock veri"}</div>
     </div>
   );
 }
