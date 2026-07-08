@@ -1,0 +1,43 @@
+.geovolt-logo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.geovolt-logo__mark {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.geovolt-logo__pulse {
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  border: 1px solid var(--color-geo);
+  box-shadow: var(--glow-geo);
+  opacity: 0;
+  animation: geovolt-pulse 2.4s ease-out infinite;
+}
+
+@keyframes geovolt-pulse {
+  0% { transform: scale(0.7); opacity: 0.6; }
+  80% { transform: scale(1.4); opacity: 0; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .geovolt-logo__pulse {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+.geovolt-logo__wordmark {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: var(--color-text);
+  letter-spacing: -0.02em;
+}
