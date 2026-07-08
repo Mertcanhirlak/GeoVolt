@@ -1,10 +1,24 @@
 .admin-page {
   min-height: 100vh;
+  height: auto;
   box-sizing: border-box;
   padding: 28px;
   background: #eef5f2;
   color: #172026;
   font-family: "Segoe UI", Arial, sans-serif;
+  overflow: visible;
+}
+
+body:has(.admin-page) {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+#root:has(.admin-page) {
+  min-height: 100vh;
+  height: auto;
+  display: block;
+  overflow: visible;
 }
 
 .admin-top-logo {
