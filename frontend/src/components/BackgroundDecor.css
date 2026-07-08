@@ -1,0 +1,36 @@
+.bg-decor {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.bg-decor__blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+}
+
+.bg-decor__blob--amber {
+  width: 420px;
+  height: 420px;
+  background: var(--color-volt);
+  opacity: 0.35;
+  top: -140px;
+  left: -120px;
+}
+
+.bg-decor__blob--teal {
+  width: 380px;
+  height: 380px;
+  background: var(--color-geo);
+  opacity: 0.3;
+  bottom: -140px;
+  right: -100px;
+}
+
+.bg-decor__icon {
+  position: absolute;
+  color: var(--color-text);
+}

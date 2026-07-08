@@ -15,9 +15,12 @@ public sealed class GeoVoltDbContext : DbContext
 
     public DbSet<Company> Companies => Set<Company>();
 
+    public DbSet<SavedCandidatePoint> SavedCandidatePoints => Set<SavedCandidatePoint>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfiguration(new CompanyConfiguration());
+        modelBuilder.ApplyConfiguration(new SavedCandidatePointConfiguration());
         modelBuilder.ApplyConfiguration(new UserConfiguration());
     }
 }
