@@ -20,11 +20,14 @@ public sealed class ChargingStationsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAllAsync(
         [FromQuery] int? regionId,
+        [FromQuery] int? neighborhoodId,
         CancellationToken cancellationToken)
     {
-        // Tüm istasyonları veya bölgeye göre filtrelenmiş istasyonları getirir
+        // Tüm istasyonları veya bölge ve mahalleye göre
+        // filtrelenmiş istasyonları getirir
         var stations = await _chargingStationService.GetAllAsync(
             regionId,
+            neighborhoodId,
             cancellationToken);
 
         return Ok(stations);

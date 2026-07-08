@@ -16,12 +16,15 @@ public sealed class ChargingStationService : IChargingStationService
     }
 
     public async Task<IReadOnlyList<ChargingStationResponseDto>> GetAllAsync(
-        int? regionId = null,
-        CancellationToken cancellationToken = default)
+    int? regionId = null,
+    int? neighborhoodId = null,
+    CancellationToken cancellationToken = default)
     {
-        // Tüm istasyonları veya bölgeye göre filtrelenmiş istasyonları getirir
+        // Tüm istasyonları veya bölge ve mahalleye göre filtrelenmiş
+        // istasyonları getirir
         var stations = await _chargingStationRepository.GetAllAsync(
             regionId,
+            neighborhoodId,
             cancellationToken);
 
         // Entity listesini DTO listesine dönüştürür
@@ -29,7 +32,6 @@ public sealed class ChargingStationService : IChargingStationService
             .Select(MapToResponseDto)
             .ToList();
     }
-
     public async Task<ChargingStationDetailResponseDto?> GetByIdAsync(
         int id,
         CancellationToken cancellationToken = default)
@@ -58,6 +60,7 @@ public sealed class ChargingStationService : IChargingStationService
             Name = station.Name,
             OperatorName = station.OperatorName,
             RegionId = station.RegionId,
+            NeighborhoodId = station.NeighborhoodId,
             Address = station.Address,
 
             // Point.Y enlem bilgisidir
@@ -91,6 +94,7 @@ public sealed class ChargingStationService : IChargingStationService
             Name = station.Name,
             OperatorName = station.OperatorName,
             RegionId = station.RegionId,
+            NeighborhoodId = station.NeighborhoodId,
             Address = station.Address,
 
             // Point.Y enlem bilgisidir

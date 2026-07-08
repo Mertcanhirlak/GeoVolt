@@ -1,4 +1,5 @@
 using GeoVolt.Application.Admin.Abstractions;
+using GeoVolt.Domain.Constants;
 using GeoVolt.Domain.Entities;
 using GeoVolt.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -43,6 +44,13 @@ public sealed class AdminRepository : IAdminRepository
         return _dbContext.Users.CountAsync(user => user.CompanyId == companyId, cancellationToken);
     }
 
+    public Task<int> GetCompanyUserCountExceptAsync(int companyId, int userId, CancellationToken cancellationToken)
+    {
+        return _dbContext.Users.CountAsync(
+            user => user.CompanyId == companyId && user.Id != userId,
+            cancellationToken);
+    }
+
     public Task<bool> EmailExistsAsync(string email, CancellationToken cancellationToken)
     {
         return _dbContext.Users.AnyAsync(user => user.Email == email, cancellationToken);
@@ -65,5 +73,42 @@ public sealed class AdminRepository : IAdminRepository
             .OrderBy(user => user.Company!.Name)
             .ThenBy(user => user.FullName)
             .ToListAsync(cancellationToken);
+    }
+
+    public Task<User?> GetUserByIdAsync(int userId, CancellationToken cancellationToken)
+    {
+        return _dbContext.Users
+            .Include(user => user.Company)
+            .FirstOrDefaultAsync(user => user.Id == userId, cancellationToken);
+    }
+
+    public Task<int> GetAdminUserCountAsync(CancellationToken cancellationToken)
+    {
+        return _dbContext.Users.CountAsync(user => user.Role == UserRoles.Admin, cancellationToken);
+    }
+
+    public async Task<User> UpdateUserAsync(User user, CancellationToken cancellationToken)
+    {
+        user.UpdatedAtUtc = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _dbContext.Entry(user).Reference(item => item.Company).LoadAsync(cancellationToken);
+
+        return user;
+    }
+
+    public async Task<bool> DeleteUserAsync(User user, CancellationToken cancellationToken)
+    {
+        _dbContext.Users.Remove(user);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return true;
+    }
+
+    public async Task<bool> DeleteCompanyAsync(Company company, CancellationToken cancellationToken)
+    {
+        _dbContext.Companies.Remove(company);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return true;
     }
 }

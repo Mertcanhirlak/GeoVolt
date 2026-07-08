@@ -1,6 +1,11 @@
 ﻿import React, { useState } from "react";
 
-export default function PersonalizationForm({ candidates, onResult }) {
+export default function PersonalizationForm({
+  candidates,
+  regions,
+  onResult,
+  onRegionChange
+}) {
   const [form, setForm] = useState({
     budgetMin: "",
     budgetMax: "",
@@ -14,10 +19,17 @@ export default function PersonalizationForm({ candidates, onResult }) {
   function handleChange(event) {
     const { name, value } = event.target;
 
-    setForm({
+    const updatedForm = {
       ...form,
       [name]: value
-    });
+    };
+
+    setForm(updatedForm);
+
+    if (name === "region" && onRegionChange) {
+      const selectedRegion = regions.find((region) => region.name === value);
+      onRegionChange(selectedRegion?.id || 0);
+    }
   }
 
   function handleSubmit(event) {
@@ -160,12 +172,13 @@ export default function PersonalizationForm({ candidates, onResult }) {
             value={form.region}
             onChange={handleChange}
           >
-            <option value="Tümü">Tümü</option>
-            <option value="Kızılay">Kızılay</option>
-            <option value="Söğütözü">Söğütözü</option>
-            <option value="Bahçelievler">Bahçelievler</option>
-            <option value="Oran">Oran</option>
-            <option value="Tunalı">Tunalı</option>
+            {(regions.length > 0 ? regions : [{ id: 0, name: "Tümü" }]).map(
+              (region) => (
+                <option key={region.id} value={region.name}>
+                  {region.name}
+                </option>
+              )
+            )}
           </select>
         </label>
 

@@ -13,7 +13,8 @@ public sealed class ChargingStationResponseDto
 
     // İstasyonun bağlı olduğu bölge kimliği
     public int RegionId { get; set; }
-
+    // İstasyonun bağlı olduğu mahalle kimliği
+    public int NeighborhoodId { get; set; }
     // İstasyonun açık adresi
     public string Address { get; set; } = string.Empty;
 

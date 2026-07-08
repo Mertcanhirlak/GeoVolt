@@ -98,4 +98,11 @@ public sealed class MockCandidatePointRepository : ICandidatePointRepository
     {
         return Task.FromResult(CandidatePoints);
     }
+
+    public Task<CandidatePoint?> GetCandidatePointByIdAsync(int id, CancellationToken cancellationToken)
+    {
+        var candidatePoint = CandidatePoints.FirstOrDefault(candidatePoint => candidatePoint.Id == id);
+
+        return Task.FromResult(candidatePoint);
+    }
 }

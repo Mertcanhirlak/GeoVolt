@@ -4,7 +4,8 @@ using GeoVolt.Application.Regions.Abstractions;
 using GeoVolt.Application.Regions.Dtos;
 using GeoVolt.Domain.Entities;
 using NetTopologySuite.Geometries;
-//bölge ve istasyon verilerini yönetmek için servis sınıfı
+
+// Bölge ve istasyon verilerini yönetmek için servis sınıfı
 namespace GeoVolt.Application.Regions;
 
 public sealed class RegionService : IRegionService
@@ -72,10 +73,12 @@ public sealed class RegionService : IRegionService
             id,
             cancellationToken);
 
-        // Seçilen bölgedeki istasyonları getirir
+        // Seçilen bölgedeki tüm istasyonları getirir
+        // Mahalle filtresi uygulanmaz
         var stations = await _chargingStationRepository.GetAllAsync(
-            id,
-            cancellationToken);
+            regionId: id,
+            neighborhoodId: null,
+            cancellationToken: cancellationToken);
 
         // Her istasyona ait connector verilerini getirir
         var connectorTasks = stations

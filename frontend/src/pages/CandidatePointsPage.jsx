@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { getCandidatePoints } from "../services/candidatePointsApi";
+import { saveCandidatePoint } from "../services/savedCandidatePointsApi";
+import { getRegions, getRegionSummary } from "../services/regionsApi";
 import CandidateFilters from "../components/CandidateFilters";
 import SavedCandidates from "../components/SavedCandidates";
 import PersonalizationForm from "../components/PersonalizationForm";
@@ -52,6 +54,9 @@ export default function CandidatePointsPage() {
   const [candidates, setCandidates] = useState([]);
   const [filteredCandidates, setFilteredCandidates] = useState([]);
   const [personalizedCandidates, setPersonalizedCandidates] = useState([]);
+  const [regions, setRegions] = useState([]);
+  const [selectedRegionSummary, setSelectedRegionSummary] = useState(null);
+  const [regionSummaryMessage, setRegionSummaryMessage] = useState("");
   const [filters, setFilters] = useState(defaultFilters);
   const [message, setMessage] = useState("");
   const [savedRefreshKey, setSavedRefreshKey] = useState(0);
@@ -83,7 +88,18 @@ export default function CandidatePointsPage() {
       setMessage("");
     }
 
+    async function loadRegions() {
+      const result = await getRegions();
+
+      if (!isMounted) {
+        return;
+      }
+
+      setRegions(result.data);
+    }
+
     loadCandidatePoints();
+    loadRegions();
 
     return () => {
       isMounted = false;
@@ -147,26 +163,45 @@ export default function CandidatePointsPage() {
     }
   }
 
+<<<<<<< HEAD
   function saveCandidate(candidate) {
     const savedCandidates = JSON.parse(localStorage.getItem("savedCandidates")) || [];
     const alreadySaved = savedCandidates.some((item) => item.id === candidate.id);
 
     if (alreadySaved) {
       setMessage("Bu aday nokta zaten kaydedilmis.");
+=======
+  async function saveCandidate(candidate) {
+    const result = await saveCandidatePoint(candidate);
+
+    if (result.status === "already-saved") {
+      setMessage("Bu aday nokta zaten kaydedilmiş.");
+>>>>>>> origin/main
       return;
     }
 
-    if (savedCandidates.length >= 10) {
+    if (result.status === "limit-exceeded") {
       setMessage("En fazla 10 aday nokta kaydedebilirsiniz.");
       return;
     }
 
-    const updatedSavedCandidates = [...savedCandidates, candidate];
+    setSavedRefreshKey((currentKey) => currentKey + 1);
 
+<<<<<<< HEAD
     localStorage.setItem("savedCandidates", JSON.stringify(updatedSavedCandidates));
+=======
+    if (result.source === "api") {
+      setMessage("Aday nokta API üzerinden kaydedildi.");
+      return;
+    }
+>>>>>>> origin/main
 
-    setSavedRefreshKey(savedRefreshKey + 1);
-    setMessage("Aday nokta kaydedildi.");
+    if (result.source === "api-and-local-storage") {
+      setMessage("Aday nokta API ve lokal veriye kaydedildi.");
+      return;
+    }
+
+    setMessage("Aday nokta lokal olarak kaydedildi.");
   }
 
   function handlePersonalizedResult(result) {
@@ -175,9 +210,33 @@ export default function CandidatePointsPage() {
     setSelectedCandidate(result[0] || null);
   }
 
+  async function handleRegionChange(regionId) {
+    const result = await getRegionSummary(regionId);
+
+    setSelectedRegionSummary(result.data);
+
+    if (result.source === "api") {
+      setRegionSummaryMessage("Bölge özeti API üzerinden getirildi.");
+      return;
+    }
+
+    if (result.source === "local-mock") {
+      setRegionSummaryMessage("Bölge özeti lokal mock veriden gösteriliyor.");
+      return;
+    }
+
+    setRegionSummaryMessage("");
+  }
+
   function showCandidateOnMap(candidate) {
     setFilteredCandidates([candidate]);
     setSelectedCandidate(candidate);
+    setActiveTab("candidateMap");
+  }
+
+  function openCandidateMap() {
+    setFilteredCandidates(candidates);
+    setSelectedCandidate(candidates[0] || null);
     setActiveTab("candidateMap");
   }
 
@@ -196,12 +255,17 @@ export default function CandidatePointsPage() {
         <button
           className={activeTab === "candidateMap" ? "menu-button active" : "menu-button"}
           data-testid="candidate-map-tab-button"
+<<<<<<< HEAD
           onClick={() => {
             setFilteredCandidates(candidates);
             setSelectedCandidate(candidates[0] || null);
             setActiveTab("candidateMap");
           }}
           title="Aday nokta haritasi"
+=======
+          onClick={openCandidateMap}
+          title="Aday nokta haritası"
+>>>>>>> origin/main
         >
           <span className="menu-icon">{"\u26A1"}</span>
         </button>
@@ -364,9 +428,71 @@ export default function CandidatePointsPage() {
               kisisellestirilir.
             </p>
 
+<<<<<<< HEAD
             <PersonalizationForm candidates={candidates} onResult={handlePersonalizedResult} />
 
             <h2 className="section-title">Kisisellestirilmis Sonuclar</h2>
+=======
+            <PersonalizationForm
+              candidates={candidates}
+              regions={regions}
+              onResult={handlePersonalizedResult}
+              onRegionChange={handleRegionChange}
+            />
+
+            {selectedRegionSummary && (
+              <div className="region-summary-card" data-testid="region-summary-card">
+                <h2>Bölge Özeti: {selectedRegionSummary.regionName}</h2>
+
+                {regionSummaryMessage && (
+                  <div className="info-message" data-testid="region-summary-message">
+                    {regionSummaryMessage}
+                  </div>
+                )}
+
+                <div className="region-summary-grid">
+                  <div>
+                    <strong>Toplam İstasyon</strong>
+                    <span>{selectedRegionSummary.chargingStationCount}</span>
+                  </div>
+
+                  <div>
+                    <strong>Trafik Yoğunluğu</strong>
+                    <span>{selectedRegionSummary.trafficLevel}</span>
+                  </div>
+
+                  <div>
+                    <strong>En Yaygın Soket</strong>
+                    <span>
+                      {selectedRegionSummary.mostCommonSocketType || "Veri Eksik"}
+                    </span>
+                  </div>
+
+                  <div>
+                    <strong>En Yaygın Güç</strong>
+                    <span>
+                      {selectedRegionSummary.mostCommonPowerKw
+                        ? `${selectedRegionSummary.mostCommonPowerKw} kW`
+                        : "Veri Eksik"}
+                    </span>
+                  </div>
+                </div>
+
+                <h3>Firma Dağılımı</h3>
+
+                <div className="company-distribution-list">
+                  {selectedRegionSummary.companyDistribution.map((company, index) => (
+                    <div key={`${company.companyName}-${index}`}>
+                      <span>{company.companyName}</span>
+                      <strong>{company.stationCount} istasyon</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <h2 className="section-title">Kişiselleştirilmiş Sonuçlar</h2>
+>>>>>>> origin/main
 
             <div className="personalized-card-grid" data-testid="personalized-candidate-list">
               {personalizedCandidates.map((candidate) => (
