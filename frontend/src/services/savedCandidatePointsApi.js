@@ -30,12 +30,70 @@ function setLocalSavedCandidates(candidates) {
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(candidates));
 }
 
+function addToLocalStorage(candidate) {
+  const savedCandidates = getLocalSavedCandidates();
+
+  const alreadySaved = savedCandidates.some((item) => item.id === candidate.id);
+
+  if (alreadySaved) {
+    return {
+      status: "already-saved",
+      data: candidate
+    };
+  }
+
+  if (savedCandidates.length >= 10) {
+    return {
+      status: "limit-exceeded",
+      data: candidate
+    };
+  }
+
+  const updatedSavedCandidates = [...savedCandidates, candidate];
+
+  setLocalSavedCandidates(updatedSavedCandidates);
+
+  return {
+    status: "saved",
+    data: candidate
+  };
+}
+
+function removeFromLocalStorage(candidatePointId) {
+  const savedCandidates = getLocalSavedCandidates();
+
+  const updatedSavedCandidates = savedCandidates.filter(
+    (candidate) => candidate.id !== candidatePointId
+  );
+
+  setLocalSavedCandidates(updatedSavedCandidates);
+}
+
+function mergeCandidates(apiCandidates, localCandidates) {
+  const mergedMap = new Map();
+
+  apiCandidates.forEach((candidate) => {
+    mergedMap.set(candidate.id, candidate);
+  });
+
+  localCandidates.forEach((candidate) => {
+    mergedMap.set(candidate.id, candidate);
+  });
+
+  return Array.from(mergedMap.values());
+}
+
 export async function getSavedCandidatePoints() {
+  const localCandidates = getLocalSavedCandidates();
+
   try {
     const token = getToken();
 
     if (!token) {
-      throw new Error("Token bulunamadi.");
+      return {
+        data: localCandidates,
+        source: "local-storage"
+      };
     }
 
     const response = await fetch(`${API_BASE_URL}/api/saved-candidate-points`, {
@@ -46,33 +104,61 @@ export async function getSavedCandidatePoints() {
     });
 
     if (!response.ok) {
-      throw new Error(`Saved candidate points request failed: ${response.status}`);
+      return {
+        data: localCandidates,
+        source: "local-storage"
+      };
     }
 
     const result = await response.json();
 
     if (!result.success || !Array.isArray(result.data)) {
-      throw new Error("Saved candidate points response is invalid.");
+      return {
+        data: localCandidates,
+        source: "local-storage"
+      };
     }
 
     return {
-      data: result.data,
-      source: "api"
+      data: mergeCandidates(result.data, localCandidates),
+      source: "api-and-local-storage"
     };
   } catch {
     return {
-      data: getLocalSavedCandidates(),
+      data: localCandidates,
       source: "local-storage"
     };
   }
 }
 
 export async function saveCandidatePoint(candidate) {
+  const localResult = addToLocalStorage(candidate);
+
+  if (localResult.status === "already-saved") {
+    return {
+      data: candidate,
+      source: "local-storage",
+      status: "already-saved"
+    };
+  }
+
+  if (localResult.status === "limit-exceeded") {
+    return {
+      data: candidate,
+      source: "local-storage",
+      status: "limit-exceeded"
+    };
+  }
+
   try {
     const token = getToken();
 
     if (!token) {
-      throw new Error("Token bulunamadi.");
+      return {
+        data: candidate,
+        source: "local-storage",
+        status: "saved"
+      };
     }
 
     const response = await fetch(
@@ -86,44 +172,29 @@ export async function saveCandidatePoint(candidate) {
     );
 
     if (!response.ok) {
-      throw new Error(`Save candidate point request failed: ${response.status}`);
+      return {
+        data: candidate,
+        source: "local-storage",
+        status: "saved"
+      };
     }
 
     const result = await response.json();
 
     if (!result.success || !result.data) {
-      throw new Error("Save candidate point response is invalid.");
+      return {
+        data: candidate,
+        source: "local-storage",
+        status: "saved"
+      };
     }
 
     return {
       data: result.data,
-      source: "api"
+      source: "api-and-local-storage",
+      status: "saved"
     };
   } catch {
-    const savedCandidates = getLocalSavedCandidates();
-
-    const alreadySaved = savedCandidates.some((item) => item.id === candidate.id);
-
-    if (alreadySaved) {
-      return {
-        data: candidate,
-        source: "local-storage",
-        status: "already-saved"
-      };
-    }
-
-    if (savedCandidates.length >= 10) {
-      return {
-        data: candidate,
-        source: "local-storage",
-        status: "limit-exceeded"
-      };
-    }
-
-    const updatedSavedCandidates = [...savedCandidates, candidate];
-
-    setLocalSavedCandidates(updatedSavedCandidates);
-
     return {
       data: candidate,
       source: "local-storage",
@@ -133,11 +204,16 @@ export async function saveCandidatePoint(candidate) {
 }
 
 export async function deleteSavedCandidatePoint(candidatePointId) {
+  removeFromLocalStorage(candidatePointId);
+
   try {
     const token = getToken();
 
     if (!token) {
-      throw new Error("Token bulunamadi.");
+      return {
+        success: true,
+        source: "local-storage"
+      };
     }
 
     const response = await fetch(
@@ -151,28 +227,26 @@ export async function deleteSavedCandidatePoint(candidatePointId) {
     );
 
     if (!response.ok) {
-      throw new Error(`Delete saved candidate point request failed: ${response.status}`);
+      return {
+        success: true,
+        source: "local-storage"
+      };
     }
 
     const result = await response.json();
 
     if (!result.success) {
-      throw new Error("Delete saved candidate point response is invalid.");
+      return {
+        success: true,
+        source: "local-storage"
+      };
     }
 
     return {
       success: true,
-      source: "api"
+      source: "api-and-local-storage"
     };
   } catch {
-    const savedCandidates = getLocalSavedCandidates();
-
-    const updatedSavedCandidates = savedCandidates.filter(
-      (candidate) => candidate.id !== candidatePointId
-    );
-
-    setLocalSavedCandidates(updatedSavedCandidates);
-
     return {
       success: true,
       source: "local-storage"

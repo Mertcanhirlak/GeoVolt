@@ -17,6 +17,11 @@ export default function SavedCandidates({ refreshKey }) {
 
     setSavedCandidates(result.data);
 
+    if (result.source === "api-and-local-storage") {
+      setMessage("Kaydedilenler API ve lokal veriden gösteriliyor.");
+      return;
+    }
+
     if (result.source === "local-storage") {
       setMessage("Kaydedilenler lokal veriden gösteriliyor.");
       return;
@@ -33,10 +38,10 @@ export default function SavedCandidates({ refreshKey }) {
         currentCandidates.filter((candidate) => candidate.id !== candidatePointId)
       );
 
-      if (result.source === "local-storage") {
-        setMessage("Kayıt lokal veriden silindi.");
+      if (result.source === "api-and-local-storage") {
+        setMessage("Kayıt API ve lokal veriden silindi.");
       } else {
-        setMessage("Kayıt API üzerinden silindi.");
+        setMessage("Kayıt lokal veriden silindi.");
       }
     }
   }
@@ -71,6 +76,15 @@ export default function SavedCandidates({ refreshKey }) {
 
               <p>
                 <strong>Bölge:</strong> {candidate.region}
+              </p>
+
+              <p>
+                <strong>Mahalle:</strong> {candidate.neighborhood}
+              </p>
+
+              <p>
+                <strong>Tahmini Kurulum Maliyeti:</strong>{" "}
+                {candidate.estimatedCost ?? "Veri Eksik"}
               </p>
 
               <p>
