@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Feature from "ol/Feature";
 import Map from "ol/Map";
-import Overlay from "ol/Overlay";
 import View from "ol/View";
 import GeoJSON from "ol/format/GeoJSON";
 import Point from "ol/geom/Point";
@@ -11,32 +10,28 @@ import "ol/ol.css";
 import { fromLonLat } from "ol/proj";
 import OSM from "ol/source/OSM";
 import VectorSource from "ol/source/Vector";
-import { Circle as CircleStyle, Fill, Icon, Stroke, Style, Text } from "ol/style";
+import { Fill, Icon, Stroke, Style } from "ol/style";
 import { mockChargingStations } from "../data/mockChargingStations";
-import { getChargingStationDetail, getChargingStations, getRegions } from "../services/mapDataApi";
+import {
+  getChargingStationDetail,
+  getChargingStations,
+  getRegions,
+  getRegionSummary,
+} from "../services/mapDataApi";
 import "./ExistingStationsMap.css";
 
 const CANKAYA_CENTER = fromLonLat([32.8541, 39.9208]);
 
-const fallbackRegionPlacements = [
-  { left: 34, top: 18, width: 19, height: 22 },
-  { left: 18, top: 25, width: 20, height: 24 },
-  { left: 48, top: 28, width: 19, height: 25 },
-  { left: 31, top: 48, width: 20, height: 25 },
-  { left: 58, top: 52, width: 21, height: 24 },
-  { left: 66, top: 20, width: 18, height: 21 },
-  { left: 12, top: 52, width: 19, height: 25 },
-  { left: 43, top: 58, width: 18, height: 24 },
+const regionColors = [
+  "rgba(74, 222, 128, 0.34)",
+  "rgba(96, 165, 250, 0.32)",
+  "rgba(250, 204, 21, 0.34)",
+  "rgba(248, 113, 113, 0.3)",
+  "rgba(192, 132, 252, 0.32)",
+  "rgba(45, 212, 191, 0.3)",
 ];
 
-const regionColors = [
-  "rgba(134, 239, 172, 0.34)",
-  "rgba(147, 197, 253, 0.34)",
-  "rgba(252, 211, 77, 0.36)",
-  "rgba(248, 113, 113, 0.28)",
-  "rgba(196, 181, 253, 0.34)",
-  "rgba(45, 212, 191, 0.28)",
-];
+const regionStyleCache = new Map();
 
 function formatConnectors(connectors = []) {
   if (!Array.isArray(connectors) || connectors.length === 0) return null;
@@ -57,7 +52,7 @@ function formatPower(connectors = []) {
 }
 
 function normalizeStation(station, regionLookup = new Map()) {
-  const status = station.status ?? (station.isActive ? "Aktif" : "Pasif");
+  const status = station.status ?? (station.isActive === false ? "Pasif" : "Aktif");
   const regionName = station.regionName || regionLookup.get(station.regionId);
   const connectorText = formatConnectors(station.connectors);
   const powerText = formatPower(station.connectors);
@@ -66,13 +61,13 @@ function normalizeStation(station, regionLookup = new Map()) {
     id: station.id,
     name: station.name || "Sarj Istasyonu",
     district: station.district || "Cankaya",
-    neighborhood: station.neighborhood || regionName || `Bolge ${station.regionId ?? ""}`.trim(),
-    address: station.address || "Adres bilgisi yok",
+    neighborhood: station.neighborhood || regionName || "Bolge bilgisi yok",
+    address: station.address || `${station.neighborhood || regionName || "Cankaya"}, Ankara`,
     latitude: Number(station.latitude),
     longitude: Number(station.longitude),
-    socketType: station.socketType || station.connectorType || connectorText || "Detay icin tiklayin",
+    socketType: station.socketType || station.connectorType || connectorText || "Soket bilgisi yok",
     status,
-    power: station.power || powerText || station.operatorName || "Operator bilgisi yok",
+    power: station.power || powerText || station.operatorName || "Guc bilgisi yok",
   };
 }
 
@@ -94,40 +89,51 @@ function createPinStyle(station, isSelected) {
       src:
         "data:image/svg+xml;utf8," +
         encodeURIComponent(
-          `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36"><path d="M14 34s11-10.6 11-21A11 11 0 1 0 3 13c0 10.4 11 21 11 21z" fill="${isSelected ? "#2563eb" : color}" stroke="white" stroke-width="3"/><circle cx="14" cy="13" r="4.5" fill="white"/></svg>`
+          `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="38" viewBox="0 0 30 38"><path d="M15 36s12-11.5 12-22A12 12 0 1 0 3 14c0 10.5 12 22 12 22z" fill="${isSelected ? "#2563eb" : color}" stroke="white" stroke-width="3"/><circle cx="15" cy="14" r="4.6" fill="white"/></svg>`
         ),
       anchor: [0.5, 1],
-      scale: isSelected ? 1.18 : 0.86,
-    }),
-  });
-}
-
-function createRegionStyle(feature) {
-  const index = feature.get("regionIndex") ?? 0;
-
-  return new Style({
-    fill: new Fill({ color: regionColors[index % regionColors.length] }),
-    stroke: new Stroke({ color: "rgba(220, 38, 38, 0.82)", width: 2.5 }),
-    text: new Text({
-      text: feature.get("name") || "",
-      fill: new Fill({ color: "rgba(15, 23, 42, 0.72)" }),
-      stroke: new Stroke({ color: "rgba(255, 255, 255, 0.8)", width: 3 }),
-      font: "700 12px Arial, sans-serif",
+      scale: isSelected ? 1.12 : 0.82,
     }),
   });
 }
 
 function createStationFeature(station, selectedStationId) {
+  if (!Number.isFinite(station.longitude) || !Number.isFinite(station.latitude)) return null;
+
   const feature = new Feature({
     geometry: new Point(fromLonLat([station.longitude, station.latitude])),
     station,
+    featureType: "station",
   });
 
   feature.setStyle(createPinStyle(station, station.id === selectedStationId));
   return feature;
 }
 
-function parseRegionFeatures(regions) {
+function createRegionStyle(feature) {
+  const index = feature.get("regionIndex") ?? 0;
+  const isSelected = feature.get("selected") === true;
+  const cacheKey = `${index % regionColors.length}-${isSelected ? "selected" : "default"}`;
+
+  if (regionStyleCache.has(cacheKey)) {
+    return regionStyleCache.get(cacheKey);
+  }
+
+  const style = new Style({
+    fill: new Fill({
+      color: isSelected ? "rgba(132, 255, 80, 0.52)" : regionColors[index % regionColors.length],
+    }),
+    stroke: new Stroke({
+      color: isSelected ? "#dc2626" : "rgba(239, 68, 68, 0.85)",
+      width: isSelected ? 4 : 2.5,
+    }),
+  });
+
+  regionStyleCache.set(cacheKey, style);
+  return style;
+}
+
+function createRegionFeatures(regions) {
   const parser = new GeoJSON();
 
   return regions.flatMap((region, index) => {
@@ -141,8 +147,12 @@ function parseRegionFeatures(regions) {
       });
 
       return features.map((feature) => {
+        feature.set("featureType", "region");
+        feature.set("region", region);
+        feature.set("regionId", region.id);
         feature.set("name", region.name);
         feature.set("regionIndex", index);
+        feature.set("selected", false);
         return feature;
       });
     } catch {
@@ -151,42 +161,55 @@ function parseRegionFeatures(regions) {
   });
 }
 
-function getRegionVariant(index) {
-  return `variant-${(index % 6) + 1}`;
-}
-
-export default function ExistingStationsMap({ searchTerm = "", regionsActive = false }) {
+export default function ExistingStationsMap({ searchTerm = "", mapStep = 1 }) {
   const mapElementRef = useRef(null);
-  const popupElementRef = useRef(null);
   const mapRef = useRef(null);
   const stationSourceRef = useRef(new VectorSource());
   const regionSourceRef = useRef(new VectorSource());
-  const popupOverlayRef = useRef(null);
+  const stationLayerRef = useRef(null);
+  const regionLayerRef = useRef(null);
+  const latestRef = useRef({
+    stations: mockChargingStations,
+    regions: [],
+    source: "mock",
+    mapStep,
+    selectedStationId: null,
+  });
 
-  const [selectedStationId, setSelectedStationId] = useState(null);
   const [stations, setStations] = useState(mockChargingStations);
   const [regions, setRegions] = useState([]);
   const [source, setSource] = useState("mock");
+  const [selectedStationId, setSelectedStationId] = useState(null);
+  const [selectedRegion, setSelectedRegion] = useState(null);
+  const [regionSummary, setRegionSummary] = useState(null);
+  const [popupPixel, setPopupPixel] = useState(null);
   const [loadingDetailId, setLoadingDetailId] = useState(null);
+  const [loadingRegionSummary, setLoadingRegionSummary] = useState(false);
 
   const visibleStations = useMemo(() => {
     return stations.filter((station) => matchesSearch(station, searchTerm));
   }, [searchTerm, stations]);
 
-  const selectedStation =
-    visibleStations.find((station) => station.id === selectedStationId) ?? visibleStations[0] ?? null;
+  const selectedStation = visibleStations.find((station) => station.id === selectedStationId) ?? null;
 
   useEffect(() => {
-    if (!mapElementRef.current || !popupElementRef.current || mapRef.current) return;
+    latestRef.current = { stations, regions, source, mapStep, selectedStationId };
+  }, [stations, regions, source, mapStep, selectedStationId]);
 
-    const popupOverlay = new Overlay({
-      element: popupElementRef.current,
-      positioning: "bottom-left",
-      offset: [16, -10],
-      stopEvent: true,
+  useEffect(() => {
+    if (!mapElementRef.current || mapRef.current) return;
+
+    const regionLayer = new VectorLayer({
+      source: regionSourceRef.current,
+      style: createRegionStyle,
+      visible: false,
+      zIndex: 2,
     });
 
-    popupOverlayRef.current = popupOverlay;
+    const stationLayer = new VectorLayer({
+      source: stationSourceRef.current,
+      zIndex: 5,
+    });
 
     const map = new Map({
       target: mapElementRef.current,
@@ -194,39 +217,53 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
         new TileLayer({
           source: new OSM(),
         }),
-        new VectorLayer({
-          source: regionSourceRef.current,
-          style: createRegionStyle,
-        }),
-        new VectorLayer({
-          source: stationSourceRef.current,
-          zIndex: 5,
-        }),
+        regionLayer,
+        stationLayer,
       ],
-      overlays: [popupOverlay],
       view: new View({
         center: CANKAYA_CENTER,
         zoom: 12.4,
-        minZoom: 11,
+        minZoom: 10.5,
         maxZoom: 17,
       }),
       controls: [],
     });
 
-    map.on("singleclick", (event) => {
-      const feature = map.forEachFeatureAtPixel(event.pixel, (item) => item);
-      const station = feature?.get("station");
+    map.on("moveend", () => {
+      const station = latestRef.current.stations.find(
+        (item) => item.id === latestRef.current.selectedStationId
+      );
+      if (!station) return;
 
-      if (station) {
-        selectStation(station.id);
+      setPopupPixel(map.getPixelFromCoordinate(fromLonLat([station.longitude, station.latitude])));
+    });
+
+    map.on("singleclick", (event) => {
+      const feature = map.forEachFeatureAtPixel(event.pixel, (item) => item, {
+        hitTolerance: 6,
+      });
+
+      if (!feature) return;
+
+      if (feature.get("featureType") === "station") {
+        selectStation(feature.get("station")?.id);
+        return;
+      }
+
+      if (latestRef.current.mapStep > 1 && feature.get("featureType") === "region") {
+        selectRegion(feature.get("regionId"));
       }
     });
 
     mapRef.current = map;
+    regionLayerRef.current = regionLayer;
+    stationLayerRef.current = stationLayer;
 
     return () => {
       map.setTarget(undefined);
       mapRef.current = null;
+      regionLayerRef.current = null;
+      stationLayerRef.current = null;
     };
   }, []);
 
@@ -242,14 +279,14 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
         const safeRegions = Array.isArray(regionData) ? regionData : [];
         const regionLookup = new Map(safeRegions.map((region) => [region.id, region.name]));
 
-        setStations(stationData.map((station) => normalizeStation(station, regionLookup)));
         setRegions(safeRegions);
+        setStations(stationData.map((station) => normalizeStation(station, regionLookup)));
         setSource("api");
       } catch {
         if (!isMounted) return;
 
-        setStations(mockChargingStations);
         setRegions([]);
+        setStations(mockChargingStations);
         setSource("mock");
       }
     }
@@ -262,60 +299,181 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
   }, []);
 
   useEffect(() => {
+    const features = visibleStations
+      .map((station) => createStationFeature(station, selectedStationId))
+      .filter(Boolean);
+
     stationSourceRef.current.clear();
-    stationSourceRef.current.addFeatures(
-      visibleStations.map((station) => createStationFeature(station, selectedStation?.id))
-    );
-
-    if (!selectedStation && popupOverlayRef.current) {
-      popupOverlayRef.current.setPosition(undefined);
-    }
-  }, [visibleStations, selectedStation]);
+    stationSourceRef.current.addFeatures(features);
+  }, [visibleStations, selectedStationId]);
 
   useEffect(() => {
+    const features = createRegionFeatures(regions);
+
     regionSourceRef.current.clear();
-
-    if (!regionsActive) return;
-
-    const regionFeatures = parseRegionFeatures(regions);
-    regionSourceRef.current.addFeatures(regionFeatures);
-  }, [regions, regionsActive]);
+    regionSourceRef.current.addFeatures(features);
+  }, [regions]);
 
   useEffect(() => {
-    if (!selectedStation || selectedStationId !== null || source !== "api") return;
-    selectStation(selectedStation.id);
-  }, [selectedStation, selectedStationId, source]);
+    const regionsActive = mapStep > 1;
+
+    if (regionLayerRef.current) {
+      regionLayerRef.current.setVisible(Boolean(regionsActive));
+    }
+
+    if (!regionsActive) {
+      clearRegionSelection(false);
+      return;
+    }
+
+    setSelectedStationId(null);
+    setPopupPixel(null);
+  }, [mapStep]);
 
   useEffect(() => {
-    if (!selectedStation || !popupOverlayRef.current) return;
+    if (mapStep !== 3 || selectedRegion || regions.length === 0) return;
 
-    popupOverlayRef.current.setPosition(fromLonLat([selectedStation.longitude, selectedStation.latitude]));
+    selectRegion(regions[0].id);
+  }, [mapStep, regions, selectedRegion]);
+
+  useEffect(() => {
+    if (!selectedStation || !mapRef.current) {
+      setPopupPixel(null);
+      return;
+    }
+
+    setPopupPixel(
+      mapRef.current.getPixelFromCoordinate(fromLonLat([selectedStation.longitude, selectedStation.latitude]))
+    );
   }, [selectedStation]);
 
   async function selectStation(stationId) {
+    if (!stationId) return;
+
     setSelectedStationId(stationId);
 
-    const station = stations.find((item) => item.id === stationId);
-    if (station && popupOverlayRef.current) {
-      popupOverlayRef.current.setPosition(fromLonLat([station.longitude, station.latitude]));
+    const station = latestRef.current.stations.find((item) => item.id === stationId);
+    if (station && mapRef.current) {
+      setPopupPixel(
+        mapRef.current.getPixelFromCoordinate(fromLonLat([station.longitude, station.latitude]))
+      );
     }
 
-    if (source !== "api") return;
+    if (latestRef.current.source !== "api") return;
 
     setLoadingDetailId(stationId);
 
     try {
       const detail = await getChargingStationDetail(stationId);
-      const regionLookup = new Map(regions.map((region) => [region.id, region.name]));
+      const regionLookup = new Map(latestRef.current.regions.map((region) => [region.id, region.name]));
       const normalizedDetail = normalizeStation(detail, regionLookup);
 
       setStations((currentStations) =>
         currentStations.map((item) => (item.id === stationId ? normalizedDetail : item))
       );
     } catch {
-      // Keep the list data visible if the optional detail request fails.
+      // Optional detail request failed; keep the list data visible.
     } finally {
       setLoadingDetailId(null);
+    }
+  }
+
+  async function selectRegion(regionId) {
+    if (!regionId) return;
+
+    const region = latestRef.current.regions.find((item) => item.id === regionId);
+    if (!region) return;
+
+    setSelectedRegion(region);
+    setSelectedStationId(null);
+    setRegionSummary(null);
+    setLoadingRegionSummary(true);
+
+    let selectedFeature = null;
+    regionSourceRef.current.getFeatures().forEach((feature) => {
+      const isSelected = feature.get("regionId") === regionId;
+      feature.set("selected", isSelected);
+      feature.changed();
+      if (isSelected) selectedFeature = feature;
+    });
+
+    const extent = selectedFeature?.getGeometry()?.getExtent();
+    if (extent && mapRef.current) {
+      mapRef.current.getView().fit(extent, {
+        padding: [86, 360, 72, 92],
+        maxZoom: 14.8,
+        duration: 350,
+      });
+    }
+
+    if (latestRef.current.source !== "api") {
+      setRegionSummary({
+        regionId,
+        regionName: region.name,
+        chargingStationCount: visibleStations.length,
+        trafficLevel: "Mock veri",
+        mostCommonSocketType: "CCS",
+        mostCommonPowerKw: 180,
+        companyDistribution: [],
+      });
+      setLoadingRegionSummary(false);
+      return;
+    }
+
+    try {
+      const [summary, stationData] = await Promise.all([
+        getRegionSummary(regionId),
+        getChargingStations(regionId),
+      ]);
+      const regionLookup = new Map(latestRef.current.regions.map((item) => [item.id, item.name]));
+
+      setRegionSummary(summary);
+      setStations(stationData.map((station) => normalizeStation(station, regionLookup)));
+    } catch {
+      setRegionSummary({
+        regionId,
+        regionName: region.name,
+        chargingStationCount: 0,
+        trafficLevel: "Veri alinamadi",
+        mostCommonSocketType: null,
+        mostCommonPowerKw: null,
+        companyDistribution: [],
+      });
+    } finally {
+      setLoadingRegionSummary(false);
+    }
+  }
+
+  async function clearRegionSelection(restoreStations = true) {
+    setSelectedRegion(null);
+    setRegionSummary(null);
+
+    regionSourceRef.current.getFeatures().forEach((feature) => {
+      feature.set("selected", false);
+      feature.changed();
+    });
+
+    if (mapRef.current) {
+      mapRef.current.getView().animate({
+        center: CANKAYA_CENTER,
+        zoom: 12.4,
+        duration: 300,
+      });
+    }
+
+    if (!restoreStations) return;
+
+    if (latestRef.current.source !== "api") {
+      setStations(mockChargingStations);
+      return;
+    }
+
+    try {
+      const stationData = await getChargingStations();
+      const regionLookup = new Map(latestRef.current.regions.map((item) => [item.id, item.name]));
+      setStations(stationData.map((station) => normalizeStation(station, regionLookup)));
+    } catch {
+      setStations(mockChargingStations);
     }
   }
 
@@ -323,51 +481,85 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
     <div className="existing-map" data-testid="existing-stations-map">
       <div ref={mapElementRef} className="openlayers-map" />
 
-      {regionsActive && regionSourceRef.current.getFeatures().length === 0 && (
-        <div className="existing-region-layer fallback-regions" aria-hidden="true">
-          {(regions.length > 0 ? regions : [
-            { id: 1, name: "Kizilay" },
-            { id: 2, name: "Sogutozu" },
-            { id: 3, name: "Oran" },
-            { id: 4, name: "Balgat" },
-            { id: 5, name: "Dikmen" },
-            { id: 6, name: "Cukurambar" },
-            { id: 7, name: "Bahcelievler" },
-            { id: 8, name: "Kavaklidere" },
-          ])
-            .slice(0, 8)
-            .map((region, index) => {
-              const placement = fallbackRegionPlacements[index % fallbackRegionPlacements.length];
-
-              return (
-                <div
-                  key={region.id ?? region.name}
-                  className={`existing-region ${getRegionVariant(index)}`}
-                  style={{
-                    left: `${placement.left}%`,
-                    top: `${placement.top}%`,
-                    width: `${placement.width}%`,
-                    height: `${placement.height}%`,
-                  }}
-                >
-                  {region.name}
-                </div>
-              );
-            })}
-        </div>
-      )}
-
-      {regionsActive && (
+      {mapStep > 1 && (
         <div className="selection-overlay" aria-hidden="true">
           <div className="selection-line" />
           <div className="selection-box">
-            <span>Seçili Alan</span>
-            <strong>67 x 18</strong>
+            <span>Secili Alan</span>
+            <strong>{selectedRegion ? selectedRegion.name : "Bolge sec"}</strong>
           </div>
         </div>
       )}
 
-      <div ref={popupElementRef} className="existing-station-popup" data-testid="existing-station-popup">
+      {mapStep > 1 && selectedRegion && (
+        <>
+          <aside className="region-summary-card" data-testid="region-summary-card">
+            <header>
+              <strong>{regionSummary?.regionName || selectedRegion.name}</strong>
+              <span>Semt Bilgi Paneli</span>
+            </header>
+
+            {loadingRegionSummary ? (
+              <p className="region-summary-loading">Yukleniyor...</p>
+            ) : (
+              <div className="region-summary-content">
+                <dl>
+                  <div>
+                    <dt>Istasyon</dt>
+                    <dd>{regionSummary?.chargingStationCount ?? 0}</dd>
+                  </div>
+                  <div>
+                    <dt>Trafik</dt>
+                    <dd>{regionSummary?.trafficLevel || "Veri yok"}</dd>
+                  </div>
+                  <div>
+                    <dt>Yaygin Soket</dt>
+                    <dd>{regionSummary?.mostCommonSocketType || "Veri yok"}</dd>
+                  </div>
+                  <div>
+                    <dt>Yaygin Guc</dt>
+                    <dd>
+                      {regionSummary?.mostCommonPowerKw
+                        ? `${regionSummary.mostCommonPowerKw} kW`
+                        : "Veri yok"}
+                    </dd>
+                  </div>
+                </dl>
+
+                <div className="company-distribution">
+                  <span>Firma Dagilimi</span>
+                  {(regionSummary?.companyDistribution || []).slice(0, 4).map((company) => (
+                    <p key={company.companyName}>
+                      <strong>{company.companyName}</strong>
+                      <em>{company.stationCount}</em>
+                    </p>
+                  ))}
+                  {(regionSummary?.companyDistribution || []).length === 0 && (
+                    <p>
+                      <strong>Veri yok</strong>
+                      <em>-</em>
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </aside>
+
+          <button type="button" className="region-back-button" onClick={() => clearRegionSelection(true)}>
+            Bolgelere geri don
+          </button>
+        </>
+      )}
+
+      <div
+        className="existing-station-popup"
+        data-testid="existing-station-popup"
+        style={
+          selectedStation && popupPixel
+            ? { left: `${popupPixel[0] + 16}px`, top: `${popupPixel[1] - 12}px` }
+            : undefined
+        }
+      >
         {selectedStation && (
           <>
             <div>
@@ -381,9 +573,7 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
             <dl>
               <div>
                 <dt>Soket</dt>
-                <dd>
-                  {loadingDetailId === selectedStation.id ? "Yukleniyor..." : selectedStation.socketType}
-                </dd>
+                <dd>{loadingDetailId === selectedStation.id ? "Yukleniyor..." : selectedStation.socketType}</dd>
               </div>
               <div>
                 <dt>Guc</dt>

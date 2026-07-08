@@ -22,8 +22,9 @@ async function getJson(path) {
   return response.json();
 }
 
-export async function getChargingStations() {
-  return getJson("/api/charging-stations");
+export async function getChargingStations(regionId) {
+  const query = regionId ? `?regionId=${regionId}` : "";
+  return getJson(`/api/charging-stations${query}`);
 }
 
 export async function getChargingStationDetail(id) {
@@ -32,4 +33,8 @@ export async function getChargingStationDetail(id) {
 
 export async function getRegions() {
   return getJson("/api/regions");
+}
+
+export async function getRegionSummary(id) {
+  return getJson(`/api/regions/${id}/summary`);
 }

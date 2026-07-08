@@ -1065,3 +1065,35 @@ button.region-toggle.active {
   color: #06330d;
   border-color: #31c71c;
 }
+
+.map-step-control {
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  pointer-events: auto;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 22px;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.1);
+}
+
+.map-step-button {
+  width: 30px;
+  height: 30px;
+  display: inline-grid;
+  place-items: center;
+  margin: 0;
+  padding: 0;
+  color: #111827;
+  background: transparent;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.map-step-button:hover,
+.map-step-button.active {
+  color: #06330d;
+  background: #52ef33;
+}

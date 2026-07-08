@@ -56,7 +56,7 @@ export default function CandidatePointsPage() {
   const [message, setMessage] = useState("");
   const [savedRefreshKey, setSavedRefreshKey] = useState(0);
   const [stationSearch, setStationSearch] = useState("");
-  const [regionsActive, setRegionsActive] = useState(false);
+  const [homeMapStep, setHomeMapStep] = useState(1);
 
   useEffect(() => {
     let isMounted = true;
@@ -237,17 +237,22 @@ export default function CandidatePointsPage() {
                 onChange={(event) => setStationSearch(event.target.value)}
               />
 
-              <button
-                type="button"
-                className={regionsActive ? "region-toggle active" : "region-toggle"}
-                onClick={() => setRegionsActive((currentValue) => !currentValue)}
-              >
-                {regionsActive ? "Bolgeler aktif" : "Bolgeler inaktif"}
-              </button>
+              <div className="map-step-control" aria-label="Harita gorunum adimlari">
+                {[1, 2, 3].map((step) => (
+                  <button
+                    key={step}
+                    type="button"
+                    className={homeMapStep === step ? "map-step-button active" : "map-step-button"}
+                    onClick={() => setHomeMapStep(step)}
+                  >
+                    {step}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="mock-map">
-              <ExistingStationsMap searchTerm={stationSearch} regionsActive={regionsActive} />
+              <ExistingStationsMap searchTerm={stationSearch} mapStep={homeMapStep} />
             </div>
           </section>
         )}
