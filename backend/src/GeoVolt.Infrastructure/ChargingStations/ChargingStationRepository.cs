@@ -2,7 +2,8 @@
 using GeoVolt.Domain.Entities;
 using NetTopologySuite.Geometries;
 
-//Şarj istasyonları ve bağlantı noktaları ile ilgili veri erişim işlemlerini gerçekleştiren repository sınıfı
+// Şarj istasyonları ve bağlantı noktaları ile ilgili
+// veri erişim işlemlerini gerçekleştiren repository sınıfı
 namespace GeoVolt.Infrastructure.ChargingStations;
 
 public sealed class ChargingStationRepository : IChargingStationRepository
@@ -26,7 +27,10 @@ public sealed class ChargingStationRepository : IChargingStationRepository
                 Id = 1,
                 Name = "Çukurambar Şarj Noktası 1",
                 OperatorName = "ZES",
-                RegionId = 1,
+
+                // Çukurambar, Balgat bölgesine bağlıdır
+                RegionId = 9,
+
                 Address = "Çukurambar, Çankaya / Ankara",
 
                 // Geçici mock konum
@@ -43,7 +47,10 @@ public sealed class ChargingStationRepository : IChargingStationRepository
                 Id = 2,
                 Name = "Çukurambar Şarj Noktası 2",
                 OperatorName = "Trugo",
-                RegionId = 1,
+
+                // Çukurambar, Balgat bölgesine bağlıdır
+                RegionId = 9,
+
                 Address = "Çukurambar, Çankaya / Ankara",
 
                 // Geçici mock konum
@@ -60,7 +67,10 @@ public sealed class ChargingStationRepository : IChargingStationRepository
                 Id = 3,
                 Name = "Balgat Şarj Noktası 1",
                 OperatorName = "Eşarj",
-                RegionId = 2,
+
+                // Balgat mahallesi, Balgat bölgesine bağlıdır
+                RegionId = 9,
+
                 Address = "Balgat, Çankaya / Ankara",
 
                 // Geçici mock konum
@@ -77,7 +87,10 @@ public sealed class ChargingStationRepository : IChargingStationRepository
                 Id = 4,
                 Name = "Balgat Şarj Noktası 2",
                 OperatorName = "ZES",
-                RegionId = 2,
+
+                // Balgat mahallesi, Balgat bölgesine bağlıdır
+                RegionId = 9,
+
                 Address = "Balgat, Çankaya / Ankara",
 
                 // Geçici mock konum
@@ -94,7 +107,10 @@ public sealed class ChargingStationRepository : IChargingStationRepository
                 Id = 5,
                 Name = "Söğütözü Şarj Noktası 1",
                 OperatorName = "Trugo",
-                RegionId = 3,
+
+                // Söğütözü, Balgat bölgesine bağlıdır
+                RegionId = 9,
+
                 Address = "Söğütözü, Çankaya / Ankara",
 
                 // Geçici mock konum
@@ -111,7 +127,10 @@ public sealed class ChargingStationRepository : IChargingStationRepository
                 Id = 6,
                 Name = "Söğütözü Şarj Noktası 2",
                 OperatorName = "Eşarj",
-                RegionId = 3,
+
+                // Söğütözü, Balgat bölgesine bağlıdır
+                RegionId = 9,
+
                 Address = "Söğütözü, Çankaya / Ankara",
 
                 // Geçici mock konum

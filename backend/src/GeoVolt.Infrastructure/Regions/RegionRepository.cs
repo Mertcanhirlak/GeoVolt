@@ -2,6 +2,7 @@
 using GeoVolt.Application.Regions.Models;
 using GeoVolt.Domain.Entities;
 using NetTopologySuite.Geometries;
+
 // Bölge verilerini yönetmek için repository sınıfı
 namespace GeoVolt.Infrastructure.Regions;
 
@@ -18,68 +19,297 @@ public sealed class RegionRepository : IRegionRepository
             new PrecisionModel(),
             4326);
 
-        // Gerçek PostGIS verileri gelene kadar geçici bölge verileri
+        // Excel'deki 15 semt/bölge yapısına göre geçici mock veriler
+        // Polygon koordinatları gerçek GIS sınırları değildir
         _regions = new List<Region>
         {
             new()
             {
                 Id = 1,
-                Name = "Çukurambar",
+                Name = "Kızılay",
 
                 // Geçici mock bölge sınırı
                 Boundary = CreateMockRectangle(
                     geometryFactory,
-                    32.7950,
-                    39.9000,
-                    32.8150,
-                    39.9150)
+                    32.8450,
+                    39.9150,
+                    32.8600,
+                    39.9280)
             },
 
             new()
             {
                 Id = 2,
-                Name = "Balgat",
+                Name = "Kavaklıdere",
 
                 // Geçici mock bölge sınırı
                 Boundary = CreateMockRectangle(
                     geometryFactory,
-                    32.8150,
-                    39.9000,
-                    32.8400,
-                    39.9200)
+                    32.8600,
+                    39.9150,
+                    32.8750,
+                    39.9280)
             },
 
             new()
             {
                 Id = 3,
-                Name = "Söğütözü",
+                Name = "Ayrancı",
 
                 // Geçici mock bölge sınırı
                 Boundary = CreateMockRectangle(
                     geometryFactory,
-                    32.7850,
-                    39.9100,
-                    32.8050,
-                    39.9300)
+                    32.8450,
+                    39.9000,
+                    32.8600,
+                    39.9130)
+            },
+
+            new()
+            {
+                Id = 4,
+                Name = "Gaziosmanpaşa",
+
+                // Geçici mock bölge sınırı
+                Boundary = CreateMockRectangle(
+                    geometryFactory,
+                    32.8750,
+                    39.9000,
+                    32.8900,
+                    39.9130)
+            },
+
+            new()
+            {
+                Id = 5,
+                Name = "Bahçelievler",
+
+                // Geçici mock bölge sınırı
+                Boundary = CreateMockRectangle(
+                    geometryFactory,
+                    32.8250,
+                    39.9150,
+                    32.8400,
+                    39.9280)
+            },
+
+            new()
+            {
+                Id = 6,
+                Name = "Cebeci",
+
+                // Geçici mock bölge sınırı
+                Boundary = CreateMockRectangle(
+                    geometryFactory,
+                    32.8750,
+                    39.9150,
+                    32.8900,
+                    39.9280)
+            },
+
+            new()
+            {
+                Id = 7,
+                Name = "Dikmen",
+
+                // Geçici mock bölge sınırı
+                Boundary = CreateMockRectangle(
+                    geometryFactory,
+                    32.8400,
+                    39.8800,
+                    32.8550,
+                    39.8950)
+            },
+
+            new()
+            {
+                Id = 8,
+                Name = "Öveçler",
+
+                // Geçici mock bölge sınırı
+                Boundary = CreateMockRectangle(
+                    geometryFactory,
+                    32.8200,
+                    39.8800,
+                    32.8350,
+                    39.8950)
+            },
+
+            new()
+            {
+                Id = 9,
+                Name = "Balgat",
+
+                // Geçici mock bölge sınırı
+                Boundary = CreateMockRectangle(
+                    geometryFactory,
+                    32.7900,
+                    39.8950,
+                    32.8200,
+                    39.9200)
+            },
+
+            new()
+            {
+                Id = 10,
+                Name = "Oran",
+
+                // Geçici mock bölge sınırı
+                Boundary = CreateMockRectangle(
+                    geometryFactory,
+                    32.8500,
+                    39.8500,
+                    32.8750,
+                    39.8750)
+            },
+
+            new()
+            {
+                Id = 11,
+                Name = "Çayyolu",
+
+                // Geçici mock bölge sınırı
+                Boundary = CreateMockRectangle(
+                    geometryFactory,
+                    32.7000,
+                    39.8600,
+                    32.7500,
+                    39.9000)
+            },
+
+            new()
+            {
+                Id = 12,
+                Name = "Kırkkonaklar",
+
+                // Geçici mock bölge sınırı
+                Boundary = CreateMockRectangle(
+                    geometryFactory,
+                    32.8800,
+                    39.8700,
+                    32.9000,
+                    39.8900)
+            },
+
+            new()
+            {
+                Id = 13,
+                Name = "Ahlatlıbel",
+
+                // Geçici mock bölge sınırı
+                Boundary = CreateMockRectangle(
+                    geometryFactory,
+                    32.7800,
+                    39.8000,
+                    32.8200,
+                    39.8350)
+            },
+
+            new()
+            {
+                Id = 14,
+                Name = "İmrahor",
+
+                // Geçici mock bölge sınırı
+                Boundary = CreateMockRectangle(
+                    geometryFactory,
+                    32.8500,
+                    39.8000,
+                    32.9000,
+                    39.8400)
+            },
+
+            new()
+            {
+                Id = 15,
+                Name = "Diğer/Kırsal",
+
+                // Geçici mock bölge sınırı
+                Boundary = CreateMockRectangle(
+                    geometryFactory,
+                    32.7200,
+                    39.7800,
+                    32.7800,
+                    39.8300)
             }
         };
 
         // Gerçek statik trafik verileri gelene kadar geçici bölge verileri
         _regionSummaries = new Dictionary<int, RegionSummaryData>
         {
-            [1] = new RegionSummaryData
+            [1] = new()
             {
                 TrafficLevel = "Yüksek"
             },
 
-            [2] = new RegionSummaryData
+            [2] = new()
+            {
+                TrafficLevel = "Yüksek"
+            },
+
+            [3] = new()
             {
                 TrafficLevel = "Orta"
             },
 
-            [3] = new RegionSummaryData
+            [4] = new()
             {
                 TrafficLevel = "Yüksek"
+            },
+
+            [5] = new()
+            {
+                TrafficLevel = "Yüksek"
+            },
+
+            [6] = new()
+            {
+                TrafficLevel = "Orta"
+            },
+
+            [7] = new()
+            {
+                TrafficLevel = "Orta"
+            },
+
+            [8] = new()
+            {
+                TrafficLevel = "Orta"
+            },
+
+            [9] = new()
+            {
+                TrafficLevel = "Yüksek"
+            },
+
+            [10] = new()
+            {
+                TrafficLevel = "Orta"
+            },
+
+            [11] = new()
+            {
+                TrafficLevel = "Orta"
+            },
+
+            [12] = new()
+            {
+                TrafficLevel = "Orta"
+            },
+
+            [13] = new()
+            {
+                TrafficLevel = "Düşük"
+            },
+
+            [14] = new()
+            {
+                TrafficLevel = "Düşük"
+            },
+
+            [15] = new()
+            {
+                TrafficLevel = "Düşük"
             }
         };
     }
@@ -121,16 +351,30 @@ public sealed class RegionRepository : IRegionRepository
         double maxLongitude,
         double maxLatitude)
     {
-        // Gerçek GIS sınır verileri gelene kadar geçici dikdörtgen mock geometri oluşturur
+        // Gerçek GIS sınır verileri gelene kadar
+        // geçici dikdörtgen mock geometri oluşturur
         var coordinates = new[]
         {
-            new Coordinate(minLongitude, minLatitude),
-            new Coordinate(maxLongitude, minLatitude),
-            new Coordinate(maxLongitude, maxLatitude),
-            new Coordinate(minLongitude, maxLatitude),
+            new Coordinate(
+                minLongitude,
+                minLatitude),
+
+            new Coordinate(
+                maxLongitude,
+                minLatitude),
+
+            new Coordinate(
+                maxLongitude,
+                maxLatitude),
+
+            new Coordinate(
+                minLongitude,
+                maxLatitude),
 
             // Polygon kapanması için ilk koordinat tekrar eklenir
-            new Coordinate(minLongitude, minLatitude)
+            new Coordinate(
+                minLongitude,
+                minLatitude)
         };
 
         // Polygon dış sınırını oluşturur
