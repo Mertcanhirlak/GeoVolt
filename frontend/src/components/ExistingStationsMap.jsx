@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { mockChargingStations } from "../data/mockChargingStations";
-import { getChargingStations, getRegions } from "../services/mapDataApi";
+import { getChargingStationDetail, getChargingStations, getRegions } from "../services/mapDataApi";
 import "./ExistingStationsMap.css";
 
 const ANKARA_BOUNDS = {
@@ -36,20 +36,46 @@ function getStationPosition(station) {
   };
 }
 
-function normalizeStation(station) {
+function formatConnectors(connectors = []) {
+  if (!Array.isArray(connectors) || connectors.length === 0) {
+    return null;
+  }
+
+  return connectors
+    .map((connector) => {
+      const quantity = connector.quantity > 1 ? `${connector.quantity}x ` : "";
+      return `${quantity}${connector.socketType}`;
+    })
+    .join(" / ");
+}
+
+function formatPower(connectors = []) {
+  if (!Array.isArray(connectors) || connectors.length === 0) {
+    return null;
+  }
+
+  const maxPower = Math.max(...connectors.map((connector) => Number(connector.powerKw) || 0));
+
+  return maxPower > 0 ? `${maxPower} kW` : null;
+}
+
+function normalizeStation(station, regionLookup = new Map()) {
   const status = station.status ?? (station.isActive ? "Aktif" : "Pasif");
+  const regionName = station.regionName || regionLookup.get(station.regionId);
+  const connectorText = formatConnectors(station.connectors);
+  const powerText = formatPower(station.connectors);
 
   return {
     id: station.id,
     name: station.name || "Sarj Istasyonu",
     district: station.district || "Cankaya",
-    neighborhood: station.neighborhood || station.regionName || `Bolge ${station.regionId ?? ""}`.trim(),
+    neighborhood: station.neighborhood || regionName || `Bolge ${station.regionId ?? ""}`.trim(),
     address: station.address || "Adres bilgisi yok",
     latitude: Number(station.latitude),
     longitude: Number(station.longitude),
-    socketType: station.socketType || station.connectorType || "Soket bilgisi yok",
+    socketType: station.socketType || station.connectorType || connectorText || "Detay icin tiklayin",
     status,
-    power: station.power || station.operatorName || "Operator bilgisi yok",
+    power: station.power || powerText || station.operatorName || "Operator bilgisi yok",
     ...getStationPosition(station),
   };
 }
@@ -70,6 +96,7 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
   const [stations, setStations] = useState(mockChargingStations);
   const [regions, setRegions] = useState([]);
   const [source, setSource] = useState("mock");
+  const [loadingDetailId, setLoadingDetailId] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -83,8 +110,11 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
 
         if (!isMounted) return;
 
-        setStations(stationData.map(normalizeStation));
-        setRegions(Array.isArray(regionData) ? regionData : []);
+        const safeRegions = Array.isArray(regionData) ? regionData : [];
+        const regionLookup = new Map(safeRegions.map((region) => [region.id, region.name]));
+
+        setStations(stationData.map((station) => normalizeStation(station, regionLookup)));
+        setRegions(safeRegions);
         setSource("api");
       } catch {
         if (!isMounted) return;
@@ -108,6 +138,34 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
 
   const selectedStation =
     visibleStations.find((station) => station.id === selectedStationId) ?? visibleStations[0] ?? null;
+
+  useEffect(() => {
+    if (!selectedStation || selectedStationId !== null || source !== "api") return;
+
+    selectStation(selectedStation.id);
+  }, [selectedStation, selectedStationId, source]);
+
+  async function selectStation(stationId) {
+    setSelectedStationId(stationId);
+
+    if (source !== "api") return;
+
+    setLoadingDetailId(stationId);
+
+    try {
+      const detail = await getChargingStationDetail(stationId);
+      const regionLookup = new Map(regions.map((region) => [region.id, region.name]));
+      const normalizedDetail = normalizeStation(detail, regionLookup);
+
+      setStations((currentStations) =>
+        currentStations.map((station) => (station.id === stationId ? normalizedDetail : station))
+      );
+    } catch {
+      // Keep the list data visible if the optional detail request fails.
+    } finally {
+      setLoadingDetailId(null);
+    }
+  }
 
   return (
     <div className="existing-map" data-testid="existing-stations-map">
@@ -155,7 +213,7 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
           style={{ left: `${station.x}%`, top: `${station.y}%` }}
           title={station.name}
           data-testid={`existing-station-marker-${station.id}`}
-          onClick={() => setSelectedStationId(station.id)}
+          onClick={() => selectStation(station.id)}
         >
           <span className="marker-dot" />
         </button>
@@ -181,7 +239,9 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
           <dl>
             <div>
               <dt>Soket</dt>
-              <dd>{selectedStation.socketType}</dd>
+              <dd>
+                {loadingDetailId === selectedStation.id ? "Yukleniyor..." : selectedStation.socketType}
+              </dd>
             </div>
             <div>
               <dt>Guc</dt>

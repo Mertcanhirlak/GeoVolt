@@ -26,6 +26,10 @@ export async function getChargingStations() {
   return getJson("/api/charging-stations");
 }
 
+export async function getChargingStationDetail(id) {
+  return getJson(`/api/charging-stations/${id}`);
+}
+
 export async function getRegions() {
   return getJson("/api/regions");
 }
