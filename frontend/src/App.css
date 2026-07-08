@@ -524,3 +524,351 @@ button:hover {
 .personalization-map-panel button:hover {
   background-color: #166534;
 }
+
+/* FULL SCREEN MAP LAYOUT FIX */
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  overflow: hidden;
+}
+
+.candidate-page {
+  width: 100vw;
+  height: 100vh;
+  min-height: 100vh;
+  display: flex;
+  background-color: #eef2f7;
+  overflow: hidden;
+}
+
+.left-menu {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 86px;
+  height: 100vh;
+  min-height: 100vh;
+  z-index: 20;
+  background-color: #d1d5db;
+  border-right: 1px solid #9ca3af;
+}
+
+.page-content {
+  margin-left: 86px;
+  padding: 0;
+  width: calc(100vw - 86px);
+  height: 100vh;
+  overflow: hidden;
+}
+
+.map-screen {
+  width: 100%;
+  height: 100vh;
+  position: relative;
+}
+
+.map-topbar {
+  position: absolute;
+  top: 18px;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  margin: 0;
+}
+
+.mock-map {
+  width: 100%;
+  height: 100vh;
+  min-height: 100vh;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  padding: 90px 28px 28px 28px;
+}
+
+.standalone-panel {
+  width: 100%;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 32px;
+  box-sizing: border-box;
+}
+
+.map-filter-overlay {
+  top: 92px;
+  right: 24px;
+}
+
+@media (max-width: 900px) {
+  body {
+    overflow: auto;
+  }
+
+  .candidate-page {
+    flex-direction: column;
+    overflow: auto;
+  }
+
+  .left-menu {
+    position: fixed;
+    width: 100%;
+    height: 72px;
+    min-height: 72px;
+    flex-direction: row;
+    justify-content: center;
+    padding: 8px;
+    gap: 16px;
+    border-right: none;
+    border-bottom: 1px solid #9ca3af;
+  }
+
+  .page-content {
+    margin-left: 0;
+    margin-top: 72px;
+    width: 100vw;
+    height: calc(100vh - 72px);
+  }
+
+  .mock-map {
+    height: calc(100vh - 72px);
+    min-height: calc(100vh - 72px);
+  }
+}
+
+/* FINAL MAP FULLSCREEN CLEANUP */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  overflow: hidden;
+}
+
+.candidate-page {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  overflow: hidden;
+}
+
+.left-menu {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 66px;
+  height: 100vh;
+  min-height: 100vh;
+  padding-top: 28px;
+  z-index: 50;
+  background-color: #d1d5db;
+}
+
+.menu-button {
+  width: 44px;
+  height: 44px;
+  font-size: 24px;
+  margin-top: 0;
+}
+
+.page-content {
+  margin-left: 66px;
+  width: calc(100vw - 66px);
+  height: 100vh;
+  padding: 0;
+  overflow: hidden;
+}
+
+.map-screen {
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+.mock-map {
+  width: 100%;
+  height: 100vh;
+  min-height: 100vh;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Haritanın üstündeki açıklama yazılarını gizle */
+.candidate-map h1,
+.candidate-map > p {
+  display: none;
+}
+
+/* Arama çubuğunu haritanın üstüne düzgün yerleştir */
+.map-topbar {
+  position: absolute;
+  top: 18px;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin: 0;
+  pointer-events: none;
+}
+
+.map-search,
+.region-toggle {
+  pointer-events: auto;
+}
+
+.map-search {
+  width: 62%;
+  max-width: 900px;
+  height: 38px;
+  padding: 10px 18px;
+  border-radius: 22px;
+  background-color: white;
+  color: #111827;
+}
+
+/* Filtre paneli ekrandan taşmasın */
+.map-filter-overlay {
+  position: absolute;
+  top: 70px;
+  right: 18px;
+  width: 250px;
+  z-index: 30;
+}
+
+.map-filter-overlay .filter-panel {
+  width: 100%;
+  padding: 12px;
+  border-radius: 14px;
+}
+
+.map-filter-overlay .filter-panel h2 {
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.map-filter-overlay .filter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.map-filter-overlay .filter-grid label {
+  font-size: 10px;
+}
+
+.map-filter-overlay input {
+  height: 26px;
+  padding: 5px;
+  font-size: 11px;
+}
+
+.map-filter-overlay button {
+  height: 30px;
+  padding: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+/* Pinler haritada daha düzgün dursun */
+.candidate-pin,
+.station-dot {
+  width: 14px;
+  height: 14px;
+}
+
+/* Popup filtre panelinin altında kalmasın */
+.map-candidate-popup {
+  z-index: 40;
+}
+
+/* Kişiselleştirme ve kaydedilenler sayfaları kaydırılabilir olsun */
+.standalone-panel {
+  height: 100vh;
+  overflow-y: auto;
+  padding: 32px;
+}
+
+@media (max-width: 900px) {
+  .left-menu {
+    width: 100%;
+    height: 68px;
+    min-height: 68px;
+    flex-direction: row;
+    justify-content: center;
+    padding: 8px;
+  }
+
+  .page-content {
+    margin-left: 0;
+    margin-top: 68px;
+    width: 100vw;
+    height: calc(100vh - 68px);
+  }
+
+  .mock-map {
+    height: calc(100vh - 68px);
+    min-height: calc(100vh - 68px);
+  }
+
+  .map-filter-overlay {
+    position: absolute;
+    top: 76px;
+    right: 12px;
+    width: 230px;
+  }
+
+  .map-search {
+    width: 70%;
+  }
+}
+
+/* HIDE MAP TEXT TITLES ON FULLSCREEN MAP */
+
+.mock-map h1,
+.mock-map > p {
+  display: none !important;
+}
+
+/* Search bar should stay cleanly at top */
+
+.map-topbar {
+  top: 20px !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 40 !important;
+}
+
+/* Map starts directly under browser, no text overlap */
+
+.mock-map {
+  padding: 0 !important;
+}
+
+/* Keep filter panel below search bar */
+
+.map-filter-overlay {
+  top: 82px !important;
+  right: 18px !important;
+}
