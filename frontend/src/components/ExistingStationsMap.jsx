@@ -279,6 +279,12 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
         <button type="button">+</button>
       </div>
 
+      <button className="map-cube-control" type="button" title="Harita katmanlari">
+        <span />
+        <span />
+        <span />
+      </button>
+
       <div className="existing-map-source">
         {source === "api" ? "Canli veri" : "Mock veri"}
       </div>
