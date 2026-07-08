@@ -31,6 +31,9 @@ public sealed class ChargingStationRepository : IChargingStationRepository
                 // Çukurambar, Balgat bölgesine bağlıdır
                 RegionId = 9,
 
+                // Çukurambar mahallesi
+                NeighborhoodId = 2,
+
                 Address = "Çukurambar, Çankaya / Ankara",
 
                 // Geçici mock konum
@@ -50,6 +53,9 @@ public sealed class ChargingStationRepository : IChargingStationRepository
 
                 // Çukurambar, Balgat bölgesine bağlıdır
                 RegionId = 9,
+
+                // Çukurambar mahallesi
+                NeighborhoodId = 2,
 
                 Address = "Çukurambar, Çankaya / Ankara",
 
@@ -71,6 +77,9 @@ public sealed class ChargingStationRepository : IChargingStationRepository
                 // Balgat mahallesi, Balgat bölgesine bağlıdır
                 RegionId = 9,
 
+                // Balgat mahallesi
+                NeighborhoodId = 1,
+
                 Address = "Balgat, Çankaya / Ankara",
 
                 // Geçici mock konum
@@ -90,6 +99,9 @@ public sealed class ChargingStationRepository : IChargingStationRepository
 
                 // Balgat mahallesi, Balgat bölgesine bağlıdır
                 RegionId = 9,
+
+                // Balgat mahallesi
+                NeighborhoodId = 1,
 
                 Address = "Balgat, Çankaya / Ankara",
 
@@ -111,6 +123,9 @@ public sealed class ChargingStationRepository : IChargingStationRepository
                 // Söğütözü, Balgat bölgesine bağlıdır
                 RegionId = 9,
 
+                // Söğütözü mahallesi
+                NeighborhoodId = 3,
+
                 Address = "Söğütözü, Çankaya / Ankara",
 
                 // Geçici mock konum
@@ -130,6 +145,9 @@ public sealed class ChargingStationRepository : IChargingStationRepository
 
                 // Söğütözü, Balgat bölgesine bağlıdır
                 RegionId = 9,
+
+                // Söğütözü mahallesi
+                NeighborhoodId = 3,
 
                 Address = "Söğütözü, Çankaya / Ankara",
 
@@ -221,21 +239,31 @@ public sealed class ChargingStationRepository : IChargingStationRepository
     }
 
     public Task<IReadOnlyList<ChargingStation>> GetAllAsync(
-        int? regionId = null,
-        CancellationToken cancellationToken = default)
+       int? regionId = null,
+       int? neighborhoodId = null,
+       CancellationToken cancellationToken = default)
     {
-        // Bölge filtresi yoksa tüm istasyonları döndürür
-        if (regionId is null)
+        // Filtreleme işlemleri için sorguyu tüm istasyonlarla başlatır
+        IEnumerable<ChargingStation> query = _stations;
+
+        // Bölge filtresi varsa uygular
+        if (regionId.HasValue)
         {
-            return Task.FromResult(_stations);
+            query = query.Where(station =>
+                station.RegionId == regionId.Value);
         }
 
-        // Belirtilen bölgedeki istasyonları filtreler
-        IReadOnlyList<ChargingStation> filteredStations = _stations
-            .Where(station => station.RegionId == regionId.Value)
-            .ToList();
+        // Mahalle filtresi varsa uygular
+        if (neighborhoodId.HasValue)
+        {
+            query = query.Where(station =>
+                station.NeighborhoodId == neighborhoodId.Value);
+        }
 
-        return Task.FromResult(filteredStations);
+        // Filtrelenmiş istasyon listesini döndürür
+        IReadOnlyList<ChargingStation> stations = query.ToList();
+
+        return Task.FromResult(stations);
     }
 
     public Task<ChargingStation?> GetByIdAsync(
