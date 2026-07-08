@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useState } from "react";
 import { getCandidatePoints } from "../services/candidatePointsApi";
+import { saveCandidatePoint } from "../services/savedCandidatePointsApi";
 import CandidateFilters from "../components/CandidateFilters";
 import SavedCandidates from "../components/SavedCandidates";
 import PersonalizationForm from "../components/PersonalizationForm";
@@ -144,31 +145,27 @@ export default function CandidatePointsPage() {
     }
   }
 
-  function saveCandidate(candidate) {
-    const savedCandidates =
-      JSON.parse(localStorage.getItem("savedCandidates")) || [];
+  async function saveCandidate(candidate) {
+    const result = await saveCandidatePoint(candidate);
 
-    const alreadySaved = savedCandidates.some((item) => item.id === candidate.id);
-
-    if (alreadySaved) {
+    if (result.status === "already-saved") {
       setMessage("Bu aday nokta zaten kaydedilmiş.");
       return;
     }
 
-    if (savedCandidates.length >= 10) {
+    if (result.status === "limit-exceeded") {
       setMessage("En fazla 10 aday nokta kaydedebilirsiniz.");
       return;
     }
 
-    const updatedSavedCandidates = [...savedCandidates, candidate];
+    setSavedRefreshKey((currentKey) => currentKey + 1);
 
-    localStorage.setItem(
-      "savedCandidates",
-      JSON.stringify(updatedSavedCandidates)
-    );
+    if (result.source === "api") {
+      setMessage("Aday nokta API üzerinden kaydedildi.");
+      return;
+    }
 
-    setSavedRefreshKey(savedRefreshKey + 1);
-    setMessage("Aday nokta kaydedildi.");
+    setMessage("Aday nokta lokal olarak kaydedildi.");
   }
 
   function handlePersonalizedResult(result) {
@@ -180,6 +177,12 @@ export default function CandidatePointsPage() {
   function showCandidateOnMap(candidate) {
     setFilteredCandidates([candidate]);
     setSelectedCandidate(candidate);
+    setActiveTab("candidateMap");
+  }
+
+  function openCandidateMap() {
+    setFilteredCandidates(candidates);
+    setSelectedCandidate(candidates[0] || null);
     setActiveTab("candidateMap");
   }
 
@@ -200,11 +203,7 @@ export default function CandidatePointsPage() {
             activeTab === "candidateMap" ? "menu-button active" : "menu-button"
           }
           data-testid="candidate-map-tab-button"
-          onClick={() => {
-            setFilteredCandidates(candidates);
-            setSelectedCandidate(candidates[0] || null);
-            setActiveTab("candidateMap");
-          }}
+          onClick={openCandidateMap}
           title="Aday nokta haritası"
         >
           <span className="menu-icon">{"\u26A1"}</span>

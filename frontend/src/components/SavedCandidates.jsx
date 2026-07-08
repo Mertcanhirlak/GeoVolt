@@ -1,37 +1,61 @@
 ﻿import React, { useEffect, useState } from "react";
+import {
+  deleteSavedCandidatePoint,
+  getSavedCandidatePoints
+} from "../services/savedCandidatePointsApi";
 
 export default function SavedCandidates({ refreshKey }) {
   const [savedCandidates, setSavedCandidates] = useState([]);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     loadSavedCandidates();
   }, [refreshKey]);
 
-  function loadSavedCandidates() {
-    const data = JSON.parse(localStorage.getItem("savedCandidates")) || [];
-    setSavedCandidates(data);
+  async function loadSavedCandidates() {
+    const result = await getSavedCandidatePoints();
+
+    setSavedCandidates(result.data);
+
+    if (result.source === "local-storage") {
+      setMessage("Kaydedilenler lokal veriden gösteriliyor.");
+      return;
+    }
+
+    setMessage("");
   }
 
-  function removeCandidate(candidateId) {
-    const updatedList = savedCandidates.filter(
-      (candidate) => candidate.id !== candidateId
-    );
+  async function handleDelete(candidatePointId) {
+    const result = await deleteSavedCandidatePoint(candidatePointId);
 
-    localStorage.setItem("savedCandidates", JSON.stringify(updatedList));
-    setSavedCandidates(updatedList);
+    if (result.success) {
+      setSavedCandidates((currentCandidates) =>
+        currentCandidates.filter((candidate) => candidate.id !== candidatePointId)
+      );
+
+      if (result.source === "local-storage") {
+        setMessage("Kayıt lokal veriden silindi.");
+      } else {
+        setMessage("Kayıt API üzerinden silindi.");
+      }
+    }
   }
 
   return (
     <div className="saved-panel" data-testid="saved-candidates-panel">
-      <h2 data-testid="saved-candidates-title">Kaydedilen Aday Noktalar</h2>
+      <h2>Kaydedilen Aday Noktalar</h2>
 
-      {savedCandidates.length === 0 && (
+      {message && (
+        <div className="info-message" data-testid="saved-candidates-message">
+          {message}
+        </div>
+      )}
+
+      {savedCandidates.length === 0 ? (
         <p className="empty-message" data-testid="saved-candidates-empty-message">
           Henüz kaydedilen aday nokta bulunmamaktadır.
         </p>
-      )}
-
-      {savedCandidates.length > 0 && (
+      ) : (
         <div className="saved-list" data-testid="saved-candidates-list">
           {savedCandidates.map((candidate) => (
             <div
@@ -39,19 +63,17 @@ export default function SavedCandidates({ refreshKey }) {
               className="saved-card"
               data-testid={`saved-candidate-card-${candidate.id}`}
             >
-              <h3 data-testid={`saved-candidate-name-${candidate.id}`}>
-                {candidate.name}
-              </h3>
+              <h3>{candidate.name}</h3>
 
-              <p data-testid={`saved-candidate-address-${candidate.id}`}>
+              <p>
                 <strong>Adres:</strong> {candidate.estimatedAddress}
               </p>
 
-              <p data-testid={`saved-candidate-region-${candidate.id}`}>
+              <p>
                 <strong>Bölge:</strong> {candidate.region}
               </p>
 
-              <p data-testid={`saved-candidate-general-score-${candidate.id}`}>
+              <p>
                 <strong>Genel Skor:</strong>{" "}
                 {candidate.generalScore ?? "Veri Eksik"}
               </p>
@@ -59,7 +81,7 @@ export default function SavedCandidates({ refreshKey }) {
               <button
                 className="delete-button"
                 data-testid={`delete-saved-candidate-button-${candidate.id}`}
-                onClick={() => removeCandidate(candidate.id)}
+                onClick={() => handleDelete(candidate.id)}
               >
                 Kaydı Sil
               </button>
