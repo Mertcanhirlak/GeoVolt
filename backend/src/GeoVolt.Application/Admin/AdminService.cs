@@ -90,6 +90,124 @@ public sealed class AdminService : IAdminService
         return ApiResponse<IReadOnlyList<UserResponse>>.Ok(response);
     }
 
+    public async Task<ApiResponse<UserResponse>> UpdateUserRoleAsync(
+        int userId,
+        UpdateUserRoleRequest request,
+        CancellationToken cancellationToken)
+    {
+        var role = request.Role.Trim();
+
+        if (!UserRoles.IsValid(role))
+        {
+            return ApiResponse<UserResponse>.Fail("Geçersiz rol.");
+        }
+
+        var user = await _adminRepository.GetUserByIdAsync(userId, cancellationToken);
+
+        if (user is null)
+        {
+            return ApiResponse<UserResponse>.Fail("Kullanıcı bulunamadı.");
+        }
+
+        if (user.Role == UserRoles.Admin && role != UserRoles.Admin)
+        {
+            var adminCount = await _adminRepository.GetAdminUserCountAsync(cancellationToken);
+
+            if (adminCount <= 1)
+            {
+                return ApiResponse<UserResponse>.Fail("Son admin kullanıcının rolü değiştirilemez.");
+            }
+        }
+
+        if (role == UserRoles.Admin)
+        {
+            user.Role = UserRoles.Admin;
+            user.CompanyId = null;
+        }
+        else
+        {
+            if (!request.CompanyId.HasValue)
+            {
+                return ApiResponse<UserResponse>.Fail("Firma kullanıcısı için firma seçilmelidir.");
+            }
+
+            var company = await _adminRepository.GetCompanyByIdAsync(request.CompanyId.Value, cancellationToken);
+
+            if (company is null)
+            {
+                return ApiResponse<UserResponse>.Fail("Firma bulunamadı.");
+            }
+
+            var companyUserCount = await _adminRepository.GetCompanyUserCountExceptAsync(
+                company.Id,
+                user.Id,
+                cancellationToken);
+
+            if (companyUserCount >= MaxUsersPerCompany)
+            {
+                return ApiResponse<UserResponse>.Fail("Bir firmaya en fazla 2 kullanici eklenebilir.");
+            }
+
+            user.Role = UserRoles.CompanyUser;
+            user.CompanyId = company.Id;
+        }
+
+        var updatedUser = await _adminRepository.UpdateUserAsync(user, cancellationToken);
+
+        return ApiResponse<UserResponse>.Ok(ToUserResponse(updatedUser), "Kullanıcı rolü güncellendi.");
+    }
+
+    public async Task<ApiResponse<int>> DeleteUserAsync(
+        int userId,
+        int currentUserId,
+        CancellationToken cancellationToken)
+    {
+        if (userId == currentUserId)
+        {
+            return ApiResponse<int>.Fail("Kendi admin kullanıcınızı silemezsiniz.");
+        }
+
+        var user = await _adminRepository.GetUserByIdAsync(userId, cancellationToken);
+
+        if (user is null)
+        {
+            return ApiResponse<int>.Fail("Kullanıcı bulunamadı.");
+        }
+
+        if (user.Role == UserRoles.Admin)
+        {
+            var adminCount = await _adminRepository.GetAdminUserCountAsync(cancellationToken);
+
+            if (adminCount <= 1)
+            {
+                return ApiResponse<int>.Fail("Son admin kullanıcı silinemez.");
+            }
+        }
+
+        await _adminRepository.DeleteUserAsync(user, cancellationToken);
+
+        return ApiResponse<int>.Ok(userId, "Kullanıcı silindi.");
+    }
+
+    public async Task<ApiResponse<int>> DeleteCompanyAsync(int companyId, CancellationToken cancellationToken)
+    {
+        var company = await _adminRepository.GetCompanyByIdAsync(companyId, cancellationToken);
+
+        if (company is null)
+        {
+            return ApiResponse<int>.Fail("Firma bulunamadı.");
+        }
+
+        if (company.Users.Count > 0)
+        {
+            return ApiResponse<int>.Fail("Firmayı silmeden önce firmaya bağlı kullanıcıları silin.");
+        }
+
+        await _adminRepository.DeleteCompanyAsync(company, cancellationToken);
+
+        return ApiResponse<int>.Ok(companyId, "Firma silindi.");
+    }
+
     private static string? NormalizeOptional(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();

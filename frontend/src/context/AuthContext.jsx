@@ -50,8 +50,7 @@ export function AuthProvider({ children }) {
   const role = user?.role ?? null;
   const companyId = user?.companyId ?? null;
 
-  const isSystemAdmin = role === "SystemAdmin";
-  const isCompanyAdmin = role === "CompanyAdmin";
+  const isAdmin = role === "Admin";
   const isCompanyUser = role === "CompanyUser";
 
   return (
@@ -62,8 +61,7 @@ export function AuthProvider({ children }) {
         role,
         companyId,
         isAuthenticated,
-        isSystemAdmin,
-        isCompanyAdmin,
+        isAdmin,
         isCompanyUser,
         loginUser,
         logoutUser,

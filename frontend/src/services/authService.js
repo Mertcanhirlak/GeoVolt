@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:5000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000";
 const MOCK_MODE = false;
 
 const mockUsers = [
@@ -7,8 +7,8 @@ const mockUsers = [
     password: "123456",
     id: 1,
     companyId: null,
-    fullName: "Sistem Yoneticisi",
-    role: "SystemAdmin",
+    fullName: "Sistem Yöneticisi",
+    role: "Admin",
     isActive: true,
   },
   {
@@ -16,8 +16,8 @@ const mockUsers = [
     password: "123456",
     id: 2,
     companyId: 101,
-    fullName: "Firma 1 Yoneticisi",
-    role: "CompanyAdmin",
+    fullName: "Firma 1 Yöneticisi",
+    role: "Admin",
     isActive: true,
   },
   {
@@ -25,7 +25,7 @@ const mockUsers = [
     password: "123456",
     id: 3,
     companyId: 101,
-    fullName: "Firma 1 Kullanicisi",
+    fullName: "Firma 1 Kullanıcısı",
     role: "CompanyUser",
     isActive: true,
   },
@@ -47,7 +47,7 @@ function normalizeAuthResponse(response) {
   if (response?.token) return response;
   if (response?.data?.token) return response.data;
 
-  throw new Error(response?.message || "Giris yaniti gecersiz");
+  throw new Error(response?.message || "Giriş yanıtı geçersiz");
 }
 
 export function decodeMockToken(token) {
@@ -65,8 +65,8 @@ export async function login(email, password) {
       setTimeout(() => {
         const user = mockUsers.find((mockUser) => mockUser.email === email && mockUser.password === password);
 
-        if (!user) return reject(new Error("Email veya sifre hatali"));
-        if (!user.isActive) return reject(new Error("Kullanici pasif durumda"));
+        if (!user) return reject(new Error("Email veya şifre hatalı"));
+        if (!user.isActive) return reject(new Error("Kullanıcı pasif durumda"));
 
         resolve({ token: createMockToken(user), user });
       }, 400);
@@ -82,7 +82,7 @@ export async function login(email, password) {
   const response = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw new Error(response.message || "Email veya sifre hatali");
+    throw new Error(response.message || "Email veya şifre hatalı");
   }
 
   return normalizeAuthResponse(response);
@@ -91,7 +91,7 @@ export async function login(email, password) {
 export async function createCompanyUser(newUserData, requesterToken) {
   if (MOCK_MODE) {
     return new Promise((resolve) => {
-      setTimeout(() => resolve({ success: true, message: "Kullanici olusturuldu (mock)" }), 300);
+      setTimeout(() => resolve({ success: true, message: "Kullanıcı oluşturuldu (mock)" }), 300);
     });
   }
 
@@ -101,7 +101,7 @@ export async function createCompanyUser(newUserData, requesterToken) {
     body: JSON.stringify(newUserData),
   });
 
-  if (!res.ok) throw new Error("Kullanici olusturulamadi");
+  if (!res.ok) throw new Error("Kullanıcı oluşturulamadı");
 
   return res.json();
 }

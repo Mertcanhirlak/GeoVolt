@@ -13,4 +13,10 @@ public interface IAdminService
     Task<ApiResponse<UserResponse>> CreateCompanyUserAsync(CreateCompanyUserRequest request, CancellationToken cancellationToken);
 
     Task<ApiResponse<IReadOnlyList<UserResponse>>> GetUsersAsync(CancellationToken cancellationToken);
+
+    Task<ApiResponse<UserResponse>> UpdateUserRoleAsync(int userId, UpdateUserRoleRequest request, CancellationToken cancellationToken);
+
+    Task<ApiResponse<int>> DeleteUserAsync(int userId, int currentUserId, CancellationToken cancellationToken);
+
+    Task<ApiResponse<int>> DeleteCompanyAsync(int companyId, CancellationToken cancellationToken);
 }
