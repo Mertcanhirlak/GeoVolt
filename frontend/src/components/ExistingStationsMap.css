@@ -36,28 +36,12 @@
   font-weight: 700;
 }
 
-.region-kizilay {
-  left: 38%;
-  top: 26%;
-  width: 22%;
-  height: 22%;
-  clip-path: polygon(8% 14%, 88% 0, 100% 70%, 45% 100%, 0 78%);
-}
-
-.region-sogutozu {
-  left: 20%;
-  top: 23%;
-  width: 21%;
-  height: 25%;
-  clip-path: polygon(12% 0, 100% 20%, 82% 100%, 0 72%);
-}
-
-.region-oran {
-  left: 54%;
-  top: 54%;
-  width: 24%;
-  height: 26%;
+.existing-region:nth-child(odd) {
   clip-path: polygon(0 22%, 86% 0, 100% 78%, 32% 100%);
+}
+
+.existing-region:nth-child(even) {
+  clip-path: polygon(12% 0, 100% 20%, 82% 100%, 0 72%);
 }
 
 .existing-road {
@@ -225,4 +209,17 @@
   border-top: 0;
   border-left: 0;
   border-radius: 50%;
+}
+
+.existing-map-source {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  padding: 7px 10px;
+  color: #475569;
+  background: rgba(255, 255, 255, 0.78);
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
 }

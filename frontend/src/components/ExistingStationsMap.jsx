@@ -1,6 +1,58 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { mockChargingStations } from "../data/mockChargingStations";
+import { getChargingStations, getRegions } from "../services/mapDataApi";
 import "./ExistingStationsMap.css";
+
+const ANKARA_BOUNDS = {
+  minLat: 39.82,
+  maxLat: 39.95,
+  minLng: 32.78,
+  maxLng: 32.89,
+};
+
+const regionPlacements = [
+  { left: 38, top: 26, width: 22, height: 22 },
+  { left: 20, top: 23, width: 21, height: 25 },
+  { left: 54, top: 54, width: 24, height: 26 },
+  { left: 32, top: 58, width: 18, height: 22 },
+  { left: 62, top: 24, width: 20, height: 20 },
+];
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function getStationPosition(station) {
+  if (Number.isFinite(station.x) && Number.isFinite(station.y)) {
+    return { x: station.x, y: station.y };
+  }
+
+  const lngRatio = (station.longitude - ANKARA_BOUNDS.minLng) / (ANKARA_BOUNDS.maxLng - ANKARA_BOUNDS.minLng);
+  const latRatio = (ANKARA_BOUNDS.maxLat - station.latitude) / (ANKARA_BOUNDS.maxLat - ANKARA_BOUNDS.minLat);
+
+  return {
+    x: clamp(lngRatio * 100, 8, 92),
+    y: clamp(latRatio * 100, 12, 88),
+  };
+}
+
+function normalizeStation(station) {
+  const status = station.status ?? (station.isActive ? "Aktif" : "Pasif");
+
+  return {
+    id: station.id,
+    name: station.name || "Sarj Istasyonu",
+    district: station.district || "Cankaya",
+    neighborhood: station.neighborhood || station.regionName || `Bolge ${station.regionId ?? ""}`.trim(),
+    address: station.address || "Adres bilgisi yok",
+    latitude: Number(station.latitude),
+    longitude: Number(station.longitude),
+    socketType: station.socketType || station.connectorType || "Soket bilgisi yok",
+    status,
+    power: station.power || station.operatorName || "Operator bilgisi yok",
+    ...getStationPosition(station),
+  };
+}
 
 function matchesSearch(station, searchTerm) {
   const normalizedTerm = searchTerm.trim().toLocaleLowerCase("tr-TR");
@@ -15,10 +67,44 @@ function matchesSearch(station, searchTerm) {
 
 export default function ExistingStationsMap({ searchTerm = "", regionsActive = false }) {
   const [selectedStationId, setSelectedStationId] = useState(null);
+  const [stations, setStations] = useState(mockChargingStations);
+  const [regions, setRegions] = useState([]);
+  const [source, setSource] = useState("mock");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadMapData() {
+      try {
+        const [stationData, regionData] = await Promise.all([
+          getChargingStations(),
+          getRegions(),
+        ]);
+
+        if (!isMounted) return;
+
+        setStations(stationData.map(normalizeStation));
+        setRegions(Array.isArray(regionData) ? regionData : []);
+        setSource("api");
+      } catch {
+        if (!isMounted) return;
+
+        setStations(mockChargingStations);
+        setRegions([]);
+        setSource("mock");
+      }
+    }
+
+    loadMapData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const visibleStations = useMemo(() => {
-    return mockChargingStations.filter((station) => matchesSearch(station, searchTerm));
-  }, [searchTerm]);
+    return stations.filter((station) => matchesSearch(station, searchTerm));
+  }, [searchTerm, stations]);
 
   const selectedStation =
     visibleStations.find((station) => station.id === selectedStationId) ?? visibleStations[0] ?? null;
@@ -29,9 +115,28 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
 
       {regionsActive && (
         <div className="existing-region-layer" aria-hidden="true">
-          <div className="existing-region region-kizilay">Kizilay</div>
-          <div className="existing-region region-sogutozu">Sogutozu</div>
-          <div className="existing-region region-oran">Oran</div>
+          {(regions.length > 0 ? regions : [
+            { id: 1, name: "Kizilay" },
+            { id: 2, name: "Sogutozu" },
+            { id: 3, name: "Oran" },
+          ]).slice(0, 5).map((region, index) => {
+            const placement = regionPlacements[index % regionPlacements.length];
+
+            return (
+              <div
+                key={region.id ?? region.name}
+                className="existing-region"
+                style={{
+                  left: `${placement.left}%`,
+                  top: `${placement.top}%`,
+                  width: `${placement.width}%`,
+                  height: `${placement.height}%`,
+                }}
+              >
+                {region.name}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -46,7 +151,7 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
           type="button"
           className={`existing-station-marker ${
             selectedStation?.id === station.id ? "selected" : ""
-          } ${station.status === "Bakimda" ? "maintenance" : ""}`}
+          } ${station.status !== "Aktif" ? "maintenance" : ""}`}
           style={{ left: `${station.x}%`, top: `${station.y}%` }}
           title={station.name}
           data-testid={`existing-station-marker-${station.id}`}
@@ -89,6 +194,10 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
       <div className="existing-map-scale" aria-hidden="true">
         <span />
         <span />
+      </div>
+
+      <div className="existing-map-source">
+        {source === "api" ? "Canli veri" : "Mock veri"}
       </div>
     </div>
   );
