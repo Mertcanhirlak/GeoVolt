@@ -23,7 +23,7 @@ function LoginPage() {
 
     try {
       const data = await login(email, password);
-      loginUser(data.token);
+      loginUser(data.token, data.user);
 
       // KANKA: Seni ana sayfada ezip geçen arkadaşının paneline fırlatıyoruz!
       navigate("/dashboard");

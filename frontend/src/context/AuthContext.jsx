@@ -5,24 +5,43 @@ const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(localStorage.getItem("token"));
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    const storedUser = localStorage.getItem("user");
+
+    if (!storedUser) return null;
+
+    try {
+      return JSON.parse(storedUser);
+    } catch {
+      localStorage.removeItem("user");
+      return null;
+    }
+  });
 
   useEffect(() => {
-    if (token) {
+    if (token && !user) {
       const decoded = decodeMockToken(token);
       setUser(decoded);
-    } else {
+    }
+
+    if (!token) {
       setUser(null);
     }
-  }, [token]);
+  }, [token, user]);
 
-  const loginUser = (newToken) => {
+  const loginUser = (newToken, userData = null) => {
     localStorage.setItem("token", newToken);
     setToken(newToken);
+
+    if (userData) {
+      localStorage.setItem("user", JSON.stringify(userData));
+      setUser(userData);
+    }
   };
 
   const logoutUser = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
     setToken(null);
     setUser(null);
   };
