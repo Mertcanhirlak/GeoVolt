@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
+import { getCandidatePoints } from "../services/candidatePointsApi";
 import CandidateFilters from "../components/CandidateFilters";
 import SavedCandidates from "../components/SavedCandidates";
 import PersonalizationForm from "../components/PersonalizationForm";
 import ExistingStationsMap from "../components/ExistingStationsMap";
-import { getCandidatePoints } from "../services/candidatePointsApi";
 
 const defaultFilters = {
   costMin: "",
@@ -72,6 +72,8 @@ export default function CandidatePointsPage() {
 
       setCandidates(result.data);
       setFilteredCandidates(result.data);
+      setPersonalizedCandidates(result.data);
+      setSelectedCandidate(result.data[0] || null);
 
       if (result.source === "local-mock") {
         setMessage("Backend erisilemedi. Lokal mock veri gosteriliyor.");
@@ -174,8 +176,9 @@ export default function CandidatePointsPage() {
   }
 
   function showCandidateOnMap(candidate) {
-    setActiveTab("candidateMap");
+    setFilteredCandidates([candidate]);
     setSelectedCandidate(candidate);
+    setActiveTab("candidateMap");
   }
 
   return (
@@ -187,16 +190,20 @@ export default function CandidatePointsPage() {
           onClick={() => setActiveTab("home")}
           title="Mevcut istasyon haritasi"
         >
-          🏠
+          <span className="menu-icon">{"\u{1F3E0}"}</span>
         </button>
 
         <button
           className={activeTab === "candidateMap" ? "menu-button active" : "menu-button"}
           data-testid="candidate-map-tab-button"
-          onClick={() => setActiveTab("candidateMap")}
+          onClick={() => {
+            setFilteredCandidates(candidates);
+            setSelectedCandidate(candidates[0] || null);
+            setActiveTab("candidateMap");
+          }}
           title="Aday nokta haritasi"
         >
-          ⚡
+          <span className="menu-icon">{"\u26A1"}</span>
         </button>
 
         <button
@@ -205,7 +212,7 @@ export default function CandidatePointsPage() {
           onClick={() => setActiveTab("saved")}
           title="Kaydedilenler"
         >
-          ☰
+          <span className="menu-icon">{"\u2630"}</span>
         </button>
 
         <button
@@ -214,7 +221,7 @@ export default function CandidatePointsPage() {
           onClick={() => setActiveTab("personalization")}
           title="Kisisellestirme"
         >
-          🖌
+          <span className="menu-icon">{"\u{1F58C}"}</span>
         </button>
       </aside>
 
@@ -253,11 +260,13 @@ export default function CandidatePointsPage() {
                 data-testid="candidate-search-input"
                 placeholder="Aday nokta veya mahalle ara"
               />
+
               <span className="region-toggle">Bolgeler inaktif</span>
             </div>
 
             <div className="mock-map candidate-map">
               <h1>Aday Nokta Haritasi</h1>
+
               <p>
                 Aday nokta pinlerine tiklayarak detay kartini harita uzerinde
                 goruntuleyebilirsiniz.
@@ -339,39 +348,70 @@ export default function CandidatePointsPage() {
         )}
 
         {activeTab === "personalization" && (
-          <section className="standalone-panel" data-testid="personalization-screen">
+          <section
+            className="standalone-panel personalization-screen"
+            data-testid="personalization-screen"
+          >
             <h1>Kisisellestirme</h1>
 
             <p className="page-description">
               Firma butcesi, sistem tipi, mekan turu ve bolgeye gore aday noktalar
-              kisisellestirilir. Sonuclardan "Haritada Gor" secilerek aday nokta
-              haritasina gidilir.
+              kisisellestirilir.
             </p>
 
             <PersonalizationForm candidates={candidates} onResult={handlePersonalizedResult} />
 
             <h2 className="section-title">Kisisellestirilmis Sonuclar</h2>
 
-            <div className="personalized-result-list" data-testid="personalized-candidate-list">
+            <div className="personalized-card-grid" data-testid="personalized-candidate-list">
               {personalizedCandidates.map((candidate) => (
                 <div
                   key={candidate.id}
-                  className="personalized-result-card"
+                  className="personalized-candidate-card"
                   data-testid={`personalized-candidate-card-${candidate.id}`}
                 >
-                  <div>
-                    <h3>{candidate.name}</h3>
-                    <p>{candidate.estimatedAddress}</p>
-                    <p>
-                      <strong>Genel Skor:</strong> {showScore(candidate.generalScore)}
-                    </p>
+                  <h3>{candidate.name}</h3>
+
+                  <p>
+                    <strong>Tahmini Adres:</strong> {candidate.estimatedAddress}
+                  </p>
+
+                  <p>
+                    <strong>Bolge:</strong> {candidate.region}
+                  </p>
+
+                  <p>
+                    <strong>Mahalle:</strong> {candidate.neighborhood}
+                  </p>
+
+                  <p>
+                    <strong>Tahmini Kurulum Maliyeti:</strong>{" "}
+                    {formatMoney(candidate.estimatedCost)}
+                  </p>
+
+                  <div className="score-row">
+                    <span>Maliyet Skoru: {showScore(candidate.costScore)}</span>
+                    <span>Talep Skoru: {showScore(candidate.demandScore)}</span>
+                    <span>Genel Skor: {showScore(candidate.generalScore)}</span>
                   </div>
+
+                  <p>
+                    <strong>Sistem Tipi:</strong> {candidate.systemType}
+                  </p>
+
+                  <p>
+                    <strong>Mekan Turu:</strong> {candidate.placeType}
+                  </p>
+
+                  {candidate.status === "missing" && (
+                    <div className="warning-box">Veri Eksik</div>
+                  )}
 
                   <button
                     data-testid={`show-on-map-button-${candidate.id}`}
                     onClick={() => showCandidateOnMap(candidate)}
                   >
-                    Haritada Gor
+                    Haritada Goster
                   </button>
                 </div>
               ))}

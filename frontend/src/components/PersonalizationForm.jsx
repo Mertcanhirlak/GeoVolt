@@ -1,6 +1,6 @@
 ﻿import React, { useState } from "react";
 
-export default function PersonalizationForm({ candidates, onResult, onShowOnMap }) {
+export default function PersonalizationForm({ candidates, onResult }) {
   const [form, setForm] = useState({
     budgetMin: "",
     budgetMax: "",
@@ -53,7 +53,8 @@ export default function PersonalizationForm({ candidates, onResult, onShowOnMap 
       const budgetMatch = cost >= budgetMin && cost <= budgetMax;
       const systemMatch = candidate.systemType === form.systemType;
       const placeMatch = candidate.placeType === form.placeType;
-      const regionMatch = form.region === "Tümü" || candidate.region === form.region;
+      const regionMatch =
+        form.region === "Tümü" || candidate.region === form.region;
 
       return budgetMatch && systemMatch && placeMatch && regionMatch;
     });
@@ -70,138 +71,89 @@ export default function PersonalizationForm({ candidates, onResult, onShowOnMap 
         });
 
         onResult(fallbackResult);
-        setFormMessage("Orta ve düşük skorlu adaylar gösteriliyor.");
-
-        if (fallbackResult.length > 0 && onShowOnMap) {
-          onShowOnMap(fallbackResult);
-        }
-
+        setFormMessage("Orta ve düşük skorlu adaylar listelendi.");
         return;
       }
 
-      setFormMessage("Uygun aday nokta bulunamadı.");
       onResult([]);
+      setFormMessage("Uygun aday nokta bulunamadı.");
       return;
     }
 
-    onResult(result);
-    setFormMessage("Kişiselleştirilmiş aday noktalar haritada gösteriliyor.");
+    const sortedResult = [...result].sort((a, b) => {
+      const scoreA = a.generalScore ?? 0;
+      const scoreB = b.generalScore ?? 0;
+      return scoreB - scoreA;
+    });
 
-    if (onShowOnMap) {
-      onShowOnMap(result);
-    }
+    onResult(sortedResult);
+    setFormMessage("Kişiselleştirilmiş sonuçlar listelendi.");
   }
 
   return (
-    <div className="personalization-map-panel" data-testid="personalization-panel">
+    <div className="personalization-panel" data-testid="personalization-panel">
       <h2 data-testid="personalization-title">Kişiselleştirme Formu</h2>
 
       <form
         onSubmit={handleSubmit}
-        className="personalization-map-form"
+        className="personalization-grid"
         data-testid="personalization-form"
       >
-        <div className="form-section">
-          <p>Lütfen şirketinizin belirlediği bütçe aralığını giriniz.</p>
+        <label>
+          Bütçe Min
+          <input
+            data-testid="personalization-budget-min-input"
+            type="number"
+            name="budgetMin"
+            value={form.budgetMin}
+            onChange={handleChange}
+            placeholder="Örn: 300000"
+          />
+        </label>
 
-          <div className="budget-row">
-            <input
-              data-testid="personalization-budget-min-input"
-              type="number"
-              name="budgetMin"
-              value={form.budgetMin}
-              onChange={handleChange}
-              placeholder="Min"
-            />
+        <label>
+          Bütçe Max
+          <input
+            data-testid="personalization-budget-max-input"
+            type="number"
+            name="budgetMax"
+            value={form.budgetMax}
+            onChange={handleChange}
+            placeholder="Örn: 800000"
+          />
+        </label>
 
-            <input
-              data-testid="personalization-budget-max-input"
-              type="number"
-              name="budgetMax"
-              value={form.budgetMax}
-              onChange={handleChange}
-              placeholder="Max"
-            />
+        <label>
+          Sistem Tipi
+          <select
+            data-testid="personalization-system-type-select"
+            name="systemType"
+            value={form.systemType}
+            onChange={handleChange}
+          >
+            <option value="">Seçiniz</option>
+            <option value="AC">AC</option>
+            <option value="DC">DC</option>
+          </select>
+        </label>
 
-            <span className="currency-symbol">₺</span>
-          </div>
-        </div>
+        <label>
+          Mekân Türü
+          <select
+            data-testid="personalization-place-type-select"
+            name="placeType"
+            value={form.placeType}
+            onChange={handleChange}
+          >
+            <option value="">Seçiniz</option>
+            <option value="AVM">AVM</option>
+            <option value="İş Yeri">İş Yeri</option>
+            <option value="Otoyol">Otoyol</option>
+          </select>
+        </label>
 
-        <div className="form-section">
-          <p>Yatırım yapmayı hedeflediğiniz şarj sistemi tipini seçiniz.</p>
-
-          <div className="radio-row">
-            <label>
-              <input
-                data-testid="personalization-system-ac-radio"
-                type="radio"
-                name="systemType"
-                value="AC"
-                checked={form.systemType === "AC"}
-                onChange={handleChange}
-              />
-              AC
-            </label>
-
-            <label>
-              <input
-                data-testid="personalization-system-dc-radio"
-                type="radio"
-                name="systemType"
-                value="DC"
-                checked={form.systemType === "DC"}
-                onChange={handleChange}
-              />
-              DC
-            </label>
-          </div>
-        </div>
-
-        <div className="form-section">
-          <p>Şarj istasyonu kuracağınız mekân türünü seçiniz.</p>
-
-          <div className="radio-row place-row">
-            <label>
-              <input
-                data-testid="personalization-place-highway-radio"
-                type="radio"
-                name="placeType"
-                value="Otoyol"
-                checked={form.placeType === "Otoyol"}
-                onChange={handleChange}
-              />
-              Otoyol
-            </label>
-
-            <label>
-              <input
-                data-testid="personalization-place-workplace-radio"
-                type="radio"
-                name="placeType"
-                value="İş Yeri"
-                checked={form.placeType === "İş Yeri"}
-                onChange={handleChange}
-              />
-              İş yeri
-            </label>
-
-            <label>
-              <input
-                data-testid="personalization-place-mall-radio"
-                type="radio"
-                name="placeType"
-                value="AVM"
-                checked={form.placeType === "AVM"}
-                onChange={handleChange}
-              />
-              AVM
-            </label>
-          </div>
-        </div>
-
-        <div className="form-section">
-          <p>Semt belirleyiniz</p>
-
+        <label>
+          Bölge
           <select
             data-testid="personalization-region-select"
             name="region"
@@ -209,18 +161,16 @@ export default function PersonalizationForm({ candidates, onResult, onShowOnMap 
             onChange={handleChange}
           >
             <option value="Tümü">Tümü</option>
-            <option value="Çayyolu">Çayyolu</option>
-            <option value="Söğütözü">Söğütözü</option>
-            <option value="Ahlatlıbel">Ahlatlıbel</option>
             <option value="Kızılay">Kızılay</option>
+            <option value="Söğütözü">Söğütözü</option>
             <option value="Bahçelievler">Bahçelievler</option>
             <option value="Oran">Oran</option>
             <option value="Tunalı">Tunalı</option>
           </select>
-        </div>
+        </label>
 
         <button data-testid="personalization-submit-button" type="submit">
-          Haritada Göster
+          Kişiselleştir
         </button>
       </form>
 
