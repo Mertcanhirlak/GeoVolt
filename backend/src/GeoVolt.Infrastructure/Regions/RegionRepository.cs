@@ -2,7 +2,7 @@
 using GeoVolt.Application.Regions.Models;
 using GeoVolt.Domain.Entities;
 using NetTopologySuite.Geometries;
-
+// Bölge verilerini yönetmek için repository sınıfı
 namespace GeoVolt.Infrastructure.Regions;
 
 public sealed class RegionRepository : IRegionRepository
@@ -26,8 +26,8 @@ public sealed class RegionRepository : IRegionRepository
                 Id = 1,
                 Name = "Çukurambar",
 
-                // Geçici bölge sınırı
-                Boundary = CreatePolygon(
+                // Geçici mock bölge sınırı
+                Boundary = CreateMockRectangle(
                     geometryFactory,
                     32.7950,
                     39.9000,
@@ -40,8 +40,8 @@ public sealed class RegionRepository : IRegionRepository
                 Id = 2,
                 Name = "Balgat",
 
-                // Geçici bölge sınırı
-                Boundary = CreatePolygon(
+                // Geçici mock bölge sınırı
+                Boundary = CreateMockRectangle(
                     geometryFactory,
                     32.8150,
                     39.9000,
@@ -54,8 +54,8 @@ public sealed class RegionRepository : IRegionRepository
                 Id = 3,
                 Name = "Söğütözü",
 
-                // Geçici bölge sınırı
-                Boundary = CreatePolygon(
+                // Geçici mock bölge sınırı
+                Boundary = CreateMockRectangle(
                     geometryFactory,
                     32.7850,
                     39.9100,
@@ -64,88 +64,22 @@ public sealed class RegionRepository : IRegionRepository
             }
         };
 
-        // Gerçek analiz verileri gelene kadar geçici özet verileri
+        // Gerçek statik trafik verileri gelene kadar geçici bölge verileri
         _regionSummaries = new Dictionary<int, RegionSummaryData>
         {
             [1] = new RegionSummaryData
             {
-                ChargingStationCount = 12,
-                TrafficLevel = "Yüksek",
-                MostCommonSocketType = "CCS",
-                MostCommonPowerKw = 120,
-
-                CompanyDistribution = new List<CompanyDistributionData>
-                {
-                    new()
-                    {
-                        CompanyName = "ZES",
-                        StationCount = 5
-                    },
-                    new()
-                    {
-                        CompanyName = "Trugo",
-                        StationCount = 4
-                    },
-                    new()
-                    {
-                        CompanyName = "Eşarj",
-                        StationCount = 3
-                    }
-                }
+                TrafficLevel = "Yüksek"
             },
 
             [2] = new RegionSummaryData
             {
-                ChargingStationCount = 8,
-                TrafficLevel = "Orta",
-                MostCommonSocketType = "Type 2",
-                MostCommonPowerKw = 22,
-
-                CompanyDistribution = new List<CompanyDistributionData>
-                {
-                    new()
-                    {
-                        CompanyName = "ZES",
-                        StationCount = 3
-                    },
-                    new()
-                    {
-                        CompanyName = "Eşarj",
-                        StationCount = 3
-                    },
-                    new()
-                    {
-                        CompanyName = "Trugo",
-                        StationCount = 2
-                    }
-                }
+                TrafficLevel = "Orta"
             },
 
             [3] = new RegionSummaryData
             {
-                ChargingStationCount = 10,
-                TrafficLevel = "Yüksek",
-                MostCommonSocketType = "CCS",
-                MostCommonPowerKw = 180,
-
-                CompanyDistribution = new List<CompanyDistributionData>
-                {
-                    new()
-                    {
-                        CompanyName = "Trugo",
-                        StationCount = 4
-                    },
-                    new()
-                    {
-                        CompanyName = "ZES",
-                        StationCount = 3
-                    },
-                    new()
-                    {
-                        CompanyName = "Eşarj",
-                        StationCount = 3
-                    }
-                }
+                TrafficLevel = "Yüksek"
             }
         };
     }
@@ -172,7 +106,7 @@ public sealed class RegionRepository : IRegionRepository
         int id,
         CancellationToken cancellationToken = default)
     {
-        // Id değerine göre bölge özetini bulur
+        // Id değerine göre statik bölge özetini bulur
         _regionSummaries.TryGetValue(
             id,
             out var summary);
@@ -180,14 +114,14 @@ public sealed class RegionRepository : IRegionRepository
         return Task.FromResult(summary);
     }
 
-    private static Polygon CreatePolygon(
+    private static Polygon CreateMockRectangle(
         GeometryFactory geometryFactory,
         double minLongitude,
         double minLatitude,
         double maxLongitude,
         double maxLatitude)
     {
-        // Dikdörtgen bölge sınırı için koordinatları oluşturur
+        // Gerçek GIS sınır verileri gelene kadar geçici dikdörtgen mock geometri oluşturur
         var coordinates = new[]
         {
             new Coordinate(minLongitude, minLatitude),
@@ -203,7 +137,7 @@ public sealed class RegionRepository : IRegionRepository
         var shell = geometryFactory.CreateLinearRing(
             coordinates);
 
-        // Geçici polygon verisini döndürür
+        // Geçici mock polygon verisini döndürür
         return geometryFactory.CreatePolygon(shell);
     }
 }
