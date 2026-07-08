@@ -11,11 +11,14 @@ const ANKARA_BOUNDS = {
 };
 
 const regionPlacements = [
-  { left: 38, top: 26, width: 22, height: 22 },
-  { left: 20, top: 23, width: 21, height: 25 },
-  { left: 54, top: 54, width: 24, height: 26 },
-  { left: 32, top: 58, width: 18, height: 22 },
-  { left: 62, top: 24, width: 20, height: 20 },
+  { left: 34, top: 18, width: 19, height: 22 },
+  { left: 18, top: 25, width: 20, height: 24 },
+  { left: 48, top: 28, width: 19, height: 25 },
+  { left: 31, top: 48, width: 20, height: 25 },
+  { left: 58, top: 52, width: 21, height: 24 },
+  { left: 66, top: 20, width: 18, height: 21 },
+  { left: 12, top: 52, width: 19, height: 25 },
+  { left: 43, top: 58, width: 18, height: 24 },
 ];
 
 function clamp(value, min, max) {
@@ -46,7 +49,7 @@ function formatConnectors(connectors = []) {
       const quantity = connector.quantity > 1 ? `${connector.quantity}x ` : "";
       return `${quantity}${connector.socketType}`;
     })
-    .join(" / ");
+    .join(" + ");
 }
 
 function formatPower(connectors = []) {
@@ -89,6 +92,10 @@ function matchesSearch(station, searchTerm) {
     .join(" ")
     .toLocaleLowerCase("tr-TR")
     .includes(normalizedTerm);
+}
+
+function getRegionVariant(index) {
+  return `variant-${(index % 6) + 1}`;
 }
 
 export default function ExistingStationsMap({ searchTerm = "", regionsActive = false }) {
@@ -177,13 +184,18 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
             { id: 1, name: "Kizilay" },
             { id: 2, name: "Sogutozu" },
             { id: 3, name: "Oran" },
-          ]).slice(0, 5).map((region, index) => {
+            { id: 4, name: "Balgat" },
+            { id: 5, name: "Dikmen" },
+            { id: 6, name: "Cukurambar" },
+            { id: 7, name: "Bahcelievler" },
+            { id: 8, name: "Kavaklidere" },
+          ]).slice(0, 8).map((region, index) => {
             const placement = regionPlacements[index % regionPlacements.length];
 
             return (
               <div
                 key={region.id ?? region.name}
-                className="existing-region"
+                className={`existing-region ${getRegionVariant(index)}`}
                 style={{
                   left: `${placement.left}%`,
                   top: `${placement.top}%`,
@@ -201,7 +213,18 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
       <div className="existing-road road-main" />
       <div className="existing-road road-secondary" />
       <div className="existing-road road-ring" />
+      <div className="existing-road road-diagonal" />
       <div className="existing-water" />
+
+      {regionsActive && (
+        <div className="selection-overlay" aria-hidden="true">
+          <div className="selection-line" />
+          <div className="selection-box">
+            <span>Seçili Alan</span>
+            <strong>67 x 18</strong>
+          </div>
+        </div>
+      )}
 
       {visibleStations.map((station) => (
         <button
@@ -215,7 +238,7 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
           data-testid={`existing-station-marker-${station.id}`}
           onClick={() => selectStation(station.id)}
         >
-          <span className="marker-dot" />
+          <span className="marker-pin" />
         </button>
       ))}
 
@@ -252,8 +275,8 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
       )}
 
       <div className="existing-map-scale" aria-hidden="true">
-        <span />
-        <span />
+        <button type="button">−</button>
+        <button type="button">+</button>
       </div>
 
       <div className="existing-map-source">
