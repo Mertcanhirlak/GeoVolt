@@ -10,6 +10,10 @@ using GeoVolt.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using GeoVolt.Application.Regions.Abstractions;
+using GeoVolt.Infrastructure.Regions;
+using GeoVolt.Application.ChargingStations.Abstractions;
+using GeoVolt.Infrastructure.ChargingStations;
 
 namespace GeoVolt.Infrastructure;
 
@@ -65,7 +69,10 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<ITokenService, JwtTokenService>();
         services.AddScoped<DatabaseSeeder>();
-
+        // Region repository implementasyonunu kaydeder
+        services.AddScoped<IRegionRepository, RegionRepository>();
+        // Şarj istasyonu repository kaydı
+        services.AddScoped<IChargingStationRepository, ChargingStationRepository>();
         return services;
     }
 }
