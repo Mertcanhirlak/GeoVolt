@@ -1,18 +1,23 @@
 ﻿using System.Text.Json;
+using GeoVolt.Application.ChargingStations.Abstractions;
 using GeoVolt.Application.Regions.Abstractions;
 using GeoVolt.Application.Regions.Dtos;
 using GeoVolt.Domain.Entities;
 using NetTopologySuite.Geometries;
-
+//bölge ve istasyon verilerini yönetmek için servis sınıfı
 namespace GeoVolt.Application.Regions;
 
 public sealed class RegionService : IRegionService
 {
     private readonly IRegionRepository _regionRepository;
+    private readonly IChargingStationRepository _chargingStationRepository;
 
-    public RegionService(IRegionRepository regionRepository)
+    public RegionService(
+        IRegionRepository regionRepository,
+        IChargingStationRepository chargingStationRepository)
     {
         _regionRepository = regionRepository;
+        _chargingStationRepository = chargingStationRepository;
     }
 
     public async Task<IReadOnlyList<RegionResponseDto>> GetAllAsync(
@@ -51,7 +56,7 @@ public sealed class RegionService : IRegionService
         int id,
         CancellationToken cancellationToken = default)
     {
-        // Bölge bilgisini getirir
+        // Id değerine göre bölgeyi getirir
         var region = await _regionRepository.GetByIdAsync(
             id,
             cancellationToken);
@@ -62,43 +67,97 @@ public sealed class RegionService : IRegionService
             return null;
         }
 
-        // Bölgenin özet verilerini repository üzerinden alır
+        // Bölgenin statik özet verisini getirir
         var summary = await _regionRepository.GetSummaryAsync(
             id,
             cancellationToken);
 
-        // Özet veri bulunamazsa null döner
-        if (summary is null)
-        {
-            return null;
-        }
+        // Seçilen bölgedeki istasyonları getirir
+        var stations = await _chargingStationRepository.GetAllAsync(
+            id,
+            cancellationToken);
 
-        // Repository verisini response DTO'ya dönüştürür
+        // Her istasyona ait connector verilerini getirir
+        var connectorTasks = stations
+            .Select(station =>
+                _chargingStationRepository
+                    .GetConnectorsByStationIdAsync(
+                        station.Id,
+                        cancellationToken));
+
+        var connectorLists = await Task.WhenAll(
+            connectorTasks);
+
+        // Connector listelerini tek listede birleştirir
+        var connectors = connectorLists
+            .SelectMany(list => list)
+            .ToList();
+
+        // Firmalara göre istasyon dağılımını hesaplar
+        var companyDistribution = stations
+            .GroupBy(station => station.OperatorName)
+            .Select(group => new CompanyDistributionResponseDto
+            {
+                CompanyName = group.Key,
+                StationCount = group.Count()
+            })
+            .OrderByDescending(company => company.StationCount)
+            .ThenBy(company => company.CompanyName)
+            .ToList();
+
+        // En yaygın soket tipini hesaplar
+        var mostCommonSocketType = connectors
+            .GroupBy(connector => connector.SocketType)
+            .Select(group => new
+            {
+                SocketType = group.Key,
+
+                // Connector adetlerini dikkate alır
+                TotalQuantity = group.Sum(
+                    connector => connector.Quantity)
+            })
+            .OrderByDescending(item => item.TotalQuantity)
+            .ThenBy(item => item.SocketType)
+            .Select(item => item.SocketType)
+            .FirstOrDefault();
+
+        // En yaygın güç kapasitesini hesaplar
+        var mostCommonPowerKw = connectors
+            .GroupBy(connector => connector.PowerKw)
+            .Select(group => new
+            {
+                PowerKw = group.Key,
+
+                // Connector adetlerini dikkate alır
+                TotalQuantity = group.Sum(
+                    connector => connector.Quantity)
+            })
+            .OrderByDescending(item => item.TotalQuantity)
+            .ThenByDescending(item => item.PowerKw)
+            .Select(item => (double?)item.PowerKw)
+            .FirstOrDefault();
+
+        // Hesaplanan verileri response DTO'ya dönüştürür
         return new RegionSummaryResponseDto
         {
             RegionId = region.Id,
             RegionName = region.Name,
 
-            // Bölgedeki toplam istasyon sayısı
-            ChargingStationCount = summary.ChargingStationCount,
+            // İstasyon repository'sindeki gerçek mock sayıyı kullanır
+            ChargingStationCount = stations.Count,
 
-            // Bölgenin trafik yoğunluğu
-            TrafficLevel = summary.TrafficLevel,
+            // Şimdilik statik bölge verisinden alınır
+            TrafficLevel = summary?.TrafficLevel
+                ?? "Veri bulunamadı",
 
-            // En yaygın soket tipi
-            MostCommonSocketType = summary.MostCommonSocketType,
+            // Connector verilerinden hesaplanır
+            MostCommonSocketType = mostCommonSocketType,
 
-            // En yaygın güç kapasitesi
-            MostCommonPowerKw = summary.MostCommonPowerKw,
+            // Connector verilerinden hesaplanır
+            MostCommonPowerKw = mostCommonPowerKw,
 
-            // Firma dağılımını response modeline dönüştürür
-            CompanyDistribution = summary.CompanyDistribution
-                .Select(company => new CompanyDistributionResponseDto
-                {
-                    CompanyName = company.CompanyName,
-                    StationCount = company.StationCount
-                })
-                .ToList()
+            // İstasyon verilerinden hesaplanır
+            CompanyDistribution = companyDistribution
         };
     }
 

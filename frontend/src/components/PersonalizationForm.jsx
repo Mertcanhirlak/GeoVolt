@@ -1,6 +1,11 @@
 ﻿import React, { useState } from "react";
 
-export default function PersonalizationForm({ candidates, onResult }) {
+export default function PersonalizationForm({
+  candidates,
+  regions,
+  onResult,
+  onRegionChange
+}) {
   const [form, setForm] = useState({
     budgetMin: "",
     budgetMax: "",
@@ -14,10 +19,17 @@ export default function PersonalizationForm({ candidates, onResult }) {
   function handleChange(event) {
     const { name, value } = event.target;
 
-    setForm({
+    const updatedForm = {
       ...form,
       [name]: value
-    });
+    };
+
+    setForm(updatedForm);
+
+    if (name === "region" && onRegionChange) {
+      const selectedRegion = regions.find((region) => region.name === value);
+      onRegionChange(selectedRegion?.id || 0);
+    }
   }
 
   function handleSubmit(event) {
@@ -53,7 +65,8 @@ export default function PersonalizationForm({ candidates, onResult }) {
       const budgetMatch = cost >= budgetMin && cost <= budgetMax;
       const systemMatch = candidate.systemType === form.systemType;
       const placeMatch = candidate.placeType === form.placeType;
-      const regionMatch = form.region === "Tümü" || candidate.region === form.region;
+      const regionMatch =
+        form.region === "Tümü" || candidate.region === form.region;
 
       return budgetMatch && systemMatch && placeMatch && regionMatch;
     });
@@ -70,16 +83,22 @@ export default function PersonalizationForm({ candidates, onResult }) {
         });
 
         onResult(fallbackResult);
-        setFormMessage("Orta ve düşük skorlu adaylar gösteriliyor.");
+        setFormMessage("Orta ve düşük skorlu adaylar listelendi.");
         return;
       }
 
-      setFormMessage("Uygun aday nokta bulunamadı.");
       onResult([]);
+      setFormMessage("Uygun aday nokta bulunamadı.");
       return;
     }
 
-    onResult(result);
+    const sortedResult = [...result].sort((a, b) => {
+      const scoreA = a.generalScore ?? 0;
+      const scoreB = b.generalScore ?? 0;
+      return scoreB - scoreA;
+    });
+
+    onResult(sortedResult);
     setFormMessage("Kişiselleştirilmiş sonuçlar listelendi.");
   }
 
@@ -153,12 +172,13 @@ export default function PersonalizationForm({ candidates, onResult }) {
             value={form.region}
             onChange={handleChange}
           >
-            <option value="Tümü">Tümü</option>
-            <option value="Kızılay">Kızılay</option>
-            <option value="Söğütözü">Söğütözü</option>
-            <option value="Bahçelievler">Bahçelievler</option>
-            <option value="Oran">Oran</option>
-            <option value="Tunalı">Tunalı</option>
+            {(regions.length > 0 ? regions : [{ id: 0, name: "Tümü" }]).map(
+              (region) => (
+                <option key={region.id} value={region.name}>
+                  {region.name}
+                </option>
+              )
+            )}
           </select>
         </label>
 
