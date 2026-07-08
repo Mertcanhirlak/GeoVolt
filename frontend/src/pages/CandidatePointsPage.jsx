@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from "react";
-import { mockCandidatePoints } from "../data/mockCandidatePoints";
 import CandidateFilters from "../components/CandidateFilters";
 import SavedCandidates from "../components/SavedCandidates";
 import PersonalizationForm from "../components/PersonalizationForm";
+import ExistingStationsMap from "../components/ExistingStationsMap";
 import { getCandidatePoints } from "../services/candidatePointsApi";
 
 const defaultFilters = {
   costMin: "",
   costMax: "",
   demandMin: "",
-  demandMax: "",     
+  demandMax: "",
   generalMin: "",
-  generalMax: ""
+  generalMax: "",
 };
 
 function getNumberOrDefault(value, defaultValue) {
@@ -55,12 +55,14 @@ export default function CandidatePointsPage() {
   const [filters, setFilters] = useState(defaultFilters);
   const [message, setMessage] = useState("");
   const [savedRefreshKey, setSavedRefreshKey] = useState(0);
+  const [stationSearch, setStationSearch] = useState("");
+  const [regionsActive, setRegionsActive] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
 
     async function loadCandidatePoints() {
-      setMessage("Hesaplanıyor...");
+      setMessage("Hesaplaniyor...");
 
       const result = await getCandidatePoints();
 
@@ -72,7 +74,7 @@ export default function CandidatePointsPage() {
       setFilteredCandidates(result.data);
 
       if (result.source === "local-mock") {
-        setMessage("Backend erişilemedi. Lokal mock veri gösteriliyor.");
+        setMessage("Backend erisilemedi. Lokal mock veri gosteriliyor.");
         return;
       }
 
@@ -93,7 +95,7 @@ export default function CandidatePointsPage() {
       const numberValue = Number(value);
 
       if (Number.isNaN(numberValue) || numberValue < 0 || numberValue > 100) {
-        setMessage("Skor değerleri 0 ile 100 arasında olmalıdır.");
+        setMessage("Skor degerleri 0 ile 100 arasinda olmalidir.");
         return false;
       }
     }
@@ -106,7 +108,7 @@ export default function CandidatePointsPage() {
     const generalMax = getNumberOrDefault(filters.generalMax, 100);
 
     if (costMin > costMax || demandMin > demandMax || generalMin > generalMax) {
-      setMessage("Minimum değer maksimum değerden büyük olamaz.");
+      setMessage("Minimum deger maksimum degerden buyuk olamaz.");
       return false;
     }
 
@@ -137,20 +139,18 @@ export default function CandidatePointsPage() {
     setSelectedCandidate(result[0] || null);
 
     if (result.length === 0) {
-      setMessage("Uygun aday nokta bulunamadı.");
+      setMessage("Uygun aday nokta bulunamadi.");
     } else {
-      setMessage("Filtreleme uygulandı.");
+      setMessage("Filtreleme uygulandi.");
     }
   }
 
   function saveCandidate(candidate) {
-    const savedCandidates =
-      JSON.parse(localStorage.getItem("savedCandidates")) || [];
-
+    const savedCandidates = JSON.parse(localStorage.getItem("savedCandidates")) || [];
     const alreadySaved = savedCandidates.some((item) => item.id === candidate.id);
 
     if (alreadySaved) {
-      setMessage("Bu aday nokta zaten kaydedilmiş.");
+      setMessage("Bu aday nokta zaten kaydedilmis.");
       return;
     }
 
@@ -161,10 +161,7 @@ export default function CandidatePointsPage() {
 
     const updatedSavedCandidates = [...savedCandidates, candidate];
 
-    localStorage.setItem(
-      "savedCandidates",
-      JSON.stringify(updatedSavedCandidates)
-    );
+    localStorage.setItem("savedCandidates", JSON.stringify(updatedSavedCandidates));
 
     setSavedRefreshKey(savedRefreshKey + 1);
     setMessage("Aday nokta kaydedildi.");
@@ -188,7 +185,7 @@ export default function CandidatePointsPage() {
           className={activeTab === "home" ? "menu-button active" : "menu-button"}
           data-testid="home-tab-button"
           onClick={() => setActiveTab("home")}
-          title="Mevcut istasyon haritası"
+          title="Mevcut istasyon haritasi"
         >
           🏠
         </button>
@@ -197,7 +194,7 @@ export default function CandidatePointsPage() {
           className={activeTab === "candidateMap" ? "menu-button active" : "menu-button"}
           data-testid="candidate-map-tab-button"
           onClick={() => setActiveTab("candidateMap")}
-          title="Aday nokta haritası"
+          title="Aday nokta haritasi"
         >
           ⚡
         </button>
@@ -215,7 +212,7 @@ export default function CandidatePointsPage() {
           className={activeTab === "personalization" ? "menu-button active" : "menu-button"}
           data-testid="personalization-tab-button"
           onClick={() => setActiveTab("personalization")}
-          title="Kişiselleştirme"
+          title="Kisisellestirme"
         >
           🖌
         </button>
@@ -229,21 +226,21 @@ export default function CandidatePointsPage() {
                 className="map-search"
                 data-testid="home-search-input"
                 placeholder="Adres veya mahalle ara"
+                value={stationSearch}
+                onChange={(event) => setStationSearch(event.target.value)}
               />
-              <span className="region-toggle">Bölgeler inaktif</span>
+
+              <button
+                type="button"
+                className={regionsActive ? "region-toggle active" : "region-toggle"}
+                onClick={() => setRegionsActive((currentValue) => !currentValue)}
+              >
+                {regionsActive ? "Bolgeler aktif" : "Bolgeler inaktif"}
+              </button>
             </div>
 
             <div className="mock-map">
-              <h1>Mevcut İstasyon Haritası</h1>
-              <p>
-                Bu alan Talha'nın mevcut şarj istasyonlarını gösteren harita ekranı
-                ile birleşecek.
-              </p>
-
-              <div className="station-dot dot-1"></div>
-              <div className="station-dot dot-2"></div>
-              <div className="station-dot dot-3"></div>
-              <div className="station-dot dot-4"></div>
+              <ExistingStationsMap searchTerm={stationSearch} regionsActive={regionsActive} />
             </div>
           </section>
         )}
@@ -256,14 +253,14 @@ export default function CandidatePointsPage() {
                 data-testid="candidate-search-input"
                 placeholder="Aday nokta veya mahalle ara"
               />
-              <span className="region-toggle">Bölgeler inaktif</span>
+              <span className="region-toggle">Bolgeler inaktif</span>
             </div>
 
             <div className="mock-map candidate-map">
-              <h1>Aday Nokta Haritası</h1>
+              <h1>Aday Nokta Haritasi</h1>
               <p>
-                Aday nokta pinlerine tıklayarak detay kartını harita üzerinde
-                görüntüleyebilirsiniz.
+                Aday nokta pinlerine tiklayarak detay kartini harita uzerinde
+                goruntuleyebilirsiniz.
               </p>
 
               {filteredCandidates.map((candidate, index) => (
@@ -288,7 +285,7 @@ export default function CandidatePointsPage() {
                     data-testid="candidate-popup-close-button"
                     onClick={() => setSelectedCandidate(null)}
                   >
-                    ×
+                    x
                   </button>
 
                   <small>{selectedCandidate.estimatedAddress}</small>
@@ -303,24 +300,19 @@ export default function CandidatePointsPage() {
                   </p>
 
                   <p>
-                    <strong>Maliyet Skoru:</strong>{" "}
-                    {showScore(selectedCandidate.costScore)}
+                    <strong>Maliyet Skoru:</strong> {showScore(selectedCandidate.costScore)}
                   </p>
 
                   <p>
-                    <strong>Talep Skoru:</strong>{" "}
-                    {showScore(selectedCandidate.demandScore)}
+                    <strong>Talep Skoru:</strong> {showScore(selectedCandidate.demandScore)}
                   </p>
 
                   <p>
-                    <strong>Genel Skor:</strong>{" "}
-                    {showScore(selectedCandidate.generalScore)}
+                    <strong>Genel Skor:</strong> {showScore(selectedCandidate.generalScore)}
                   </p>
 
                   {selectedCandidate.status === "missing" && (
-                    <div className="popup-warning">
-                      Veri Eksik
-                    </div>
+                    <div className="popup-warning">Veri Eksik</div>
                   )}
 
                   <button
@@ -334,11 +326,7 @@ export default function CandidatePointsPage() {
               )}
 
               <div className="map-filter-overlay" data-testid="map-filter-overlay">
-                <CandidateFilters
-                  filters={filters}
-                  setFilters={setFilters}
-                  onApply={applyFilters}
-                />
+                <CandidateFilters filters={filters} setFilters={setFilters} onApply={applyFilters} />
               </div>
             </div>
 
@@ -352,25 +340,19 @@ export default function CandidatePointsPage() {
 
         {activeTab === "personalization" && (
           <section className="standalone-panel" data-testid="personalization-screen">
-            <h1>Kişiselleştirme</h1>
+            <h1>Kisisellestirme</h1>
 
             <p className="page-description">
-              Firma bütçesi, sistem tipi, mekân türü ve bölgeye göre aday noktalar
-              kişiselleştirilir. Sonuçlardan “Haritada Gör” seçilerek aday nokta
-              haritasına gidilir.
+              Firma butcesi, sistem tipi, mekan turu ve bolgeye gore aday noktalar
+              kisisellestirilir. Sonuclardan "Haritada Gor" secilerek aday nokta
+              haritasina gidilir.
             </p>
 
-            <PersonalizationForm
-              candidates={candidates}
-              onResult={handlePersonalizedResult}
-            />
+            <PersonalizationForm candidates={candidates} onResult={handlePersonalizedResult} />
 
-            <h2 className="section-title">Kişiselleştirilmiş Sonuçlar</h2>
+            <h2 className="section-title">Kisisellestirilmis Sonuclar</h2>
 
-            <div
-              className="personalized-result-list"
-              data-testid="personalized-candidate-list"
-            >
+            <div className="personalized-result-list" data-testid="personalized-candidate-list">
               {personalizedCandidates.map((candidate) => (
                 <div
                   key={candidate.id}
@@ -381,8 +363,7 @@ export default function CandidatePointsPage() {
                     <h3>{candidate.name}</h3>
                     <p>{candidate.estimatedAddress}</p>
                     <p>
-                      <strong>Genel Skor:</strong>{" "}
-                      {showScore(candidate.generalScore)}
+                      <strong>Genel Skor:</strong> {showScore(candidate.generalScore)}
                     </p>
                   </div>
 
@@ -390,7 +371,7 @@ export default function CandidatePointsPage() {
                     data-testid={`show-on-map-button-${candidate.id}`}
                     onClick={() => showCandidateOnMap(candidate)}
                   >
-                    Haritada Gör
+                    Haritada Gor
                   </button>
                 </div>
               ))}
