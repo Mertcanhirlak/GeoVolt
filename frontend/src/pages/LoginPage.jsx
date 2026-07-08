@@ -25,8 +25,7 @@ function LoginPage() {
       const data = await login(email, password);
       loginUser(data.token, data.user);
 
-      // KANKA: Seni ana sayfada ezip geçen arkadaşının paneline fırlatıyoruz!
-      navigate("/dashboard");
+      navigate(data.user?.role === "Admin" ? "/admin" : "/dashboard");
     } catch (err) {
       setError(err.message);
     } finally {

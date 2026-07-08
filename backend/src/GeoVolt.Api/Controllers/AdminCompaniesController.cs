@@ -44,4 +44,18 @@ public sealed class AdminCompaniesController : ControllerBase
 
         return Ok(response);
     }
+
+    [HttpDelete("{companyId:int}")]
+    [ProducesResponseType(typeof(ApiResponse<int>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<int>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<ApiResponse<int>>> DeleteCompany(
+        int companyId,
+        CancellationToken cancellationToken)
+    {
+        var response = await _adminService.DeleteCompanyAsync(companyId, cancellationToken);
+
+        return response.Success ? Ok(response) : BadRequest(response);
+    }
 }

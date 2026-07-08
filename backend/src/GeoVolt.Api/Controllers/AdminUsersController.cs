@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using GeoVolt.Application.Admin.Abstractions;
 using GeoVolt.Application.Admin.Dtos;
 using GeoVolt.Application.Auth.Dtos;
@@ -44,5 +45,41 @@ public sealed class AdminUsersController : ControllerBase
         var response = await _adminService.GetUsersAsync(cancellationToken);
 
         return Ok(response);
+    }
+
+    [HttpPatch("{userId:int}/role")]
+    [ProducesResponseType(typeof(ApiResponse<UserResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<UserResponse>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<ApiResponse<UserResponse>>> UpdateUserRole(
+        int userId,
+        UpdateUserRoleRequest request,
+        CancellationToken cancellationToken)
+    {
+        var response = await _adminService.UpdateUserRoleAsync(userId, request, cancellationToken);
+
+        return response.Success ? Ok(response) : BadRequest(response);
+    }
+
+    [HttpDelete("{userId:int}")]
+    [ProducesResponseType(typeof(ApiResponse<int>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<int>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<ApiResponse<int>>> DeleteUser(
+        int userId,
+        CancellationToken cancellationToken)
+    {
+        var currentUserIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!int.TryParse(currentUserIdValue, out var currentUserId))
+        {
+            return Unauthorized(ApiResponse<int>.Fail("Geçersiz token."));
+        }
+
+        var response = await _adminService.DeleteUserAsync(userId, currentUserId, cancellationToken);
+
+        return response.Success ? Ok(response) : BadRequest(response);
     }
 }

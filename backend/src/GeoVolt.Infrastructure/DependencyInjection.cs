@@ -2,11 +2,19 @@ using GeoVolt.Application.Admin.Abstractions;
 using GeoVolt.Application.Auth.Abstractions;
 using GeoVolt.Application.Auth.Options;
 using GeoVolt.Application.CandidatePoints.Abstractions;
+using GeoVolt.Application.ChargingStations.Abstractions;
+using GeoVolt.Application.Neighborhoods.Abstractions;
+using GeoVolt.Application.Regions.Abstractions;
+using GeoVolt.Application.SavedCandidatePoints.Abstractions;
 using GeoVolt.Infrastructure.Admin;
 using GeoVolt.Infrastructure.Auth;
 using GeoVolt.Infrastructure.CandidatePoints;
+using GeoVolt.Infrastructure.ChargingStations;
+using GeoVolt.Infrastructure.Neighborhoods;
 using GeoVolt.Infrastructure.Options;
 using GeoVolt.Infrastructure.Persistence;
+using GeoVolt.Infrastructure.Regions;
+using GeoVolt.Infrastructure.SavedCandidatePoints;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -45,6 +53,7 @@ public static class DependencyInjection
                 options.SecretKey = environmentSecret;
             }
         });
+
         services.Configure<DefaultAdminOptions>(options =>
         {
             var adminSection = configuration.GetSection(DefaultAdminOptions.SectionName);
@@ -65,6 +74,10 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<ITokenService, JwtTokenService>();
         services.AddScoped<DatabaseSeeder>();
+        services.AddScoped<IRegionRepository, RegionRepository>();
+        services.AddScoped<ISavedCandidatePointRepository, SavedCandidatePointRepository>();
+        services.AddScoped<IChargingStationRepository, ChargingStationRepository>();
+        services.AddScoped<INeighborhoodRepository, NeighborhoodRepository>();
 
         return services;
     }

@@ -60,6 +60,25 @@ namespace GeoVolt.Infrastructure.Persistence.Migrations
                     b.ToTable("companies", (string)null);
                 });
 
+            modelBuilder.Entity("GeoVolt.Domain.Entities.SavedCandidatePoint", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.Property<int>("CandidatePointId")
+                        .HasColumnType("integer")
+                        .HasColumnName("candidate_point_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.HasKey("UserId", "CandidatePointId");
+
+                    b.ToTable("saved_candidate_points", (string)null);
+                });
+
             modelBuilder.Entity("GeoVolt.Domain.Entities.User", b =>
                 {
                     b.Property<int>("Id")
@@ -115,6 +134,17 @@ namespace GeoVolt.Infrastructure.Persistence.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("GeoVolt.Domain.Entities.SavedCandidatePoint", b =>
+                {
+                    b.HasOne("GeoVolt.Domain.Entities.User", "User")
+                        .WithMany("SavedCandidatePoints")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("GeoVolt.Domain.Entities.User", b =>
                 {
                     b.HasOne("GeoVolt.Domain.Entities.Company", "Company")
@@ -128,6 +158,11 @@ namespace GeoVolt.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("GeoVolt.Domain.Entities.Company", b =>
                 {
                     b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("GeoVolt.Domain.Entities.User", b =>
+                {
+                    b.Navigation("SavedCandidatePoints");
                 });
 #pragma warning restore 612, 618
         }

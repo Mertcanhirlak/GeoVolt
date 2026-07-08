@@ -16,6 +16,8 @@ public sealed class User
 
     public Company? Company { get; set; }
 
+    public ICollection<SavedCandidatePoint> SavedCandidatePoints { get; set; } = new List<SavedCandidatePoint>();
+
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
     public DateTime? UpdatedAtUtc { get; set; }
