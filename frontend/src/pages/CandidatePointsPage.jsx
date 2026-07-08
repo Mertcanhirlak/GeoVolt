@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useState } from "react";
 import { getCandidatePoints } from "../services/candidatePointsApi";
 import { saveCandidatePoint } from "../services/savedCandidatePointsApi";
+import { getRegions, getRegionSummary } from "../services/regionsApi";
 import CandidateFilters from "../components/CandidateFilters";
 import SavedCandidates from "../components/SavedCandidates";
 import PersonalizationForm from "../components/PersonalizationForm";
@@ -52,6 +53,9 @@ export default function CandidatePointsPage() {
   const [candidates, setCandidates] = useState([]);
   const [filteredCandidates, setFilteredCandidates] = useState([]);
   const [personalizedCandidates, setPersonalizedCandidates] = useState([]);
+  const [regions, setRegions] = useState([]);
+  const [selectedRegionSummary, setSelectedRegionSummary] = useState(null);
+  const [regionSummaryMessage, setRegionSummaryMessage] = useState("");
   const [filters, setFilters] = useState(defaultFilters);
   const [message, setMessage] = useState("");
   const [savedRefreshKey, setSavedRefreshKey] = useState(0);
@@ -81,7 +85,18 @@ export default function CandidatePointsPage() {
       setMessage("");
     }
 
+    async function loadRegions() {
+      const result = await getRegions();
+
+      if (!isMounted) {
+        return;
+      }
+
+      setRegions(result.data);
+    }
+
     loadCandidatePoints();
+    loadRegions();
 
     return () => {
       isMounted = false;
@@ -165,6 +180,11 @@ export default function CandidatePointsPage() {
       return;
     }
 
+    if (result.source === "api-and-local-storage") {
+      setMessage("Aday nokta API ve lokal veriye kaydedildi.");
+      return;
+    }
+
     setMessage("Aday nokta lokal olarak kaydedildi.");
   }
 
@@ -172,6 +192,24 @@ export default function CandidatePointsPage() {
     setPersonalizedCandidates(result);
     setFilteredCandidates(result);
     setSelectedCandidate(result[0] || null);
+  }
+
+  async function handleRegionChange(regionId) {
+    const result = await getRegionSummary(regionId);
+
+    setSelectedRegionSummary(result.data);
+
+    if (result.source === "api") {
+      setRegionSummaryMessage("Bölge özeti API üzerinden getirildi.");
+      return;
+    }
+
+    if (result.source === "local-mock") {
+      setRegionSummaryMessage("Bölge özeti lokal mock veriden gösteriliyor.");
+      return;
+    }
+
+    setRegionSummaryMessage("");
   }
 
   function showCandidateOnMap(candidate) {
@@ -375,8 +413,61 @@ export default function CandidatePointsPage() {
 
             <PersonalizationForm
               candidates={candidates}
+              regions={regions}
               onResult={handlePersonalizedResult}
+              onRegionChange={handleRegionChange}
             />
+
+            {selectedRegionSummary && (
+              <div className="region-summary-card" data-testid="region-summary-card">
+                <h2>Bölge Özeti: {selectedRegionSummary.regionName}</h2>
+
+                {regionSummaryMessage && (
+                  <div className="info-message" data-testid="region-summary-message">
+                    {regionSummaryMessage}
+                  </div>
+                )}
+
+                <div className="region-summary-grid">
+                  <div>
+                    <strong>Toplam İstasyon</strong>
+                    <span>{selectedRegionSummary.chargingStationCount}</span>
+                  </div>
+
+                  <div>
+                    <strong>Trafik Yoğunluğu</strong>
+                    <span>{selectedRegionSummary.trafficLevel}</span>
+                  </div>
+
+                  <div>
+                    <strong>En Yaygın Soket</strong>
+                    <span>
+                      {selectedRegionSummary.mostCommonSocketType || "Veri Eksik"}
+                    </span>
+                  </div>
+
+                  <div>
+                    <strong>En Yaygın Güç</strong>
+                    <span>
+                      {selectedRegionSummary.mostCommonPowerKw
+                        ? `${selectedRegionSummary.mostCommonPowerKw} kW`
+                        : "Veri Eksik"}
+                    </span>
+                  </div>
+                </div>
+
+                <h3>Firma Dağılımı</h3>
+
+                <div className="company-distribution-list">
+                  {selectedRegionSummary.companyDistribution.map((company, index) => (
+                    <div key={`${company.companyName}-${index}`}>
+                      <span>{company.companyName}</span>
+                      <strong>{company.stationCount} istasyon</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <h2 className="section-title">Kişiselleştirilmiş Sonuçlar</h2>
 
