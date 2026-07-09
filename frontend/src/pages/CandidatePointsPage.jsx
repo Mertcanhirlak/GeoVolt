@@ -375,7 +375,7 @@ export default function CandidatePointsPage() {
                 className={regionsActive ? "region-toggle active" : "region-toggle"}
                 onClick={() => setRegionsActive((currentValue) => !currentValue)}
               >
-                {regionsActive ? "Bolgeler aktif" : "Bolgeler inaktif"}
+                {regionsActive ? "Bölgeler aktif" : "Bölgeler inaktif"}
               </button>
             </div>
 
@@ -396,11 +396,24 @@ export default function CandidatePointsPage() {
                 onChange={(event) => searchCandidates(event.target.value)}
               />
 
-              <span className="region-toggle">Bolgeler inaktif</span>
+              <button
+                type="button"
+                className={regionsActive ? "region-toggle active" : "region-toggle"}
+                data-testid="candidate-region-toggle-button"
+                onClick={() => setRegionsActive((currentValue) => !currentValue)}
+              >
+                {regionsActive ? "Bölgeler aktif" : "Bölgeler inaktif"}
+              </button>
             </div>
 
             <div className="mock-map candidate-map">
               <h1>Aday Nokta Haritasi</h1>
+
+              {regionsActive && (
+                <div className="candidate-region-layer" data-testid="candidate-region-layer">
+                  Bölge katmanı aktif
+                </div>
+              )}
 
               <p>
                 Aday nokta pinlerine tiklayarak detay kartini harita uzerinde

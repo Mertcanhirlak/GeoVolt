@@ -1759,3 +1759,16 @@ body {
   background: #dbeafe !important;
   color: #1e40af !important;
 }
+.candidate-region-layer {
+  position: absolute;
+  top: 96px;
+  left: 24px;
+  z-index: 5;
+  padding: 9px 13px;
+  border-radius: 999px;
+  background: #e7f7ef;
+  color: #157347;
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
