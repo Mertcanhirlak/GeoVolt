@@ -1192,25 +1192,6 @@ body {
   box-shadow: 0 14px 32px rgba(37, 99, 235, 0.5);
 }
 
-.station-pin-1 {
-  top: 38%;
-  left: 28%;
-}
-
-.station-pin-2 {
-  top: 54%;
-  left: 44%;
-}
-
-.station-pin-3 {
-  top: 46%;
-  left: 70%;
-}
-
-.station-pin-4 {
-  top: 30%;
-  left: 61%;
-}
 
 .station-detail-card {
   position: absolute;
