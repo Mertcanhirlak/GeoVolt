@@ -5,7 +5,8 @@ export default function PersonalizationForm({
   regions,
   neighborhoods,
   onResult,
-  onRegionChange
+  onRegionChange,
+  onSelectionChange
 }) {
   const [form, setForm] = useState({
     budgetMin: "",
@@ -53,17 +54,6 @@ export default function PersonalizationForm({
   const neighborhoodOptions = useMemo(() => {
     const neighborhoodSet = new Set();
 
-    if (Array.isArray(neighborhoods) && neighborhoods.length > 0) {
-      neighborhoods.forEach((neighborhood) => {
-        const regionMatch =
-          form.region === "Tümü" || neighborhood.regionName === form.region;
-
-        if (regionMatch && neighborhood.name) {
-          neighborhoodSet.add(neighborhood.name);
-        }
-      });
-    }
-
     candidates.forEach((candidate) => {
       const regionMatch =
         form.region === "Tümü" || candidate.region === form.region;
@@ -77,10 +67,34 @@ export default function PersonalizationForm({
       }
     });
 
+    if (Array.isArray(neighborhoods) && neighborhoods.length > 0) {
+      neighborhoods.forEach((neighborhood) => {
+        const regionMatch =
+          form.region === "Tümü" || neighborhood.regionName === form.region;
+
+        if (regionMatch && neighborhood.name) {
+          neighborhoodSet.add(neighborhood.name);
+        }
+      });
+    }
+
     return ["Tümü", ...Array.from(neighborhoodSet).sort((a, b) =>
       a.localeCompare(b, "tr-TR")
     )];
   }, [candidates, neighborhoods, form.region]);
+
+  function notifySelectionChange(updatedForm) {
+    if (onSelectionChange) {
+      onSelectionChange({
+        region: updatedForm.region,
+        neighborhood: updatedForm.neighborhood,
+        systemType: updatedForm.systemType,
+        placeType: updatedForm.placeType,
+        budgetMin: updatedForm.budgetMin,
+        budgetMax: updatedForm.budgetMax
+      });
+    }
+  }
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -103,10 +117,25 @@ export default function PersonalizationForm({
     }
 
     setForm(updatedForm);
+    setFormMessage("");
+    notifySelectionChange(updatedForm);
+  }
+
+  function getTopCandidateSuggestions() {
+    return [...candidates]
+      .filter((candidate) => candidate.status !== "missing")
+      .sort((a, b) => {
+        const scoreA = a.generalScore ?? 0;
+        const scoreB = b.generalScore ?? 0;
+        return scoreB - scoreA;
+      })
+      .slice(0, 6);
   }
 
   function handleSubmit(event) {
     event.preventDefault();
+
+    notifySelectionChange(form);
 
     const budgetMin = form.budgetMin === "" ? 0 : Number(form.budgetMin);
     const budgetMax =
@@ -155,31 +184,14 @@ export default function PersonalizationForm({
     });
 
     if (result.length === 0) {
-      const showLowScore = window.confirm(
-        "Uygun aday nokta bulunamadı. Orta ve düşük skorlu adaylar gösterilsin mi?"
+      const suggestions = getTopCandidateSuggestions();
+
+      onResult(suggestions);
+
+      setFormMessage(
+        "Seçilen gerçek mahalle için aday nokta bulunamadı. Demo için en yüksek skorlu aday noktalar listelendi."
       );
 
-      if (showLowScore) {
-        const fallbackResult = candidates.filter((candidate) => {
-          const score = candidate.generalScore ?? 0;
-
-          const regionMatch =
-            form.region === "Tümü" || candidate.region === form.region;
-
-          const neighborhoodMatch =
-            form.neighborhood === "Tümü" ||
-            candidate.neighborhood === form.neighborhood;
-
-          return score >= 20 && score <= 70 && regionMatch && neighborhoodMatch;
-        });
-
-        onResult(fallbackResult);
-        setFormMessage("Orta ve düşük skorlu adaylar listelendi.");
-        return;
-      }
-
-      onResult([]);
-      setFormMessage("Uygun aday nokta bulunamadı.");
       return;
     }
 

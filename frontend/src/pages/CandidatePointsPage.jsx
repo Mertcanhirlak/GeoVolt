@@ -10,6 +10,9 @@ import CandidateFilters from "../components/CandidateFilters";
 import SavedCandidates from "../components/SavedCandidates";
 import PersonalizationForm from "../components/PersonalizationForm";
 import ExistingStationsMap from "../components/ExistingStationsMap";
+import PoiSummary from "../components/PoiSummary";
+import TrafoSummary from "../components/TrafoSummary";
+import RoadSummary from "../components/RoadSummary";
 
 const defaultFilters = {
   costMin: "",
@@ -17,7 +20,16 @@ const defaultFilters = {
   demandMin: "",
   demandMax: "",
   generalMin: "",
-  generalMax: "",
+  generalMax: ""
+};
+
+const defaultDataFilter = {
+  region: "Tümü",
+  neighborhood: "Tümü",
+  systemType: "Tümü",
+  placeType: "Tümü",
+  budgetMin: "",
+  budgetMax: ""
 };
 
 function getNumberOrDefault(value, defaultValue) {
@@ -88,6 +100,7 @@ export default function CandidatePointsPage() {
   const [selectedRegionSummary, setSelectedRegionSummary] = useState(null);
   const [regionSummaryMessage, setRegionSummaryMessage] = useState("");
   const [filters, setFilters] = useState(defaultFilters);
+  const [selectedDataFilter, setSelectedDataFilter] = useState(defaultDataFilter);
   const [message, setMessage] = useState("");
   const [saveFeedback, setSaveFeedback] = useState("");
   const [savedRefreshKey, setSavedRefreshKey] = useState(0);
@@ -249,6 +262,17 @@ export default function CandidatePointsPage() {
     setSelectedCandidate(result[0] || null);
   }
 
+  function handleSelectionChange(selection) {
+    setSelectedDataFilter({
+      region: selection.region || "Tümü",
+      neighborhood: selection.neighborhood || "Tümü",
+      systemType: selection.systemType || "Tümü",
+      placeType: selection.placeType || "Tümü",
+      budgetMin: selection.budgetMin || "",
+      budgetMax: selection.budgetMax || ""
+    });
+  }
+
   async function handleRegionChange(regionId) {
     if (!regionId || regionId === 0) {
       setSelectedRegionSummary(null);
@@ -396,7 +420,10 @@ export default function CandidatePointsPage() {
             </div>
 
             <div className="mock-map">
-              <ExistingStationsMap searchTerm={stationSearch} regionsActive={regionsActive} />
+              <ExistingStationsMap
+                searchTerm={stationSearch}
+                regionsActive={regionsActive}
+              />
             </div>
           </section>
         )}
@@ -549,7 +576,42 @@ export default function CandidatePointsPage() {
               neighborhoods={neighborhoods}
               onResult={handlePersonalizedResult}
               onRegionChange={handleRegionChange}
+              onSelectionChange={handleSelectionChange}
             />
+
+            <section className="data-layers-section" data-testid="data-layers-section">
+              <div className="data-layers-header">
+                <h2>Veri Katmanları Özeti</h2>
+                <p>
+                  Candidate point analizi için kullanılan temel CBS katmanları
+                  aşağıda özetlenmiştir. Bu katmanlar talep, maliyet/enerji ve
+                  erişilebilirlik skorlarını desteklemek için hazırlanmıştır.
+                </p>
+
+                <div className="selected-data-filter" data-testid="selected-data-filter">
+                  <span>
+                    <strong>Seçilen Bölge:</strong> {selectedDataFilter.region}
+                  </span>
+
+                  <span>
+                    <strong>Seçilen Mahalle:</strong>{" "}
+                    {selectedDataFilter.neighborhood}
+                  </span>
+
+                  <span>
+                    <strong>Sistem Tipi:</strong> {selectedDataFilter.systemType}
+                  </span>
+
+                  <span>
+                    <strong>Mekân Türü:</strong> {selectedDataFilter.placeType}
+                  </span>
+                </div>
+              </div>
+
+              <PoiSummary selectedFilter={selectedDataFilter} />
+              <TrafoSummary selectedFilter={selectedDataFilter} />
+              <RoadSummary selectedFilter={selectedDataFilter} />
+            </section>
 
             {selectedRegionSummary && (
               <div className="region-summary-card" data-testid="region-summary-card">
