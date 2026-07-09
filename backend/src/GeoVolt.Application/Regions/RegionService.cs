@@ -168,46 +168,10 @@ public sealed class RegionService : IRegionService
         };
     }
 
-    public async Task<ValidateRegionPointResponseDto?> ValidatePointAsync(
-        int regionId,
-        ValidateRegionPointRequestDto request,
-        CancellationToken cancellationToken = default)
-    {
-        // Id değerine göre seçilen bölgeyi getirir
-        var region = await _regionRepository.GetByIdAsync(
-            regionId,
-            cancellationToken);
-
-        // Bölge bulunamazsa null döner
-        if (region is null)
-        {
-            return null;
-        }
-
-        // Enlem ve boylam bilgisinden Point oluşturur
-        var point = region.Boundary.Factory.CreatePoint(
-            new Coordinate(
-                request.Longitude,
-                request.Latitude));
-
-        // Point'in bölge içinde veya sınır üzerinde
-        // olup olmadığını kontrol eder
-        var isInsideRegion = region.Boundary.Covers(
-            point);
-
-        // Kontrol sonucunu DTO olarak döndürür
-        return new ValidateRegionPointResponseDto
-        {
-            RegionId = region.Id,
-            RegionName = region.Name,
-            IsInsideRegion = isInsideRegion,
-            Latitude = request.Latitude,
-            Longitude = request.Longitude
-        };
-    }
+    
     public async Task<LocateRegionPointResponseDto?> LocatePointAsync(
     int regionId,
-    ValidateRegionPointRequestDto request,
+    RegionPointRequestDto request,
     CancellationToken cancellationToken = default)
     {
         // Id değerine göre seçilen bölgeyi getirir

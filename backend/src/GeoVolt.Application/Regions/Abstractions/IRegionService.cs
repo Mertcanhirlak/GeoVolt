@@ -18,16 +18,11 @@ public interface IRegionService
         int id,
         CancellationToken cancellationToken = default);
 
-    // Verilen koordinatın seçilen bölge sınırları içinde
-    // olup olmadığını kontrol eder
-    Task<ValidateRegionPointResponseDto?> ValidatePointAsync(
-        int regionId,
-        ValidateRegionPointRequestDto request,
-        CancellationToken cancellationToken = default);
+    
     // Verilen noktanın seçilen bölge içinde olup olmadığını
     // ve hangi mahalleye denk geldiğini bulur
     Task<LocateRegionPointResponseDto?> LocatePointAsync(
         int regionId,
-        ValidateRegionPointRequestDto request,
+       RegionPointRequestDto request,
         CancellationToken cancellationToken = default);
 }
