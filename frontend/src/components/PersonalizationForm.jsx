@@ -3,6 +3,7 @@
 export default function PersonalizationForm({
   candidates,
   regions,
+  neighborhoods,
   onResult,
   onRegionChange
 }) {
@@ -18,7 +19,11 @@ export default function PersonalizationForm({
   const [formMessage, setFormMessage] = useState("");
 
   const regionOptions = useMemo(() => {
-    return [{ id: 0, name: "Tümü" }, ...(regions || []).filter((region) => region.name !== "Tümü")];
+    const cleanRegions = (regions || []).filter(
+      (region) => region.name && region.name !== "Tümü"
+    );
+
+    return [{ id: 0, name: "Tümü" }, ...cleanRegions];
   }, [regions]);
 
   const systemTypeOptions = useMemo(() => {
@@ -48,17 +53,34 @@ export default function PersonalizationForm({
   const neighborhoodOptions = useMemo(() => {
     const neighborhoodSet = new Set();
 
+    if (Array.isArray(neighborhoods) && neighborhoods.length > 0) {
+      neighborhoods.forEach((neighborhood) => {
+        const regionMatch =
+          form.region === "Tümü" || neighborhood.regionName === form.region;
+
+        if (regionMatch && neighborhood.name) {
+          neighborhoodSet.add(neighborhood.name);
+        }
+      });
+    }
+
     candidates.forEach((candidate) => {
       const regionMatch =
         form.region === "Tümü" || candidate.region === form.region;
 
-      if (regionMatch && candidate.neighborhood && candidate.neighborhood !== "Mahalle bilgisi yok") {
+      if (
+        regionMatch &&
+        candidate.neighborhood &&
+        candidate.neighborhood !== "Mahalle bilgisi yok"
+      ) {
         neighborhoodSet.add(candidate.neighborhood);
       }
     });
 
-    return ["Tümü", ...Array.from(neighborhoodSet)];
-  }, [candidates, form.region]);
+    return ["Tümü", ...Array.from(neighborhoodSet).sort((a, b) =>
+      a.localeCompare(b, "tr-TR")
+    )];
+  }, [candidates, neighborhoods, form.region]);
 
   function handleChange(event) {
     const { name, value } = event.target;

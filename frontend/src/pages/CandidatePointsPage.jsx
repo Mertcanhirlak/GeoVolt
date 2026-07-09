@@ -1,7 +1,11 @@
 ﻿import React, { useEffect, useState } from "react";
 import { getCandidatePoints } from "../services/candidatePointsApi";
 import { saveCandidatePoint } from "../services/savedCandidatePointsApi";
-import { getRegions, getRegionSummary } from "../services/regionsApi";
+import {
+  getNeighborhoods,
+  getRegions,
+  getRegionSummary
+} from "../services/regionsApi";
 import CandidateFilters from "../components/CandidateFilters";
 import SavedCandidates from "../components/SavedCandidates";
 import PersonalizationForm from "../components/PersonalizationForm";
@@ -80,6 +84,7 @@ export default function CandidatePointsPage() {
   const [filteredCandidates, setFilteredCandidates] = useState([]);
   const [personalizedCandidates, setPersonalizedCandidates] = useState([]);
   const [regions, setRegions] = useState([]);
+  const [neighborhoods, setNeighborhoods] = useState([]);
   const [selectedRegionSummary, setSelectedRegionSummary] = useState(null);
   const [regionSummaryMessage, setRegionSummaryMessage] = useState("");
   const [filters, setFilters] = useState(defaultFilters);
@@ -125,8 +130,19 @@ export default function CandidatePointsPage() {
       setRegions(result.data);
     }
 
+    async function loadNeighborhoods() {
+      const result = await getNeighborhoods();
+
+      if (!isMounted) {
+        return;
+      }
+
+      setNeighborhoods(result.data);
+    }
+
     loadCandidatePoints();
     loadRegions();
+    loadNeighborhoods();
 
     return () => {
       isMounted = false;
@@ -530,6 +546,7 @@ export default function CandidatePointsPage() {
             <PersonalizationForm
               candidates={candidates}
               regions={regions}
+              neighborhoods={neighborhoods}
               onResult={handlePersonalizedResult}
               onRegionChange={handleRegionChange}
             />
