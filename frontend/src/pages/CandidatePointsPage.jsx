@@ -1,4 +1,10 @@
 ﻿import React, { useEffect, useState } from "react";
+import {
+  Home,
+  Zap,
+  ListChecks,
+  SlidersHorizontal
+} from "lucide-react";
 import { getCandidatePoints } from "../services/candidatePointsApi";
 import { saveCandidatePoint } from "../services/savedCandidatePointsApi";
 import {
@@ -359,9 +365,9 @@ export default function CandidatePointsPage() {
           className={activeTab === "home" ? "menu-button active" : "menu-button"}
           data-testid="home-tab-button"
           onClick={() => setActiveTab("home")}
-          title="Mevcut istasyon haritasi"
+          title="Mevcut istasyon haritası"
         >
-          <span className="menu-icon">{"\u{1F3E0}"}</span>
+          <Home size={26} strokeWidth={2.3} />
         </button>
 
         <button
@@ -372,7 +378,7 @@ export default function CandidatePointsPage() {
           onClick={openCandidateMap}
           title="Aday nokta haritası"
         >
-          <span className="menu-icon">{"\u26A1"}</span>
+          <Zap size={26} strokeWidth={2.3} />
         </button>
 
         <button
@@ -381,7 +387,7 @@ export default function CandidatePointsPage() {
           onClick={() => setActiveTab("saved")}
           title="Kaydedilenler"
         >
-          <span className="menu-icon">{"\u2630"}</span>
+          <ListChecks size={26} strokeWidth={2.3} />
         </button>
 
         <button
@@ -390,9 +396,9 @@ export default function CandidatePointsPage() {
           }
           data-testid="personalization-tab-button"
           onClick={() => setActiveTab("personalization")}
-          title="Kisisellestirme"
+          title="Kişiselleştirme"
         >
-          <span className="menu-icon">{"\u{1F58C}"}</span>
+          <SlidersHorizontal size={26} strokeWidth={2.3} />
         </button>
       </aside>
 
