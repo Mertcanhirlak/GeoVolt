@@ -9,8 +9,8 @@ export default function PersonalizationForm({
   const [form, setForm] = useState({
     budgetMin: "",
     budgetMax: "",
-    systemType: "",
-    placeType: "",
+    systemType: "Tümü",
+    placeType: "Tümü",
     region: "Tümü",
     neighborhood: "Tümü"
   });
@@ -18,8 +18,32 @@ export default function PersonalizationForm({
   const [formMessage, setFormMessage] = useState("");
 
   const regionOptions = useMemo(() => {
-    return [{ id: 0, name: "Tümü" }, ...(regions || [])];
+    return [{ id: 0, name: "Tümü" }, ...(regions || []).filter((region) => region.name !== "Tümü")];
   }, [regions]);
+
+  const systemTypeOptions = useMemo(() => {
+    const values = new Set();
+
+    candidates.forEach((candidate) => {
+      if (candidate.systemType && candidate.systemType !== "Veri Eksik") {
+        values.add(candidate.systemType);
+      }
+    });
+
+    return ["Tümü", ...Array.from(values)];
+  }, [candidates]);
+
+  const placeTypeOptions = useMemo(() => {
+    const values = new Set();
+
+    candidates.forEach((candidate) => {
+      if (candidate.placeType && candidate.placeType !== "Veri Eksik") {
+        values.add(candidate.placeType);
+      }
+    });
+
+    return ["Tümü", ...Array.from(values)];
+  }, [candidates]);
 
   const neighborhoodOptions = useMemo(() => {
     const neighborhoodSet = new Set();
@@ -28,7 +52,7 @@ export default function PersonalizationForm({
       const regionMatch =
         form.region === "Tümü" || candidate.region === form.region;
 
-      if (regionMatch && candidate.neighborhood) {
+      if (regionMatch && candidate.neighborhood && candidate.neighborhood !== "Mahalle bilgisi yok") {
         neighborhoodSet.add(candidate.neighborhood);
       }
     });
@@ -81,22 +105,16 @@ export default function PersonalizationForm({
       return;
     }
 
-    if (!form.systemType) {
-      setFormMessage("Lütfen sistem tipini seçiniz.");
-      return;
-    }
-
-    if (!form.placeType) {
-      setFormMessage("Lütfen mekân türünü seçiniz.");
-      return;
-    }
-
     const result = candidates.filter((candidate) => {
       const cost = candidate.estimatedCost ?? Number.MAX_SAFE_INTEGER;
 
       const budgetMatch = cost >= budgetMin && cost <= budgetMax;
-      const systemMatch = candidate.systemType === form.systemType;
-      const placeMatch = candidate.placeType === form.placeType;
+
+      const systemMatch =
+        form.systemType === "Tümü" || candidate.systemType === form.systemType;
+
+      const placeMatch =
+        form.placeType === "Tümü" || candidate.placeType === form.placeType;
 
       const regionMatch =
         form.region === "Tümü" || candidate.region === form.region;
@@ -194,9 +212,11 @@ export default function PersonalizationForm({
             value={form.systemType}
             onChange={handleChange}
           >
-            <option value="">Seçiniz</option>
-            <option value="AC">AC</option>
-            <option value="DC">DC</option>
+            {systemTypeOptions.map((systemType) => (
+              <option key={systemType} value={systemType}>
+                {systemType}
+              </option>
+            ))}
           </select>
         </label>
 
@@ -208,10 +228,11 @@ export default function PersonalizationForm({
             value={form.placeType}
             onChange={handleChange}
           >
-            <option value="">Seçiniz</option>
-            <option value="AVM">AVM</option>
-            <option value="İş Yeri">İş Yeri</option>
-            <option value="Otoyol">Otoyol</option>
+            {placeTypeOptions.map((placeType) => (
+              <option key={placeType} value={placeType}>
+                {placeType}
+              </option>
+            ))}
           </select>
         </label>
 
