@@ -1356,36 +1356,6 @@ body {
   box-shadow: 0 16px 36px rgba(249, 115, 22, 0.52);
 }
 
-.pin-1 {
-  top: 36%;
-  left: 28%;
-}
-
-.pin-2 {
-  top: 54%;
-  left: 43%;
-}
-
-.pin-3 {
-  top: 44%;
-  left: 68%;
-}
-
-.pin-4 {
-  top: 30%;
-  left: 58%;
-}
-
-.pin-5 {
-  top: 62%;
-  left: 72%;
-}
-
-.pin-6 {
-  top: 48%;
-  left: 22%;
-}
-
 .map-candidate-popup {
   position: absolute;
   left: 24px;

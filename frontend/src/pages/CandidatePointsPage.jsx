@@ -48,6 +48,31 @@ function showScore(value) {
   return value;
 }
 
+function getMapPosition(latitude, longitude, index) {
+  const lat = Number(latitude);
+  const lon = Number(longitude);
+
+  if (Number.isNaN(lat) || Number.isNaN(lon)) {
+    return {
+      top: `${32 + (index % 4) * 9}%`,
+      left: `${24 + (index % 5) * 11}%`
+    };
+  }
+
+  const minLat = 39.80;
+  const maxLat = 40.05;
+  const minLon = 32.55;
+  const maxLon = 32.95;
+
+  const left = ((lon - minLon) / (maxLon - minLon)) * 100;
+  const top = 100 - ((lat - minLat) / (maxLat - minLat)) * 100;
+
+  return {
+    top: `${Math.min(Math.max(top, 12), 82)}%`,
+    left: `${Math.min(Math.max(left, 12), 88)}%`
+  };
+}
+
 export default function CandidatePointsPage() {
   const [activeTab, setActiveTab] = useState("home");
   const [selectedCandidate, setSelectedCandidate] = useState(null);
@@ -366,17 +391,26 @@ export default function CandidatePointsPage() {
                 goruntuleyebilirsiniz.
               </p>
 
-              {filteredCandidates.map((candidate, index) => (
-                <button
-                  key={candidate.id}
-                  className={`candidate-pin pin-${index + 1} ${
-                    selectedCandidate?.id === candidate.id ? "selected-pin" : ""
-                  }`}
-                  data-testid={`candidate-map-pin-${candidate.id}`}
-                  title={candidate.name}
-                  onClick={() => setSelectedCandidate(candidate)}
-                ></button>
-              ))}
+              {filteredCandidates.map((candidate, index) => {
+                const position = getMapPosition(
+                  candidate.latitude,
+                  candidate.longitude,
+                  index
+                );
+
+                return (
+                  <button
+                    key={candidate.id}
+                    className={`candidate-pin ${
+                      selectedCandidate?.id === candidate.id ? "selected-pin" : ""
+                    }`}
+                    style={position}
+                    data-testid={`candidate-map-pin-${candidate.id}`}
+                    title={candidate.name}
+                    onClick={() => setSelectedCandidate(candidate)}
+                  ></button>
+                );
+              })}
 
               {selectedCandidate && (
                 <div
@@ -412,6 +446,13 @@ export default function CandidatePointsPage() {
 
                   <p>
                     <strong>Genel Skor:</strong> {showScore(selectedCandidate.generalScore)}
+                  </p>
+
+                  <p>
+                    <strong>Koordinat:</strong>{" "}
+                    {selectedCandidate.latitude && selectedCandidate.longitude
+                      ? `${selectedCandidate.latitude}, ${selectedCandidate.longitude}`
+                      : "Veri Eksik"}
                   </p>
 
                   {selectedCandidate.status === "missing" && (
