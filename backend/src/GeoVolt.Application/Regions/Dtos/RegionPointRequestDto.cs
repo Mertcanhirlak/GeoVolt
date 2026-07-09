@@ -1,8 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
 namespace GeoVolt.Application.Regions.Dtos;
-//enlem ve boylam bilgilerini içeren manuel nokta kontrolü için kullanılan DTO sınıfı
-public sealed class ValidateRegionPointRequestDto
+
+public sealed class RegionPointRequestDto
 {
     // Haritaya bırakılan noktanın enlem bilgisi
     [Range(-90, 90)]

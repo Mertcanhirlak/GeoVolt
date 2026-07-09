@@ -31,11 +31,11 @@ public sealed class ManualPinService : IManualPinService
         // bölge ve mahalle bilgisini bulur
         var location = await _regionService.LocatePointAsync(
             request.RegionId,
-            new ValidateRegionPointRequestDto
-            {
-                Latitude = request.Latitude,
-                Longitude = request.Longitude
-            },
+          new RegionPointRequestDto
+          {
+              Latitude = request.Latitude,
+              Longitude = request.Longitude
+          },
             cancellationToken);
 
         // Bölge bulunamazsa null döner
