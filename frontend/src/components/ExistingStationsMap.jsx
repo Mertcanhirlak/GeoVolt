@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Feature from "ol/Feature";
 import OlMap from "ol/Map";
 import View from "ol/View";
