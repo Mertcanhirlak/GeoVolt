@@ -1,4 +1,5 @@
-const API_BASE_URL = "http://localhost:5000/api";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000";
 
 const localMockChargingStations = [
   {
@@ -9,7 +10,9 @@ const localMockChargingStations = [
     region: "Çankaya",
     neighborhood: "Kızılay",
     socketType: "Type 2",
-    powerKw: 22
+    powerKw: 22,
+    latitude: 39.9208,
+    longitude: 32.8541
   },
   {
     id: 2,
@@ -19,7 +22,9 @@ const localMockChargingStations = [
     region: "Çankaya",
     neighborhood: "Söğütözü",
     socketType: "CCS",
-    powerKw: 50
+    powerKw: 50,
+    latitude: 39.9128,
+    longitude: 32.7924
   },
   {
     id: 3,
@@ -29,7 +34,9 @@ const localMockChargingStations = [
     region: "Yenimahalle",
     neighborhood: "Batıkent",
     socketType: "Type 2",
-    powerKw: 22
+    powerKw: 22,
+    latitude: 39.9684,
+    longitude: 32.7306
   },
   {
     id: 4,
@@ -39,31 +46,187 @@ const localMockChargingStations = [
     region: "Etimesgut",
     neighborhood: "Eryaman",
     socketType: "CCS",
-    powerKw: 60
+    powerKw: 60,
+    latitude: 39.9767,
+    longitude: 32.6156
   }
 ];
 
+function extractArray(result) {
+  if (Array.isArray(result)) {
+    return result;
+  }
+
+  if (Array.isArray(result?.data)) {
+    return result.data;
+  }
+
+  if (Array.isArray(result?.items)) {
+    return result.items;
+  }
+
+  if (Array.isArray(result?.chargingStations)) {
+    return result.chargingStations;
+  }
+
+  if (Array.isArray(result?.features)) {
+    return result.features;
+  }
+
+  return null;
+}
+
+function getProperty(source, propertyNames) {
+  for (const propertyName of propertyNames) {
+    if (source?.[propertyName] !== undefined && source?.[propertyName] !== null) {
+      return source[propertyName];
+    }
+  }
+
+  return null;
+}
+
+function getCoordinates(station) {
+  if (Array.isArray(station.coordinates) && station.coordinates.length >= 2) {
+    return {
+      longitude: station.coordinates[0],
+      latitude: station.coordinates[1]
+    };
+  }
+
+  if (
+    Array.isArray(station.geometry?.coordinates) &&
+    station.geometry.coordinates.length >= 2
+  ) {
+    return {
+      longitude: station.geometry.coordinates[0],
+      latitude: station.geometry.coordinates[1]
+    };
+  }
+
+  return {
+    latitude:
+      station.latitude ??
+      station.lat ??
+      station.enlem ??
+      null,
+    longitude:
+      station.longitude ??
+      station.lng ??
+      station.lon ??
+      station.boylam ??
+      null
+  };
+}
+
+function normalizeChargingStation(station, index) {
+  const properties = station.properties ?? station;
+  const coordinates = getCoordinates(station);
+
+  return {
+    id:
+      getProperty(properties, ["id", "stationId", "sarjId", "objectId"]) ??
+      index + 1,
+
+    name:
+      getProperty(properties, [
+        "name",
+        "stationName",
+        "istasyonAdi",
+        "adi",
+        "title"
+      ]) ?? `Mevcut Şarj İstasyonu ${index + 1}`,
+
+    companyName:
+      getProperty(properties, [
+        "companyName",
+        "company",
+        "operatorName",
+        "firma",
+        "firmaAdi",
+        "marka"
+      ]) ?? "Firma bilgisi yok",
+
+    address:
+      getProperty(properties, [
+        "address",
+        "adres",
+        "fullAddress",
+        "estimatedAddress"
+      ]) ?? "Adres bilgisi yok",
+
+    region:
+      getProperty(properties, [
+        "region",
+        "district",
+        "districtName",
+        "ilce",
+        "ilceAdi"
+      ]) ?? "Bölge bilgisi yok",
+
+    neighborhood:
+      getProperty(properties, [
+        "neighborhood",
+        "mahalle",
+        "mahalleAdi"
+      ]) ?? "Mahalle bilgisi yok",
+
+    socketType:
+      getProperty(properties, [
+        "socketType",
+        "connectorType",
+        "soketTipi",
+        "socket",
+        "connector"
+      ]) ?? "Veri Eksik",
+
+    powerKw:
+      getProperty(properties, [
+        "powerKw",
+        "power",
+        "guc",
+        "kw",
+        "power_kW"
+      ]),
+
+    latitude: coordinates.latitude,
+    longitude: coordinates.longitude,
+
+    rawData: station
+  };
+}
+
 export async function getChargingStations() {
   try {
-    const response = await fetch(`${API_BASE_URL}/charging-stations`);
+    const response = await fetch(`${API_BASE_URL}/api/charging-stations`);
 
     if (!response.ok) {
-      return {
-        source: "local-mock",
-        data: localMockChargingStations
-      };
+      throw new Error(`Charging stations request failed: ${response.status}`);
     }
 
-    const data = await response.json();
+    const result = await response.json();
+    const stationArray = extractArray(result);
+
+    if (!stationArray) {
+      throw new Error("Charging stations response is invalid.");
+    }
+
+    const normalizedData = stationArray.map((station, index) =>
+      normalizeChargingStation(station, index)
+    );
 
     return {
       source: "api",
-      data: data.data || data
+      data: normalizedData
     };
-  } catch (error) {
+  } catch {
+    const normalizedMockData = localMockChargingStations.map((station, index) =>
+      normalizeChargingStation(station, index)
+    );
+
     return {
       source: "local-mock",
-      data: localMockChargingStations
+      data: normalizedMockData
     };
   }
 }
