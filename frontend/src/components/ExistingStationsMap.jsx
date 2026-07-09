@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { getChargingStations } from "../services/mapDataApi";
+import "./ExistingStationsMap.css";
 
 function getMapPosition(latitude, longitude, index) {
   const lat = Number(latitude);
@@ -7,12 +8,12 @@ function getMapPosition(latitude, longitude, index) {
 
   if (Number.isNaN(lat) || Number.isNaN(lon)) {
     return {
-      top: `${30 + (index % 4) * 8}%`,
-      left: `${28 + (index % 5) * 10}%`
+      top: `${28 + (index % 5) * 9}%`,
+      left: `${22 + (index % 6) * 11}%`
     };
   }
 
-  const minLat = 39.80;
+  const minLat = 39.8;
   const maxLat = 40.05;
   const minLon = 32.55;
   const maxLon = 32.95;
@@ -21,8 +22,8 @@ function getMapPosition(latitude, longitude, index) {
   const top = 100 - ((lat - minLat) / (maxLat - minLat)) * 100;
 
   return {
-    top: `${Math.min(Math.max(top, 12), 82)}%`,
-    left: `${Math.min(Math.max(left, 12), 88)}%`
+    top: `${Math.min(Math.max(top, 10), 84)}%`,
+    left: `${Math.min(Math.max(left, 8), 92)}%`
   };
 }
 
@@ -34,12 +35,40 @@ function showValue(value) {
   return value;
 }
 
-function showCoordinate(latitude, longitude) {
-  if (!latitude || !longitude) {
+function showPower(value) {
+  if (value === null || value === undefined || value === "") {
     return "Veri Eksik";
   }
 
-  return `${latitude}, ${longitude}`;
+  return `${value} kW`;
+}
+
+function showCoordinate(latitude, longitude) {
+  if (latitude === null || latitude === undefined) {
+    return "Veri Eksik";
+  }
+
+  if (longitude === null || longitude === undefined) {
+    return "Veri Eksik";
+  }
+
+  return `${Number(latitude).toFixed(4)}, ${Number(longitude).toFixed(4)}`;
+}
+
+function getSourceMessage(source) {
+  if (source === "api") {
+    return "API verisi kullanılıyor";
+  }
+
+  if (source === "local-geojson") {
+    return "ARAC_SARJ.geojson verisi kullanılıyor";
+  }
+
+  if (source === "local-mock") {
+    return "Mock veri kullanılıyor";
+  }
+
+  return "";
 }
 
 export default function ExistingStationsMap({
@@ -62,23 +91,7 @@ export default function ExistingStationsMap({
 
       setStations(result.data || []);
       setSelectedStation(null);
-
-      if (result.source === "api") {
-        setMessage("API verisi kullanılıyor");
-        return;
-      }
-
-      if (result.source === "local-geojson") {
-        setMessage("ARAC_SARJ.geojson verisi kullanılıyor");
-        return;
-      }
-
-      if (result.source === "local-mock") {
-        setMessage("Mock veri kullanılıyor");
-        return;
-      }
-
-      setMessage("");
+      setMessage(getSourceMessage(result.source));
     }
 
     loadStations();
@@ -196,22 +209,14 @@ export default function ExistingStationsMap({
 
             <div>
               <h3>{showValue(selectedStation.name)}</h3>
-              <p>
-                {showValue(
-                  selectedStation.companyName || selectedStation.company
-                )}
-              </p>
+              <p>{showValue(selectedStation.companyName)}</p>
             </div>
           </div>
 
           <div className="station-detail-grid">
             <div>
               <span>Adres</span>
-              <strong>
-                {showValue(
-                  selectedStation.address || selectedStation.estimatedAddress
-                )}
-              </strong>
+              <strong>{showValue(selectedStation.address)}</strong>
             </div>
 
             <div>
@@ -226,20 +231,12 @@ export default function ExistingStationsMap({
 
             <div>
               <span>Soket Tipi</span>
-              <strong>
-                {showValue(
-                  selectedStation.socketType || selectedStation.connectorType
-                )}
-              </strong>
+              <strong>{showValue(selectedStation.socketType)}</strong>
             </div>
 
             <div>
               <span>Güç</span>
-              <strong>
-                {selectedStation.powerKw
-                  ? `${selectedStation.powerKw} kW`
-                  : "Veri Eksik"}
-              </strong>
+              <strong>{showPower(selectedStation.powerKw)}</strong>
             </div>
 
             <div>

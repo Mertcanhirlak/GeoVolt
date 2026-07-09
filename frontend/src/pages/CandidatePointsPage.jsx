@@ -75,7 +75,7 @@ function getMapPosition(latitude, longitude, index) {
     };
   }
 
-  const minLat = 39.80;
+  const minLat = 39.8;
   const maxLat = 40.05;
   const minLon = 32.55;
   const maxLon = 32.95;
@@ -365,7 +365,9 @@ export default function CandidatePointsPage() {
         </button>
 
         <button
-          className={activeTab === "candidateMap" ? "menu-button active" : "menu-button"}
+          className={
+            activeTab === "candidateMap" ? "menu-button active" : "menu-button"
+          }
           data-testid="candidate-map-tab-button"
           onClick={openCandidateMap}
           title="Aday nokta haritası"
@@ -383,7 +385,9 @@ export default function CandidatePointsPage() {
         </button>
 
         <button
-          className={activeTab === "personalization" ? "menu-button active" : "menu-button"}
+          className={
+            activeTab === "personalization" ? "menu-button active" : "menu-button"
+          }
           data-testid="personalization-tab-button"
           onClick={() => setActiveTab("personalization")}
           title="Kisisellestirme"
@@ -453,7 +457,10 @@ export default function CandidatePointsPage() {
               <h1>Aday Nokta Haritasi</h1>
 
               {regionsActive && (
-                <div className="candidate-region-layer" data-testid="candidate-region-layer">
+                <div
+                  className="candidate-region-layer"
+                  data-testid="candidate-region-layer"
+                >
                   Bölge katmanı aktif
                 </div>
               )}
@@ -509,15 +516,18 @@ export default function CandidatePointsPage() {
                   </p>
 
                   <p>
-                    <strong>Maliyet Skoru:</strong> {showScore(selectedCandidate.costScore)}
+                    <strong>Maliyet Skoru:</strong>{" "}
+                    {showScore(selectedCandidate.costScore)}
                   </p>
 
                   <p>
-                    <strong>Talep Skoru:</strong> {showScore(selectedCandidate.demandScore)}
+                    <strong>Talep Skoru:</strong>{" "}
+                    {showScore(selectedCandidate.demandScore)}
                   </p>
 
                   <p>
-                    <strong>Genel Skor:</strong> {showScore(selectedCandidate.generalScore)}
+                    <strong>Genel Skor:</strong>{" "}
+                    {showScore(selectedCandidate.generalScore)}
                   </p>
 
                   <p>
@@ -566,8 +576,8 @@ export default function CandidatePointsPage() {
             <h1>Kisisellestirme</h1>
 
             <p className="page-description">
-              Firma butcesi, sistem tipi, mekan turu ve bolgeye gore aday noktalar
-              kisisellestirilir.
+              Firma butcesi, sistem tipi, mekan turu ve bolgeye gore aday
+              noktalar kisisellestirilir.
             </p>
 
             <PersonalizationForm
@@ -579,7 +589,10 @@ export default function CandidatePointsPage() {
               onSelectionChange={handleSelectionChange}
             />
 
-            <section className="data-layers-section" data-testid="data-layers-section">
+            <section
+              className="data-layers-section"
+              data-testid="data-layers-section"
+            >
               <div className="data-layers-header">
                 <h2>Veri Katmanları Özeti</h2>
                 <p>
@@ -588,7 +601,10 @@ export default function CandidatePointsPage() {
                   erişilebilirlik skorlarını desteklemek için hazırlanmıştır.
                 </p>
 
-                <div className="selected-data-filter" data-testid="selected-data-filter">
+                <div
+                  className="selected-data-filter"
+                  data-testid="selected-data-filter"
+                >
                   <span>
                     <strong>Seçilen Bölge:</strong> {selectedDataFilter.region}
                   </span>
@@ -608,9 +624,9 @@ export default function CandidatePointsPage() {
                 </div>
               </div>
 
-              <PoiSummary selectedFilter={selectedDataFilter} />
-              <TrafoSummary selectedFilter={selectedDataFilter} />
-              <RoadSummary selectedFilter={selectedDataFilter} />
+              <PoiSummary />
+              <TrafoSummary />
+              <RoadSummary />
             </section>
 
             {selectedRegionSummary && (
@@ -666,7 +682,10 @@ export default function CandidatePointsPage() {
 
             <h2 className="section-title">Kişiselleştirilmiş Sonuçlar</h2>
 
-            <div className="personalized-card-grid" data-testid="personalized-candidate-list">
+            <div
+              className="personalized-card-grid"
+              data-testid="personalized-candidate-list"
+            >
               {personalizedCandidates.map((candidate) => (
                 <div
                   key={candidate.id}

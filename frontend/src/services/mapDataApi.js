@@ -1,9 +1,11 @@
+import { mockChargingStations } from "../data/mockChargingStations";
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000";
 
 const LOCAL_ARAC_SARJ_URL = "/data/ARAC_SARJ.geojson";
 
-const localMockChargingStations = [
+const fallbackChargingStations = [
   {
     id: 1,
     name: "Çankaya Mevcut Şarj İstasyonu",
@@ -88,6 +90,24 @@ function getProperty(source, propertyNames) {
   return null;
 }
 
+function normalizeText(value) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  return String(value).trim();
+}
+
+function normalizeNumber(value) {
+  const numberValue = Number(value);
+
+  if (Number.isNaN(numberValue)) {
+    return null;
+  }
+
+  return numberValue;
+}
+
 function getCoordinates(station) {
   if (Array.isArray(station.coordinates) && station.coordinates.length >= 2) {
     return {
@@ -107,9 +127,22 @@ function getCoordinates(station) {
   }
 
   return {
-    latitude: station.latitude ?? station.lat ?? station.enlem ?? null,
+    latitude:
+      station.latitude ??
+      station.lat ??
+      station.enlem ??
+      station.Enlem ??
+      station.ENLEM ??
+      null,
+
     longitude:
-      station.longitude ?? station.lng ?? station.lon ?? station.boylam ?? null
+      station.longitude ??
+      station.lng ??
+      station.lon ??
+      station.boylam ??
+      station.Boylam ??
+      station.BOYLAM ??
+      null
   };
 }
 
@@ -119,87 +152,114 @@ function normalizeChargingStation(station, index) {
 
   return {
     id:
-      getProperty(properties, ["id", "stationId", "sarjId", "objectId", "OBJECTID"]) ??
-      index + 1,
+      getProperty(properties, [
+        "id",
+        "ID",
+        "stationId",
+        "sarjId",
+        "objectId",
+        "OBJECTID"
+      ]) ?? index + 1,
 
     name:
-      getProperty(properties, [
-        "name",
-        "stationName",
-        "istasyonAdi",
-        "ISTASYON_ADI",
-        "adi",
-        "ADI",
-        "title"
-      ]) ?? `Mevcut Şarj İstasyonu ${index + 1}`,
+      normalizeText(
+        getProperty(properties, [
+          "name",
+          "NAME",
+          "stationName",
+          "istasyonAdi",
+          "ISTASYON_ADI",
+          "adi",
+          "ADI",
+          "title"
+        ])
+      ) || `Mevcut Şarj İstasyonu ${index + 1}`,
 
     companyName:
-      getProperty(properties, [
-        "companyName",
-        "company",
-        "operatorName",
-        "firma",
-        "FIRMA",
-        "firmaAdi",
-        "FIRMA_ADI",
-        "marka",
-        "MARKA"
-      ]) ?? "Firma bilgisi yok",
+      normalizeText(
+        getProperty(properties, [
+          "companyName",
+          "company",
+          "operatorName",
+          "firma",
+          "FIRMA",
+          "firmaAdi",
+          "FIRMA_ADI",
+          "marka",
+          "MARKA"
+        ])
+      ) || "Firma bilgisi yok",
 
     address:
-      getProperty(properties, [
-        "address",
-        "adres",
-        "ADRES",
-        "fullAddress",
-        "estimatedAddress"
-      ]) ?? "Adres bilgisi yok",
+      normalizeText(
+        getProperty(properties, [
+          "address",
+          "adres",
+          "ADRES",
+          "fullAddress",
+          "estimatedAddress"
+        ])
+      ) || "Adres bilgisi yok",
 
     region:
-      getProperty(properties, [
-        "region",
-        "district",
-        "districtName",
-        "ilce",
-        "ILCE",
-        "ilceAdi",
-        "ILCE_ADI"
-      ]) ?? "Bölge bilgisi yok",
+      normalizeText(
+        getProperty(properties, [
+          "region",
+          "district",
+          "districtName",
+          "ilce",
+          "ILCE",
+          "ilceAdi",
+          "ILCE_ADI"
+        ])
+      ) || "Bölge bilgisi yok",
 
     neighborhood:
-      getProperty(properties, [
-        "neighborhood",
-        "mahalle",
-        "MAHALLE",
-        "mahalleAdi",
-        "MAHALLE_ADI"
-      ]) ?? "Mahalle bilgisi yok",
+      normalizeText(
+        getProperty(properties, [
+          "neighborhood",
+          "mahalle",
+          "MAHALLE",
+          "mahalleAdi",
+          "MAHALLE_ADI"
+        ])
+      ) || "Mahalle bilgisi yok",
 
     socketType:
+      normalizeText(
+        getProperty(properties, [
+          "socketType",
+          "connectorType",
+          "soketTipi",
+          "SOKET_TIPI",
+          "socket",
+          "connector"
+        ])
+      ) || "Veri Eksik",
+
+    powerKw: normalizeNumber(
       getProperty(properties, [
-        "socketType",
-        "connectorType",
-        "soketTipi",
-        "SOKET_TIPI",
-        "socket",
-        "connector"
-      ]) ?? "Veri Eksik",
+        "powerKw",
+        "power",
+        "guc",
+        "GUC",
+        "kw",
+        "KW",
+        "power_kW"
+      ])
+    ),
 
-    powerKw: getProperty(properties, [
-      "powerKw",
-      "power",
-      "guc",
-      "GUC",
-      "kw",
-      "KW",
-      "power_kW"
-    ]),
-
-    latitude: coordinates.latitude,
-    longitude: coordinates.longitude,
+    latitude: normalizeNumber(coordinates.latitude),
+    longitude: normalizeNumber(coordinates.longitude),
 
     rawData: station
   };
+}
+
+function normalizeChargingStations(stations) {
+  return stations.map((station, index) =>
+    normalizeChargingStation(station, index)
+  );
 }
 
 async function getChargingStationsFromApi() {
@@ -216,9 +276,7 @@ async function getChargingStationsFromApi() {
     throw new Error("Charging stations API response is invalid.");
   }
 
-  return stationArray.map((station, index) =>
-    normalizeChargingStation(station, index)
-  );
+  return normalizeChargingStations(stationArray);
 }
 
 async function getChargingStationsFromLocalGeoJson() {
@@ -235,9 +293,18 @@ async function getChargingStationsFromLocalGeoJson() {
     throw new Error("Local ARAC_SARJ.geojson response is invalid.");
   }
 
-  return stationArray.map((station, index) =>
-    normalizeChargingStation(station, index)
-  );
+  return normalizeChargingStations(stationArray);
+}
+
+function getChargingStationsFromMock() {
+  const talhaMockData = Array.isArray(mockChargingStations)
+    ? mockChargingStations
+    : [];
+
+  const mockData =
+    talhaMockData.length > 0 ? talhaMockData : fallbackChargingStations;
+
+  return normalizeChargingStations(mockData);
 }
 
 export async function getChargingStations() {
@@ -257,13 +324,9 @@ export async function getChargingStations() {
         data: geoJsonData
       };
     } catch {
-      const normalizedMockData = localMockChargingStations.map((station, index) =>
-        normalizeChargingStation(station, index)
-      );
-
       return {
         source: "local-mock",
-        data: normalizedMockData
+        data: getChargingStationsFromMock()
       };
     }
   }
