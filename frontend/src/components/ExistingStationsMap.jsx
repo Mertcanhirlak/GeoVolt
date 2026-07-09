@@ -26,7 +26,26 @@ function getMapPosition(latitude, longitude, index) {
   };
 }
 
-export default function ExistingStationsMap({ searchTerm = "", regionsActive = false }) {
+function showValue(value) {
+  if (value === null || value === undefined || value === "") {
+    return "Veri Eksik";
+  }
+
+  return value;
+}
+
+function showCoordinate(latitude, longitude) {
+  if (!latitude || !longitude) {
+    return "Veri Eksik";
+  }
+
+  return `${latitude}, ${longitude}`;
+}
+
+export default function ExistingStationsMap({
+  searchTerm = "",
+  regionsActive = false
+}) {
   const [stations, setStations] = useState([]);
   const [selectedStation, setSelectedStation] = useState(null);
   const [message, setMessage] = useState("");
@@ -43,6 +62,16 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
 
       setStations(result.data || []);
       setSelectedStation(null);
+
+      if (result.source === "api") {
+        setMessage("API verisi kullanılıyor");
+        return;
+      }
+
+      if (result.source === "local-geojson") {
+        setMessage("ARAC_SARJ.geojson verisi kullanılıyor");
+        return;
+      }
 
       if (result.source === "local-mock") {
         setMessage("Mock veri kullanılıyor");
@@ -70,15 +99,20 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
       const name = station.name?.toLocaleLowerCase("tr-TR") || "";
       const address = station.address?.toLocaleLowerCase("tr-TR") || "";
       const region = station.region?.toLocaleLowerCase("tr-TR") || "";
-      const neighborhood = station.neighborhood?.toLocaleLowerCase("tr-TR") || "";
-      const companyName = station.companyName?.toLocaleLowerCase("tr-TR") || "";
+      const neighborhood =
+        station.neighborhood?.toLocaleLowerCase("tr-TR") || "";
+      const companyName =
+        station.companyName?.toLocaleLowerCase("tr-TR") || "";
+      const socketType =
+        station.socketType?.toLocaleLowerCase("tr-TR") || "";
 
       return (
         name.includes(normalizedSearch) ||
         address.includes(normalizedSearch) ||
         region.includes(normalizedSearch) ||
         neighborhood.includes(normalizedSearch) ||
-        companyName.includes(normalizedSearch)
+        companyName.includes(normalizedSearch) ||
+        socketType.includes(normalizedSearch)
       );
     });
   }, [stations, searchTerm]);
@@ -89,19 +123,26 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
         <div>
           <h1>Mevcut Şarj İstasyonları</h1>
           <p>
-            İstasyon adı, firma, bölge veya mahalleye göre arama yapılabilir.
+            İstasyon adı, firma, bölge, mahalle veya soket tipine göre arama
+            yapılabilir.
           </p>
         </div>
 
         <div className="station-map-badges">
           {regionsActive && (
-            <span className="station-map-badge active" data-testid="region-layer-info">
+            <span
+              className="station-map-badge active"
+              data-testid="region-layer-info"
+            >
               Bölge katmanı aktif
             </span>
           )}
 
           {message && (
-            <span className="station-map-badge warning" data-testid="station-map-message">
+            <span
+              className="station-map-badge warning"
+              data-testid="station-map-message"
+            >
               {message}
             </span>
           )}
@@ -115,7 +156,11 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
       )}
 
       {filteredStations.map((station, index) => {
-        const position = getMapPosition(station.latitude, station.longitude, index);
+        const position = getMapPosition(
+          station.latitude,
+          station.longitude,
+          index
+        );
 
         return (
           <button
@@ -148,12 +193,13 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
 
           <div className="station-detail-title">
             <span className="station-detail-icon">⚡</span>
+
             <div>
-              <h3>{selectedStation.name || "İstasyon Bilgisi"}</h3>
+              <h3>{showValue(selectedStation.name)}</h3>
               <p>
-                {selectedStation.companyName ||
-                  selectedStation.company ||
-                  "Firma bilgisi yok"}
+                {showValue(
+                  selectedStation.companyName || selectedStation.company
+                )}
               </p>
             </div>
           </div>
@@ -162,28 +208,28 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
             <div>
               <span>Adres</span>
               <strong>
-                {selectedStation.address ||
-                  selectedStation.estimatedAddress ||
-                  "Veri Eksik"}
+                {showValue(
+                  selectedStation.address || selectedStation.estimatedAddress
+                )}
               </strong>
             </div>
 
             <div>
               <span>Bölge</span>
-              <strong>{selectedStation.region || "Veri Eksik"}</strong>
+              <strong>{showValue(selectedStation.region)}</strong>
             </div>
 
             <div>
               <span>Mahalle</span>
-              <strong>{selectedStation.neighborhood || "Veri Eksik"}</strong>
+              <strong>{showValue(selectedStation.neighborhood)}</strong>
             </div>
 
             <div>
               <span>Soket Tipi</span>
               <strong>
-                {selectedStation.socketType ||
-                  selectedStation.connectorType ||
-                  "Veri Eksik"}
+                {showValue(
+                  selectedStation.socketType || selectedStation.connectorType
+                )}
               </strong>
             </div>
 
@@ -199,9 +245,10 @@ export default function ExistingStationsMap({ searchTerm = "", regionsActive = f
             <div>
               <span>Koordinat</span>
               <strong>
-                {selectedStation.latitude && selectedStation.longitude
-                  ? `${selectedStation.latitude}, ${selectedStation.longitude}`
-                  : "Veri Eksik"}
+                {showCoordinate(
+                  selectedStation.latitude,
+                  selectedStation.longitude
+                )}
               </strong>
             </div>
           </div>

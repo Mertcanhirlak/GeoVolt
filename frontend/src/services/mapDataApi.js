@@ -1,6 +1,8 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000";
 
+const LOCAL_ARAC_SARJ_URL = "/data/ARAC_SARJ.geojson";
+
 const localMockChargingStations = [
   {
     id: 1,
@@ -105,17 +107,9 @@ function getCoordinates(station) {
   }
 
   return {
-    latitude:
-      station.latitude ??
-      station.lat ??
-      station.enlem ??
-      null,
+    latitude: station.latitude ?? station.lat ?? station.enlem ?? null,
     longitude:
-      station.longitude ??
-      station.lng ??
-      station.lon ??
-      station.boylam ??
-      null
+      station.longitude ?? station.lng ?? station.lon ?? station.boylam ?? null
   };
 }
 
@@ -125,7 +119,7 @@ function normalizeChargingStation(station, index) {
 
   return {
     id:
-      getProperty(properties, ["id", "stationId", "sarjId", "objectId"]) ??
+      getProperty(properties, ["id", "stationId", "sarjId", "objectId", "OBJECTID"]) ??
       index + 1,
 
     name:
@@ -133,7 +127,9 @@ function normalizeChargingStation(station, index) {
         "name",
         "stationName",
         "istasyonAdi",
+        "ISTASYON_ADI",
         "adi",
+        "ADI",
         "title"
       ]) ?? `Mevcut Şarj İstasyonu ${index + 1}`,
 
@@ -143,14 +139,18 @@ function normalizeChargingStation(station, index) {
         "company",
         "operatorName",
         "firma",
+        "FIRMA",
         "firmaAdi",
-        "marka"
+        "FIRMA_ADI",
+        "marka",
+        "MARKA"
       ]) ?? "Firma bilgisi yok",
 
     address:
       getProperty(properties, [
         "address",
         "adres",
+        "ADRES",
         "fullAddress",
         "estimatedAddress"
       ]) ?? "Adres bilgisi yok",
@@ -161,14 +161,18 @@ function normalizeChargingStation(station, index) {
         "district",
         "districtName",
         "ilce",
-        "ilceAdi"
+        "ILCE",
+        "ilceAdi",
+        "ILCE_ADI"
       ]) ?? "Bölge bilgisi yok",
 
     neighborhood:
       getProperty(properties, [
         "neighborhood",
         "mahalle",
-        "mahalleAdi"
+        "MAHALLE",
+        "mahalleAdi",
+        "MAHALLE_ADI"
       ]) ?? "Mahalle bilgisi yok",
 
     socketType:
@@ -176,18 +180,20 @@ function normalizeChargingStation(station, index) {
         "socketType",
         "connectorType",
         "soketTipi",
+        "SOKET_TIPI",
         "socket",
         "connector"
       ]) ?? "Veri Eksik",
 
-    powerKw:
-      getProperty(properties, [
-        "powerKw",
-        "power",
-        "guc",
-        "kw",
-        "power_kW"
-      ]),
+    powerKw: getProperty(properties, [
+      "powerKw",
+      "power",
+      "guc",
+      "GUC",
+      "kw",
+      "KW",
+      "power_kW"
+    ]),
 
     latitude: coordinates.latitude,
     longitude: coordinates.longitude,
@@ -196,37 +202,69 @@ function normalizeChargingStation(station, index) {
   };
 }
 
+async function getChargingStationsFromApi() {
+  const response = await fetch(`${API_BASE_URL}/api/charging-stations`);
+
+  if (!response.ok) {
+    throw new Error(`Charging stations request failed: ${response.status}`);
+  }
+
+  const result = await response.json();
+  const stationArray = extractArray(result);
+
+  if (!stationArray) {
+    throw new Error("Charging stations API response is invalid.");
+  }
+
+  return stationArray.map((station, index) =>
+    normalizeChargingStation(station, index)
+  );
+}
+
+async function getChargingStationsFromLocalGeoJson() {
+  const response = await fetch(LOCAL_ARAC_SARJ_URL);
+
+  if (!response.ok) {
+    throw new Error("Local ARAC_SARJ.geojson file could not be loaded.");
+  }
+
+  const result = await response.json();
+  const stationArray = extractArray(result);
+
+  if (!stationArray) {
+    throw new Error("Local ARAC_SARJ.geojson response is invalid.");
+  }
+
+  return stationArray.map((station, index) =>
+    normalizeChargingStation(station, index)
+  );
+}
+
 export async function getChargingStations() {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/charging-stations`);
-
-    if (!response.ok) {
-      throw new Error(`Charging stations request failed: ${response.status}`);
-    }
-
-    const result = await response.json();
-    const stationArray = extractArray(result);
-
-    if (!stationArray) {
-      throw new Error("Charging stations response is invalid.");
-    }
-
-    const normalizedData = stationArray.map((station, index) =>
-      normalizeChargingStation(station, index)
-    );
+    const apiData = await getChargingStationsFromApi();
 
     return {
       source: "api",
-      data: normalizedData
+      data: apiData
     };
   } catch {
-    const normalizedMockData = localMockChargingStations.map((station, index) =>
-      normalizeChargingStation(station, index)
-    );
+    try {
+      const geoJsonData = await getChargingStationsFromLocalGeoJson();
 
-    return {
-      source: "local-mock",
-      data: normalizedMockData
-    };
+      return {
+        source: "local-geojson",
+        data: geoJsonData
+      };
+    } catch {
+      const normalizedMockData = localMockChargingStations.map((station, index) =>
+        normalizeChargingStation(station, index)
+      );
+
+      return {
+        source: "local-mock",
+        data: normalizedMockData
+      };
+    }
   }
 }
