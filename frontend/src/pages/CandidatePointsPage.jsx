@@ -84,6 +84,7 @@ export default function CandidatePointsPage() {
   const [regionSummaryMessage, setRegionSummaryMessage] = useState("");
   const [filters, setFilters] = useState(defaultFilters);
   const [message, setMessage] = useState("");
+  const [saveFeedback, setSaveFeedback] = useState("");
   const [savedRefreshKey, setSavedRefreshKey] = useState(0);
   const [stationSearch, setStationSearch] = useState("");
   const [candidateSearch, setCandidateSearch] = useState("");
@@ -192,29 +193,38 @@ export default function CandidatePointsPage() {
   async function saveCandidate(candidate) {
     const result = await saveCandidatePoint(candidate);
 
+    function showFeedback(feedbackMessage) {
+      setMessage(feedbackMessage);
+      setSaveFeedback(feedbackMessage);
+
+      setTimeout(() => {
+        setSaveFeedback("");
+      }, 2500);
+    }
+
     if (result.status === "already-saved") {
-      setMessage("Bu aday nokta zaten kaydedilmiş.");
+      showFeedback("Bu aday nokta zaten kaydedilmiş.");
       return;
     }
 
     if (result.status === "limit-exceeded") {
-      setMessage("En fazla 10 aday nokta kaydedebilirsiniz.");
+      showFeedback("En fazla 10 aday nokta kaydedebilirsiniz.");
       return;
     }
 
     setSavedRefreshKey((currentKey) => currentKey + 1);
 
     if (result.source === "api") {
-      setMessage("Aday nokta API üzerinden kaydedildi.");
+      showFeedback("Aday nokta API üzerinden kaydedildi.");
       return;
     }
 
     if (result.source === "api-and-local-storage") {
-      setMessage("Aday nokta API ve lokal veriye kaydedildi.");
+      showFeedback("Aday nokta API ve lokal veriye kaydedildi.");
       return;
     }
 
-    setMessage("Aday nokta lokal olarak kaydedildi.");
+    showFeedback("Aday nokta lokal olarak kaydedildi.");
   }
 
   function handlePersonalizedResult(result) {
@@ -341,6 +351,12 @@ export default function CandidatePointsPage() {
           <span className="menu-icon">{"\u{1F58C}"}</span>
         </button>
       </aside>
+
+      {saveFeedback && (
+        <div className="save-feedback-toast" data-testid="save-feedback-toast">
+          {saveFeedback}
+        </div>
+      )}
 
       <main className="page-content">
         {activeTab === "home" && (
