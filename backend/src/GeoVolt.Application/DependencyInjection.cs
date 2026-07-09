@@ -13,6 +13,8 @@ using GeoVolt.Application.Regions.Abstractions;
 using GeoVolt.Application.SavedCandidatePoints;
 using GeoVolt.Application.SavedCandidatePoints.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
+using GeoVolt.Application.ManualPins;
+using GeoVolt.Application.ManualPins.Abstractions;
 
 namespace GeoVolt.Application;
 
@@ -28,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<ISavedCandidatePointService, SavedCandidatePointService>();
         services.AddScoped<IChargingStationService, ChargingStationService>();
         services.AddScoped<INeighborhoodService, NeighborhoodService>();
+        services.AddScoped<IManualPinService, ManualPinService>();
 
         return services;
     }
