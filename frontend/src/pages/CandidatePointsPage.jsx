@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getCandidatePoints } from "../services/candidatePointsApi";
 import { saveCandidatePoint } from "../services/savedCandidatePointsApi";
 import { getRegions, getRegionSummary } from "../services/regionsApi";
+import { useAuth } from "../context/AuthContext";
 import CandidateFilters from "../components/CandidateFilters";
 import SavedCandidates from "../components/SavedCandidates";
 import PersonalizationForm from "../components/PersonalizationForm";
 import ExistingStationsMap from "../components/ExistingStationsMap";
+import logoutLogo from "../assets/cikis_logo.png";
 
 const defaultFilters = {
   costMin: "",
@@ -49,6 +52,8 @@ function showScore(value) {
 }
 
 export default function CandidatePointsPage() {
+  const navigate = useNavigate();
+  const { logoutUser } = useAuth();
   const [activeTab, setActiveTab] = useState("home");
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [candidates, setCandidates] = useState([]);
@@ -71,34 +76,33 @@ export default function CandidatePointsPage() {
 
       const result = await getCandidatePoints();
 
-      if (!isMounted) {
-        return;
-      }
+      if (!isMounted) return;
 
       setCandidates(result.data);
       setFilteredCandidates(result.data);
       setPersonalizedCandidates(result.data);
       setSelectedCandidate(result.data[0] || null);
 
-      if (result.source === "local-mock") {
-        setMessage("Backend erisilemedi. Lokal mock veri gosteriliyor.");
-        return;
-      }
-
-      setMessage("");
-    }
-
-    async function loadRegions() {
-      const result = await getRegions();
-
-      if (!isMounted) {
-        return;
-      }
-
-      setRegions(result.data);
+      setMessage(result.source === "local-mock" ? "Backend erisilemedi. Lokal mock veri gosteriliyor." : "");
     }
 
     loadCandidatePoints();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadRegions() {
+      const result = await getRegions();
+      if (isMounted) {
+        setRegions(result.data);
+      }
+    }
+
     loadRegions();
 
     return () => {
@@ -134,9 +138,7 @@ export default function CandidatePointsPage() {
   }
 
   function applyFilters() {
-    if (!validateFilters()) {
-      return;
-    }
+    if (!validateFilters()) return;
 
     const costMin = getNumberOrDefault(filters.costMin, 0);
     const costMax = getNumberOrDefault(filters.costMax, 100);
@@ -155,28 +157,14 @@ export default function CandidatePointsPage() {
 
     setFilteredCandidates(result);
     setSelectedCandidate(result[0] || null);
-
-    if (result.length === 0) {
-      setMessage("Uygun aday nokta bulunamadi.");
-    } else {
-      setMessage("Filtreleme uygulandi.");
-    }
+    setMessage(result.length === 0 ? "Uygun aday nokta bulunamadi." : "Filtreleme uygulandi.");
   }
 
-<<<<<<< HEAD
-  function saveCandidate(candidate) {
-    const savedCandidates = JSON.parse(localStorage.getItem("savedCandidates")) || [];
-    const alreadySaved = savedCandidates.some((item) => item.id === candidate.id);
-
-    if (alreadySaved) {
-      setMessage("Bu aday nokta zaten kaydedilmis.");
-=======
   async function saveCandidate(candidate) {
     const result = await saveCandidatePoint(candidate);
 
     if (result.status === "already-saved") {
-      setMessage("Bu aday nokta zaten kaydedilmiş.");
->>>>>>> origin/main
+      setMessage("Bu aday nokta zaten kaydedilmis.");
       return;
     }
 
@@ -187,14 +175,10 @@ export default function CandidatePointsPage() {
 
     setSavedRefreshKey((currentKey) => currentKey + 1);
 
-<<<<<<< HEAD
-    localStorage.setItem("savedCandidates", JSON.stringify(updatedSavedCandidates));
-=======
     if (result.source === "api") {
-      setMessage("Aday nokta API üzerinden kaydedildi.");
+      setMessage("Aday nokta API uzerinden kaydedildi.");
       return;
     }
->>>>>>> origin/main
 
     if (result.source === "api-and-local-storage") {
       setMessage("Aday nokta API ve lokal veriye kaydedildi.");
@@ -216,12 +200,12 @@ export default function CandidatePointsPage() {
     setSelectedRegionSummary(result.data);
 
     if (result.source === "api") {
-      setRegionSummaryMessage("Bölge özeti API üzerinden getirildi.");
+      setRegionSummaryMessage("Bolge ozeti API uzerinden getirildi.");
       return;
     }
 
     if (result.source === "local-mock") {
-      setRegionSummaryMessage("Bölge özeti lokal mock veriden gösteriliyor.");
+      setRegionSummaryMessage("Bolge ozeti lokal mock veriden gosteriliyor.");
       return;
     }
 
@@ -240,6 +224,11 @@ export default function CandidatePointsPage() {
     setActiveTab("candidateMap");
   }
 
+  function handleLogout() {
+    logoutUser();
+    navigate("/login", { replace: true });
+  }
+
   return (
     <div className="candidate-page" data-testid="candidate-points-page">
       <aside className="left-menu" data-testid="left-menu">
@@ -255,17 +244,8 @@ export default function CandidatePointsPage() {
         <button
           className={activeTab === "candidateMap" ? "menu-button active" : "menu-button"}
           data-testid="candidate-map-tab-button"
-<<<<<<< HEAD
-          onClick={() => {
-            setFilteredCandidates(candidates);
-            setSelectedCandidate(candidates[0] || null);
-            setActiveTab("candidateMap");
-          }}
-          title="Aday nokta haritasi"
-=======
           onClick={openCandidateMap}
-          title="Aday nokta haritası"
->>>>>>> origin/main
+          title="Aday nokta haritasi"
         >
           <span className="menu-icon">{"\u26A1"}</span>
         </button>
@@ -286,6 +266,15 @@ export default function CandidatePointsPage() {
           title="Kisisellestirme"
         >
           <span className="menu-icon">{"\u{1F58C}"}</span>
+        </button>
+
+        <button
+          className="menu-button logout-menu-button"
+          data-testid="logout-button"
+          onClick={handleLogout}
+          title="Cikis yap"
+        >
+          <img src={logoutLogo} alt="" className="logout-menu-icon" />
         </button>
       </aside>
 
@@ -308,6 +297,13 @@ export default function CandidatePointsPage() {
                     type="button"
                     className={homeMapStep === step ? "map-step-button active" : "map-step-button"}
                     onClick={() => setHomeMapStep(step)}
+                    title={
+                      step === 1
+                        ? "Mevcut istasyonlar"
+                        : step === 2
+                          ? "Bolgeler"
+                          : "Bolge detayi"
+                    }
                   >
                     {step}
                   </button>
@@ -428,11 +424,6 @@ export default function CandidatePointsPage() {
               kisisellestirilir.
             </p>
 
-<<<<<<< HEAD
-            <PersonalizationForm candidates={candidates} onResult={handlePersonalizedResult} />
-
-            <h2 className="section-title">Kisisellestirilmis Sonuclar</h2>
-=======
             <PersonalizationForm
               candidates={candidates}
               regions={regions}
@@ -442,7 +433,7 @@ export default function CandidatePointsPage() {
 
             {selectedRegionSummary && (
               <div className="region-summary-card" data-testid="region-summary-card">
-                <h2>Bölge Özeti: {selectedRegionSummary.regionName}</h2>
+                <h2>Bolge Ozeti: {selectedRegionSummary.regionName}</h2>
 
                 {regionSummaryMessage && (
                   <div className="info-message" data-testid="region-summary-message">
@@ -452,24 +443,22 @@ export default function CandidatePointsPage() {
 
                 <div className="region-summary-grid">
                   <div>
-                    <strong>Toplam İstasyon</strong>
+                    <strong>Toplam Istasyon</strong>
                     <span>{selectedRegionSummary.chargingStationCount}</span>
                   </div>
 
                   <div>
-                    <strong>Trafik Yoğunluğu</strong>
+                    <strong>Trafik Yogunlugu</strong>
                     <span>{selectedRegionSummary.trafficLevel}</span>
                   </div>
 
                   <div>
-                    <strong>En Yaygın Soket</strong>
-                    <span>
-                      {selectedRegionSummary.mostCommonSocketType || "Veri Eksik"}
-                    </span>
+                    <strong>En Yaygin Soket</strong>
+                    <span>{selectedRegionSummary.mostCommonSocketType || "Veri Eksik"}</span>
                   </div>
 
                   <div>
-                    <strong>En Yaygın Güç</strong>
+                    <strong>En Yaygin Guc</strong>
                     <span>
                       {selectedRegionSummary.mostCommonPowerKw
                         ? `${selectedRegionSummary.mostCommonPowerKw} kW`
@@ -478,10 +467,10 @@ export default function CandidatePointsPage() {
                   </div>
                 </div>
 
-                <h3>Firma Dağılımı</h3>
+                <h3>Firma Dagilimi</h3>
 
                 <div className="company-distribution-list">
-                  {selectedRegionSummary.companyDistribution.map((company, index) => (
+                  {(selectedRegionSummary.companyDistribution || []).map((company, index) => (
                     <div key={`${company.companyName}-${index}`}>
                       <span>{company.companyName}</span>
                       <strong>{company.stationCount} istasyon</strong>
@@ -491,8 +480,7 @@ export default function CandidatePointsPage() {
               </div>
             )}
 
-            <h2 className="section-title">Kişiselleştirilmiş Sonuçlar</h2>
->>>>>>> origin/main
+            <h2 className="section-title">Kisisellestirilmis Sonuclar</h2>
 
             <div className="personalized-card-grid" data-testid="personalized-candidate-list">
               {personalizedCandidates.map((candidate) => (

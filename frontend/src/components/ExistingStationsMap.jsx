@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Feature from "ol/Feature";
-import Map from "ol/Map";
+import OlMap from "ol/Map";
 import View from "ol/View";
 import GeoJSON from "ol/format/GeoJSON";
 import Point from "ol/geom/Point";
@@ -23,12 +23,12 @@ import "./ExistingStationsMap.css";
 const CANKAYA_CENTER = fromLonLat([32.8541, 39.9208]);
 
 const regionColors = [
-  "rgba(74, 222, 128, 0.34)",
-  "rgba(96, 165, 250, 0.32)",
-  "rgba(250, 204, 21, 0.34)",
-  "rgba(248, 113, 113, 0.3)",
-  "rgba(192, 132, 252, 0.32)",
-  "rgba(45, 212, 191, 0.3)",
+  "rgba(74, 222, 128, 0.54)",
+  "rgba(96, 165, 250, 0.5)",
+  "rgba(250, 204, 21, 0.52)",
+  "rgba(248, 113, 113, 0.48)",
+  "rgba(192, 132, 252, 0.5)",
+  "rgba(45, 212, 191, 0.5)",
 ];
 
 const regionStyleCache = new Map();
@@ -125,7 +125,7 @@ function createRegionStyle(feature) {
     }),
     stroke: new Stroke({
       color: isSelected ? "#dc2626" : "rgba(239, 68, 68, 0.85)",
-      width: isSelected ? 4 : 2.5,
+      width: isSelected ? 5 : 3.5,
     }),
   });
 
@@ -211,7 +211,7 @@ export default function ExistingStationsMap({ searchTerm = "", mapStep = 1 }) {
       zIndex: 5,
     });
 
-    const map = new Map({
+    const map = new OlMap({
       target: mapElementRef.current,
       layers: [
         new TileLayer({
@@ -326,15 +326,22 @@ export default function ExistingStationsMap({ searchTerm = "", mapStep = 1 }) {
       return;
     }
 
+    if (mapStep === 2) {
+      clearRegionSelection(false);
+    }
+
     setSelectedStationId(null);
     setPopupPixel(null);
+
+    const extent = regionSourceRef.current.getExtent();
+    if (extent && Number.isFinite(extent[0]) && mapRef.current) {
+      mapRef.current.getView().fit(extent, {
+        padding: [110, 110, 80, 110],
+        maxZoom: 12.2,
+        duration: 350,
+      });
+    }
   }, [mapStep]);
-
-  useEffect(() => {
-    if (mapStep !== 3 || selectedRegion || regions.length === 0) return;
-
-    selectRegion(regions[0].id);
-  }, [mapStep, regions, selectedRegion]);
 
   useEffect(() => {
     if (!selectedStation || !mapRef.current) {
@@ -481,15 +488,11 @@ export default function ExistingStationsMap({ searchTerm = "", mapStep = 1 }) {
     <div className="existing-map" data-testid="existing-stations-map">
       <div ref={mapElementRef} className="openlayers-map" />
 
-      {mapStep > 1 && (
-        <div className="selection-overlay" aria-hidden="true">
-          <div className="selection-line" />
-          <div className="selection-box">
-            <span>Secili Alan</span>
-            <strong>{selectedRegion ? selectedRegion.name : "Bolge sec"}</strong>
-          </div>
-        </div>
-      )}
+      <div className="map-step-badge">
+        {mapStep === 1 && "1 / Mevcut istasyonlar"}
+        {mapStep === 2 && "2 / Bolgeler aktif"}
+        {mapStep === 3 && "3 / Bolge detayi"}
+      </div>
 
       {mapStep > 1 && selectedRegion && (
         <>
