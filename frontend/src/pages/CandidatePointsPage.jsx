@@ -426,7 +426,7 @@ export default function CandidatePointsPage() {
             <div className="mock-map">
               <ExistingStationsMap
                 searchTerm={stationSearch}
-                regionsActive={regionsActive}
+                mapStep={regionsActive ? 2 : 1}
               />
             </div>
           </section>

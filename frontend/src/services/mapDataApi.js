@@ -4,57 +4,31 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000";
 
 const LOCAL_ARAC_SARJ_URL = "/data/ARAC_SARJ.geojson";
+const LOCAL_MAHALLE_URL = "/data/MAHALLE.geojson";
 
-const fallbackChargingStations = [
-  {
-    id: 1,
-    name: "Çankaya Mevcut Şarj İstasyonu",
-    companyName: "ZES",
-    address: "Çankaya / Ankara",
-    region: "Çankaya",
-    neighborhood: "Kızılay",
-    socketType: "Type 2",
-    powerKw: 22,
-    latitude: 39.9208,
-    longitude: 32.8541
-  },
-  {
-    id: 2,
-    name: "Söğütözü Mevcut Şarj İstasyonu",
-    companyName: "Eşarj",
-    address: "Söğütözü / Ankara",
-    region: "Çankaya",
-    neighborhood: "Söğütözü",
-    socketType: "CCS",
-    powerKw: 50,
-    latitude: 39.9128,
-    longitude: 32.7924
-  },
-  {
-    id: 3,
-    name: "Batıkent Mevcut Şarj İstasyonu",
-    companyName: "Voltrun",
-    address: "Yenimahalle / Ankara",
-    region: "Yenimahalle",
-    neighborhood: "Batıkent",
-    socketType: "Type 2",
-    powerKw: 22,
-    latitude: 39.9684,
-    longitude: 32.7306
-  },
-  {
-    id: 4,
-    name: "Eryaman Mevcut Şarj İstasyonu",
-    companyName: "Sharz",
-    address: "Etimesgut / Ankara",
-    region: "Etimesgut",
-    neighborhood: "Eryaman",
-    socketType: "CCS",
-    powerKw: 60,
-    latitude: 39.9767,
-    longitude: 32.6156
+function getAuthHeaders() {
+  const token = localStorage.getItem("token");
+
+  if (!token) {
+    return {};
   }
-];
+
+  return {
+    Authorization: `Bearer ${token}`
+  };
+}
+
+async function getJson(path) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error(`${path} request failed: ${response.status}`);
+  }
+
+  return response.json();
+}
 
 function extractArray(result) {
   if (Array.isArray(result)) {
@@ -69,15 +43,15 @@ function extractArray(result) {
     return result.items;
   }
 
-  if (Array.isArray(result?.chargingStations)) {
-    return result.chargingStations;
-  }
-
   if (Array.isArray(result?.features)) {
     return result.features;
   }
 
-  return null;
+  if (Array.isArray(result?.chargingStations)) {
+    return result.chargingStations;
+  }
+
+  return [];
 }
 
 function getProperty(source, propertyNames) {
@@ -108,40 +82,40 @@ function normalizeNumber(value) {
   return numberValue;
 }
 
-function getCoordinates(station) {
-  if (Array.isArray(station.coordinates) && station.coordinates.length >= 2) {
+function getCoordinates(item) {
+  if (Array.isArray(item.coordinates) && item.coordinates.length >= 2) {
     return {
-      longitude: station.coordinates[0],
-      latitude: station.coordinates[1]
+      longitude: item.coordinates[0],
+      latitude: item.coordinates[1]
     };
   }
 
   if (
-    Array.isArray(station.geometry?.coordinates) &&
-    station.geometry.coordinates.length >= 2
+    Array.isArray(item.geometry?.coordinates) &&
+    item.geometry.coordinates.length >= 2
   ) {
     return {
-      longitude: station.geometry.coordinates[0],
-      latitude: station.geometry.coordinates[1]
+      longitude: item.geometry.coordinates[0],
+      latitude: item.geometry.coordinates[1]
     };
   }
 
   return {
     latitude:
-      station.latitude ??
-      station.lat ??
-      station.enlem ??
-      station.Enlem ??
-      station.ENLEM ??
+      item.latitude ??
+      item.lat ??
+      item.enlem ??
+      item.Enlem ??
+      item.ENLEM ??
       null,
 
     longitude:
-      station.longitude ??
-      station.lng ??
-      station.lon ??
-      station.boylam ??
-      station.Boylam ??
-      station.BOYLAM ??
+      item.longitude ??
+      item.lng ??
+      item.lon ??
+      item.boylam ??
+      item.Boylam ??
+      item.BOYLAM ??
       null
   };
 }
@@ -175,12 +149,27 @@ function normalizeChargingStation(station, index) {
         ])
       ) || `Mevcut Şarj İstasyonu ${index + 1}`,
 
+    operatorName:
+      normalizeText(
+        getProperty(properties, [
+          "operatorName",
+          "companyName",
+          "company",
+          "firma",
+          "FIRMA",
+          "firmaAdi",
+          "FIRMA_ADI",
+          "marka",
+          "MARKA"
+        ])
+      ) || "Firma bilgisi yok",
+
     companyName:
       normalizeText(
         getProperty(properties, [
           "companyName",
-          "company",
           "operatorName",
+          "company",
           "firma",
           "FIRMA",
           "firmaAdi",
@@ -201,18 +190,18 @@ function normalizeChargingStation(station, index) {
         ])
       ) || "Adres bilgisi yok",
 
-    region:
+    district:
       normalizeText(
         getProperty(properties, [
-          "region",
           "district",
-          "districtName",
+          "region",
+          "regionName",
           "ilce",
           "ILCE",
           "ilceAdi",
           "ILCE_ADI"
         ])
-      ) || "Bölge bilgisi yok",
+      ) || "Ankara",
 
     neighborhood:
       normalizeText(
@@ -225,6 +214,22 @@ function normalizeChargingStation(station, index) {
         ])
       ) || "Mahalle bilgisi yok",
 
+    regionId:
+      getProperty(properties, ["regionId", "REGION_ID", "region_id"]) ?? null,
+
+    regionName:
+      normalizeText(
+        getProperty(properties, [
+          "regionName",
+          "region",
+          "district",
+          "ilce",
+          "ILCE",
+          "ilceAdi",
+          "ILCE_ADI"
+        ])
+      ) || "",
+
     socketType:
       normalizeText(
         getProperty(properties, [
@@ -235,7 +240,32 @@ function normalizeChargingStation(station, index) {
           "socket",
           "connector"
         ])
-      ) || "Veri Eksik",
+      ) || "Soket bilgisi yok",
+
+    connectorType:
+      normalizeText(
+        getProperty(properties, [
+          "connectorType",
+          "socketType",
+          "soketTipi",
+          "SOKET_TIPI",
+          "socket",
+          "connector"
+        ])
+      ) || "Soket bilgisi yok",
+
+    power:
+      normalizeText(
+        getProperty(properties, [
+          "power",
+          "powerKw",
+          "guc",
+          "GUC",
+          "kw",
+          "KW",
+          "power_kW"
+        ])
+      ) || "Güç bilgisi yok",
 
     powerKw: normalizeNumber(
       getProperty(properties, [
@@ -252,7 +282,10 @@ function normalizeChargingStation(station, index) {
     latitude: normalizeNumber(coordinates.latitude),
     longitude: normalizeNumber(coordinates.longitude),
 
-    rawData: station
+    status:
+      getProperty(properties, ["status", "STATUS", "durum", "DURUM"]) ?? "Aktif",
+
+    connectors: Array.isArray(properties.connectors) ? properties.connectors : []
   };
 }
 
@@ -262,72 +295,187 @@ function normalizeChargingStations(stations) {
   );
 }
 
-async function getChargingStationsFromApi() {
-  const response = await fetch(`${API_BASE_URL}/api/charging-stations`);
-
-  if (!response.ok) {
-    throw new Error(`Charging stations request failed: ${response.status}`);
-  }
-
-  const result = await response.json();
-  const stationArray = extractArray(result);
-
-  if (!stationArray) {
-    throw new Error("Charging stations API response is invalid.");
-  }
-
-  return normalizeChargingStations(stationArray);
+async function getChargingStationsFromApi(regionId) {
+  const query = regionId ? `?regionId=${regionId}` : "";
+  const result = await getJson(`/api/charging-stations${query}`);
+  return normalizeChargingStations(extractArray(result));
 }
 
 async function getChargingStationsFromLocalGeoJson() {
   const response = await fetch(LOCAL_ARAC_SARJ_URL);
 
   if (!response.ok) {
-    throw new Error("Local ARAC_SARJ.geojson file could not be loaded.");
+    throw new Error("ARAC_SARJ.geojson yüklenemedi.");
   }
 
   const result = await response.json();
-  const stationArray = extractArray(result);
-
-  if (!stationArray) {
-    throw new Error("Local ARAC_SARJ.geojson response is invalid.");
-  }
-
-  return normalizeChargingStations(stationArray);
+  return normalizeChargingStations(extractArray(result));
 }
 
 function getChargingStationsFromMock() {
-  const talhaMockData = Array.isArray(mockChargingStations)
-    ? mockChargingStations
-    : [];
-
-  const mockData =
-    talhaMockData.length > 0 ? talhaMockData : fallbackChargingStations;
-
-  return normalizeChargingStations(mockData);
+  return normalizeChargingStations(mockChargingStations);
 }
 
-export async function getChargingStations() {
-  try {
-    const apiData = await getChargingStationsFromApi();
+function getRegionName(properties, index) {
+  return (
+    normalizeText(
+      getProperty(properties, [
+        "name",
+        "NAME",
+        "adi",
+        "ADI",
+        "mahalle",
+        "MAHALLE",
+        "mahalleAdi",
+        "MAHALLE_ADI",
+        "MAH_ADI",
+        "MahalleAdi",
+        "ILCE",
+        "ilce",
+        "district",
+        "districtName"
+      ])
+    ) || `Bölge ${index + 1}`
+  );
+}
 
+function normalizeRegionFeature(feature, index) {
+  const properties = feature.properties ?? {};
+  const name = getRegionName(properties, index);
+
+  return {
+    id:
+      getProperty(properties, [
+        "id",
+        "ID",
+        "objectId",
+        "OBJECTID",
+        "regionId",
+        "REGION_ID"
+      ]) ?? index + 1,
+
+    name,
+
+    boundaryGeoJson: JSON.stringify({
+      type: "Feature",
+      properties: {
+        id:
+          getProperty(properties, [
+            "id",
+            "ID",
+            "objectId",
+            "OBJECTID",
+            "regionId",
+            "REGION_ID"
+          ]) ?? index + 1,
+        name
+      },
+      geometry: feature.geometry
+    })
+  };
+}
+
+function normalizeApiRegion(region, index) {
+  if (region.boundaryGeoJson) {
+    return region;
+  }
+
+  if (region.geometry) {
     return {
-      source: "api",
-      data: apiData
+      ...region,
+      id: region.id ?? index + 1,
+      name: region.name ?? region.regionName ?? `Bölge ${index + 1}`,
+      boundaryGeoJson: JSON.stringify({
+        type: "Feature",
+        properties: {
+          id: region.id ?? index + 1,
+          name: region.name ?? region.regionName ?? `Bölge ${index + 1}`
+        },
+        geometry: region.geometry
+      })
     };
+  }
+
+  return {
+    ...region,
+    id: region.id ?? index + 1,
+    name: region.name ?? region.regionName ?? `Bölge ${index + 1}`,
+    boundaryGeoJson: region.boundaryGeoJson ?? null
+  };
+}
+
+async function getRegionsFromApi() {
+  const result = await getJson("/api/regions");
+  return extractArray(result).map((region, index) =>
+    normalizeApiRegion(region, index)
+  );
+}
+
+async function getRegionsFromLocalGeoJson() {
+  const response = await fetch(LOCAL_MAHALLE_URL);
+
+  if (!response.ok) {
+    throw new Error("MAHALLE.geojson yüklenemedi.");
+  }
+
+  const result = await response.json();
+  const features = Array.isArray(result.features) ? result.features : [];
+
+  return features
+    .filter((feature) => feature.geometry)
+    .slice(0, 80)
+    .map((feature, index) => normalizeRegionFeature(feature, index));
+}
+
+export async function getChargingStations(regionId) {
+  try {
+    return await getChargingStationsFromApi(regionId);
   } catch {
     try {
-      const geoJsonData = await getChargingStationsFromLocalGeoJson();
-
-      return {
-        source: "local-geojson",
-        data: geoJsonData
-      };
+      return await getChargingStationsFromLocalGeoJson();
     } catch {
-      return {
-        source: "local-mock",
-        data: getChargingStationsFromMock()
-      };
+      return getChargingStationsFromMock();
     }
+  }
+}
+
+export async function getChargingStationDetail(id) {
+  try {
+    const result = await getJson(`/api/charging-stations/${id}`);
+    return normalizeChargingStation(result?.data ?? result, 0);
+  } catch {
+    const stations = await getChargingStations();
+    return stations.find((station) => String(station.id) === String(id)) ?? null;
+  }
+}
+
+export async function getRegions() {
+  try {
+    const apiRegions = await getRegionsFromApi();
+
+    if (apiRegions.length > 0 && apiRegions.some((region) => region.boundaryGeoJson)) {
+      return apiRegions;
+    }
+
+    return await getRegionsFromLocalGeoJson();
+  } catch {
+    return await getRegionsFromLocalGeoJson();
+  }
+}
+
+export async function getRegionSummary(id) {
+  try {
+    const result = await getJson(`/api/regions/${id}/summary`);
+    return result?.data ?? result;
+  } catch {
+    return {
+      regionId: id,
+      regionName: "Bölge bilgisi",
+      chargingStationCount: 0,
+      trafficLevel: "Veri Eksik",
+      mostCommonSocketType: "Veri Eksik",
+      mostCommonPowerKw: null,
+      companyDistribution: []
+    };
   }
 }
