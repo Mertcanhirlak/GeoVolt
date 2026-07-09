@@ -290,25 +290,6 @@ export default function CandidatePointsPage() {
                 onChange={(event) => setStationSearch(event.target.value)}
               />
 
-              <div className="map-step-control" aria-label="Harita gorunum adimlari">
-                {[1, 2, 3].map((step) => (
-                  <button
-                    key={step}
-                    type="button"
-                    className={homeMapStep === step ? "map-step-button active" : "map-step-button"}
-                    onClick={() => setHomeMapStep(step)}
-                    title={
-                      step === 1
-                        ? "Mevcut istasyonlar"
-                        : step === 2
-                          ? "Bolgeler"
-                          : "Bolge detayi"
-                    }
-                  >
-                    {step}
-                  </button>
-                ))}
-              </div>
             </div>
 
             <div className="mock-map">

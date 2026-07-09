@@ -185,6 +185,7 @@ export default function ExistingStationsMap({ searchTerm = "", mapStep = 1 }) {
   const [popupPixel, setPopupPixel] = useState(null);
   const [loadingDetailId, setLoadingDetailId] = useState(null);
   const [loadingRegionSummary, setLoadingRegionSummary] = useState(false);
+  const [regionsActive, setRegionsActive] = useState(false);
 
   const visibleStations = useMemo(() => {
     return stations.filter((station) => matchesSearch(station, searchTerm));
@@ -193,8 +194,8 @@ export default function ExistingStationsMap({ searchTerm = "", mapStep = 1 }) {
   const selectedStation = visibleStations.find((station) => station.id === selectedStationId) ?? null;
 
   useEffect(() => {
-    latestRef.current = { stations, regions, source, mapStep, selectedStationId };
-  }, [stations, regions, source, mapStep, selectedStationId]);
+    latestRef.current = { stations, regions, source, mapStep, selectedStationId, regionsActive };
+  }, [stations, regions, source, mapStep, selectedStationId, regionsActive]);
 
   useEffect(() => {
     if (!mapElementRef.current || mapRef.current) return;
@@ -250,7 +251,7 @@ export default function ExistingStationsMap({ searchTerm = "", mapStep = 1 }) {
         return;
       }
 
-      if (latestRef.current.mapStep > 1 && feature.get("featureType") === "region") {
+      if (latestRef.current.regionsActive && feature.get("featureType") === "region") {
         selectRegion(feature.get("regionId"));
       }
     });
@@ -315,8 +316,6 @@ export default function ExistingStationsMap({ searchTerm = "", mapStep = 1 }) {
   }, [regions]);
 
   useEffect(() => {
-    const regionsActive = mapStep > 1;
-
     if (regionLayerRef.current) {
       regionLayerRef.current.setVisible(Boolean(regionsActive));
     }
@@ -324,10 +323,6 @@ export default function ExistingStationsMap({ searchTerm = "", mapStep = 1 }) {
     if (!regionsActive) {
       clearRegionSelection(false);
       return;
-    }
-
-    if (mapStep === 2) {
-      clearRegionSelection(false);
     }
 
     setSelectedStationId(null);
@@ -341,6 +336,15 @@ export default function ExistingStationsMap({ searchTerm = "", mapStep = 1 }) {
         duration: 350,
       });
     }
+  }, [regionsActive]);
+
+  useEffect(() => {
+    if (mapStep > 1) {
+      setRegionsActive(true);
+      return;
+    }
+
+    setRegionsActive(false);
   }, [mapStep]);
 
   useEffect(() => {
@@ -484,17 +488,39 @@ export default function ExistingStationsMap({ searchTerm = "", mapStep = 1 }) {
     }
   }
 
+  function zoomMap(delta) {
+    const view = mapRef.current?.getView();
+    if (!view) return;
+
+    const currentZoom = view.getZoom() ?? 12.4;
+    view.animate({
+      zoom: currentZoom + delta,
+      duration: 180,
+    });
+  }
+
   return (
     <div className="existing-map" data-testid="existing-stations-map">
       <div ref={mapElementRef} className="openlayers-map" />
 
       <div className="map-step-badge">
-        {mapStep === 1 && "1 / Mevcut istasyonlar"}
-        {mapStep === 2 && "2 / Bolgeler aktif"}
-        {mapStep === 3 && "3 / Bolge detayi"}
+        {!regionsActive && "Mevcut istasyonlar"}
+        {regionsActive && !selectedRegion && "Bolgeler aktif"}
+        {regionsActive && selectedRegion && "Bolge detayi"}
       </div>
 
-      {mapStep > 1 && selectedRegion && (
+      <button
+        type="button"
+        className={regionsActive ? "existing-region-toggle active" : "existing-region-toggle"}
+        data-testid="existing-region-toggle"
+        onClick={() => setRegionsActive((current) => !current)}
+        aria-pressed={regionsActive}
+      >
+        <span>Bolgeler: {regionsActive ? "Aktif" : "Inaktif"}</span>
+        <i aria-hidden="true" />
+      </button>
+
+      {regionsActive && selectedRegion && (
         <>
           <aside className="region-summary-card" data-testid="region-summary-card">
             <header>
@@ -585,6 +611,15 @@ export default function ExistingStationsMap({ searchTerm = "", mapStep = 1 }) {
             </dl>
           </>
         )}
+      </div>
+
+      <div className="existing-zoom-controls" aria-label="Harita yakinlastirma kontrolleri">
+        <button type="button" onClick={() => zoomMap(1)} aria-label="Yakinlastir">
+          <span aria-hidden="true">+</span>
+        </button>
+        <button type="button" onClick={() => zoomMap(-1)} aria-label="Uzaklastir">
+          <span aria-hidden="true">-</span>
+        </button>
       </div>
 
       <div className="existing-map-source">{source === "api" ? "Canli veri" : "Mock veri"}</div>

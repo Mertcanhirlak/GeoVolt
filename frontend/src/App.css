@@ -37,6 +37,7 @@ button {
   background-color: transparent;
   font-size: 30px;
   color: #111827;
+  transform: translateX(0px);
 }
 
 .menu-button:hover,
@@ -1084,4 +1085,55 @@ body {
   .personalization-screen {
     padding: 20px;
   }
+}
+
+
+/* SÜPER EZİCİ (OVERRIDE) SOL MENÜ VE BUTON ORTALAMA V3 */
+.candidate-page .left-menu,
+body .left-menu {
+  position: fixed !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 66px !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  z-index: 50 !important;
+  background-color: #d1d5db !important;
+  
+  /* Üstteki butonların hizasını koru */
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  padding-top: 24px !important;
+  gap: 20px !important;
+}
+
+/* ÇIKIŞ BUTONUNU SOL ALT KÖŞEYE ZORLA ÇAKMA */
+.candidate-page .logout-menu-button,
+body .logout-menu-button,
+.candidate-page .left-menu button:last-of-type,
+body .left-menu button:last-of-type,
+.candidate-page .left-menu .logout-menu-button {
+  position: absolute !important;
+  bottom: 24px !important; /* Alttan bırakılacak şık boşluk */
+  left: 50% !important;
+  transform: translateX(-50%) !important; /* Butonu yatayda tam ortalar */
+  margin: 0 !important;
+  margin-top: 0 !important;
+}
+
+.candidate-page .menu-button,
+body .menu-button {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 14px !important;
+  background-color: transparent !important;
+  font-size: 24px !important;
+  color: #111827 !important;
+  margin: 0 !important;
+  
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }

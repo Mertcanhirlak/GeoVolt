@@ -199,6 +199,51 @@
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
 }
 
+.existing-zoom-controls {
+  position: absolute;
+  right: 28px;
+  bottom: 28px;
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  border-radius: 999px;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(10px);
+}
+
+.existing-zoom-controls button {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 0;
+  color: #0f172a;
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+  transition: background 150ms ease, color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+}
+
+.existing-zoom-controls button:hover {
+  color: #ffffff;
+  background: #2563eb;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.28);
+  transform: translateY(-1px);
+}
+
+.existing-zoom-controls span {
+  transform: translateY(-1px);
+}
+
 .map-step-badge {
   position: absolute;
   left: 18px;
@@ -211,6 +256,73 @@
   font-size: 12px;
   font-weight: 800;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+}
+
+.existing-region-toggle {
+  position: absolute;
+  top: 26px;
+  right: 28px;
+  z-index: 9;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  height: 40px;
+  margin: 0;
+  padding: 6px 8px 6px 16px;
+  color: #111827;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  border-radius: 999px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
+  backdrop-filter: blur(10px);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.existing-region-toggle:hover {
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.2);
+}
+
+.existing-region-toggle i {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  display: block;
+  flex: 0 0 auto;
+  background: #0f172a;
+  border-radius: 999px;
+  transition: background 160ms ease;
+}
+
+.existing-region-toggle i::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 16px;
+  height: 16px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.26);
+  transition: transform 160ms ease;
+}
+
+.existing-region-toggle.active {
+  color: #052e16;
+  background: #43f243;
+  border-color: rgba(22, 163, 74, 0.55);
+}
+
+.existing-region-toggle.active i {
+  background: #052e16;
+}
+
+.existing-region-toggle.active i::after {
+  transform: translateX(20px);
 }
 
 @media (max-width: 760px) {
@@ -235,8 +347,35 @@
     bottom: 18px;
   }
 
+  .existing-zoom-controls {
+    right: 14px;
+    bottom: 18px;
+  }
+
   .map-step-badge {
     left: 14px;
     top: 72px;
+  }
+
+  .existing-region-toggle {
+    top: 76px;
+    right: 14px;
+    height: 36px;
+    padding-left: 12px;
+    font-size: 12px;
+  }
+
+  .existing-region-toggle i {
+    width: 38px;
+    height: 22px;
+  }
+
+  .existing-region-toggle i::after {
+    width: 14px;
+    height: 14px;
+  }
+
+  .existing-region-toggle.active i::after {
+    transform: translateX(16px);
   }
 }
