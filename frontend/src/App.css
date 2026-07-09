@@ -1666,3 +1666,96 @@ body {
 .personalized-candidate-card button:hover {
   background: #1d4ed8;
 }
+.filter-panel {
+  color: #102033;
+}
+
+.filter-panel h2 {
+  margin: 0 0 8px;
+  color: #102033;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.filter-description {
+  margin: 0 0 14px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.filter-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.filter-grid input {
+  width: 100%;
+  padding: 10px 11px;
+  border: 1px solid #dbe4f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #102033;
+  outline: none;
+}
+
+.filter-grid input:focus {
+  border-color: #2563eb;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.filter-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.filter-apply-button,
+.filter-clear-button {
+  padding: 11px 14px;
+  border: none;
+  border-radius: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.filter-apply-button {
+  background: #16a34a;
+  color: #ffffff;
+  box-shadow: 0 8px 20px rgba(22, 163, 74, 0.22);
+}
+
+.filter-apply-button:hover {
+  background: #15803d;
+}
+
+.filter-clear-button {
+  background: #eef4ff;
+  color: #2563eb;
+}
+
+.filter-clear-button:hover {
+  background: #dbeafe;
+}
+.filter-clear-button {
+  background: #eef4ff !important;
+  color: #1d4ed8 !important;
+  box-shadow: none;
+}
+
+.filter-clear-button:hover {
+  background: #dbeafe !important;
+  color: #1e40af !important;
+}
