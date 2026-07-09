@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+﻿import React, { useMemo, useState } from "react";
 
 export default function PersonalizationForm({
   candidates,
@@ -11,25 +11,52 @@ export default function PersonalizationForm({
     budgetMax: "",
     systemType: "",
     placeType: "",
-    region: "Tümü"
+    region: "Tümü",
+    neighborhood: "Tümü"
   });
 
   const [formMessage, setFormMessage] = useState("");
 
+  const regionOptions = useMemo(() => {
+    return [{ id: 0, name: "Tümü" }, ...(regions || [])];
+  }, [regions]);
+
+  const neighborhoodOptions = useMemo(() => {
+    const neighborhoodSet = new Set();
+
+    candidates.forEach((candidate) => {
+      const regionMatch =
+        form.region === "Tümü" || candidate.region === form.region;
+
+      if (regionMatch && candidate.neighborhood) {
+        neighborhoodSet.add(candidate.neighborhood);
+      }
+    });
+
+    return ["Tümü", ...Array.from(neighborhoodSet)];
+  }, [candidates, form.region]);
+
   function handleChange(event) {
     const { name, value } = event.target;
 
-    const updatedForm = {
+    let updatedForm = {
       ...form,
       [name]: value
     };
 
-    setForm(updatedForm);
+    if (name === "region") {
+      updatedForm = {
+        ...updatedForm,
+        neighborhood: "Tümü"
+      };
 
-    if (name === "region" && onRegionChange) {
-      const selectedRegion = regions.find((region) => region.name === value);
-      onRegionChange(selectedRegion?.id || 0);
+      if (onRegionChange) {
+        const selectedRegion = regions.find((region) => region.name === value);
+        onRegionChange(selectedRegion?.id || 0);
+      }
     }
+
+    setForm(updatedForm);
   }
 
   function handleSubmit(event) {
@@ -38,6 +65,11 @@ export default function PersonalizationForm({
     const budgetMin = form.budgetMin === "" ? 0 : Number(form.budgetMin);
     const budgetMax =
       form.budgetMax === "" ? Number.MAX_SAFE_INTEGER : Number(form.budgetMax);
+
+    if (Number.isNaN(budgetMin) || Number.isNaN(budgetMax)) {
+      setFormMessage("Bütçe alanlarına geçerli sayı giriniz.");
+      return;
+    }
 
     if (budgetMin < 0 || budgetMax < 0) {
       setFormMessage("Bütçe değerleri negatif olamaz.");
@@ -65,10 +97,21 @@ export default function PersonalizationForm({
       const budgetMatch = cost >= budgetMin && cost <= budgetMax;
       const systemMatch = candidate.systemType === form.systemType;
       const placeMatch = candidate.placeType === form.placeType;
+
       const regionMatch =
         form.region === "Tümü" || candidate.region === form.region;
 
-      return budgetMatch && systemMatch && placeMatch && regionMatch;
+      const neighborhoodMatch =
+        form.neighborhood === "Tümü" ||
+        candidate.neighborhood === form.neighborhood;
+
+      return (
+        budgetMatch &&
+        systemMatch &&
+        placeMatch &&
+        regionMatch &&
+        neighborhoodMatch
+      );
     });
 
     if (result.length === 0) {
@@ -79,7 +122,15 @@ export default function PersonalizationForm({
       if (showLowScore) {
         const fallbackResult = candidates.filter((candidate) => {
           const score = candidate.generalScore ?? 0;
-          return score >= 20 && score <= 70;
+
+          const regionMatch =
+            form.region === "Tümü" || candidate.region === form.region;
+
+          const neighborhoodMatch =
+            form.neighborhood === "Tümü" ||
+            candidate.neighborhood === form.neighborhood;
+
+          return score >= 20 && score <= 70 && regionMatch && neighborhoodMatch;
         });
 
         onResult(fallbackResult);
@@ -172,13 +223,27 @@ export default function PersonalizationForm({
             value={form.region}
             onChange={handleChange}
           >
-            {(regions.length > 0 ? regions : [{ id: 0, name: "Tümü" }]).map(
-              (region) => (
-                <option key={region.id} value={region.name}>
-                  {region.name}
-                </option>
-              )
-            )}
+            {regionOptions.map((region) => (
+              <option key={region.id} value={region.name}>
+                {region.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          Mahalle
+          <select
+            data-testid="personalization-neighborhood-select"
+            name="neighborhood"
+            value={form.neighborhood}
+            onChange={handleChange}
+          >
+            {neighborhoodOptions.map((neighborhood) => (
+              <option key={neighborhood} value={neighborhood}>
+                {neighborhood}
+              </option>
+            ))}
           </select>
         </label>
 
