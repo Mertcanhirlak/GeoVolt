@@ -53,11 +53,15 @@ public sealed class AuthService : IAuthService
 
     private static UserResponse ToUserResponse(User user)
     {
+        var role = user.UserRoles
+            .Select(userRole => userRole.Role?.Name)
+            .FirstOrDefault(roleName => !string.IsNullOrWhiteSpace(roleName)) ?? user.Role;
+
         return new UserResponse(
             user.Id,
             user.FullName,
             user.Email,
-            user.Role,
+            role,
             user.CompanyId,
             user.Company?.Name);
     }

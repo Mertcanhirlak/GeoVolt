@@ -158,7 +158,7 @@ export default function AdminPanel() {
 
     if (roleResult.status === "fulfilled") {
       const nextRoles = Array.isArray(roleResult.value) && roleResult.value.length > 0
-        ? roleResult.value
+        ? roleResult.value.map((role) => typeof role === "string" ? role : role.name).filter(Boolean)
         : defaultRoles;
 
       setRoles(nextRoles);

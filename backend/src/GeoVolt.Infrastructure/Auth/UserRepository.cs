@@ -23,6 +23,12 @@ public sealed class UserRepository : IUserRepository
     {
         return _dbContext.Users
             .Include(user => user.Company)
+            .Include(user => user.UserRoles)
+                .ThenInclude(userRole => userRole.Role)
+                    .ThenInclude(role => role.RolePermissions)
+                        .ThenInclude(rolePermission => rolePermission.Permission)
+            .Include(user => user.UserPermissions)
+                .ThenInclude(userPermission => userPermission.Permission)
             .FirstOrDefaultAsync(user => user.Email == email, cancellationToken);
     }
 
@@ -31,6 +37,12 @@ public sealed class UserRepository : IUserRepository
         return _dbContext.Users
             .AsNoTracking()
             .Include(user => user.Company)
+            .Include(user => user.UserRoles)
+                .ThenInclude(userRole => userRole.Role)
+                    .ThenInclude(role => role.RolePermissions)
+                        .ThenInclude(rolePermission => rolePermission.Permission)
+            .Include(user => user.UserPermissions)
+                .ThenInclude(userPermission => userPermission.Permission)
             .FirstOrDefaultAsync(user => user.Id == id, cancellationToken);
     }
 }

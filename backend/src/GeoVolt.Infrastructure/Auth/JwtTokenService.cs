@@ -25,24 +25,33 @@ public sealed class JwtTokenService : ITokenService
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.SecretKey));
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
-        var claims = new Dictionary<string, object>
+        var claims = new List<Claim>
         {
-            [JwtRegisteredClaimNames.Sub] = user.Id.ToString(),
-            [JwtRegisteredClaimNames.Email] = user.Email,
-            [ClaimTypes.NameIdentifier] = user.Id.ToString(),
-            [ClaimTypes.Name] = user.FullName,
-            [ClaimTypes.Email] = user.Email,
-            [ClaimTypes.Role] = user.Role
+            new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new(JwtRegisteredClaimNames.Email, user.Email),
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Name, user.FullName),
+            new(ClaimTypes.Email, user.Email)
         };
+
+        foreach (var roleName in GetRoleNames(user))
+        {
+            claims.Add(new Claim(ClaimTypes.Role, roleName));
+        }
+
+        foreach (var permissionName in GetPermissionNames(user))
+        {
+            claims.Add(new Claim("permission", permissionName));
+        }
 
         if (user.CompanyId.HasValue)
         {
-            claims["companyId"] = user.CompanyId.Value.ToString();
+            claims.Add(new Claim("companyId", user.CompanyId.Value.ToString()));
         }
 
         if (!string.IsNullOrWhiteSpace(user.Company?.Name))
         {
-            claims["companyName"] = user.Company.Name;
+            claims.Add(new Claim("companyName", user.Company.Name));
         }
 
         var descriptor = new SecurityTokenDescriptor
@@ -51,18 +60,48 @@ public sealed class JwtTokenService : ITokenService
             Audience = _options.Audience,
             Expires = expiresAtUtc,
             SigningCredentials = credentials,
-            Claims = claims
+            Subject = new ClaimsIdentity(claims)
         };
 
         var token = new JsonWebTokenHandler().CreateToken(descriptor);
+        var primaryRole = GetRoleNames(user).FirstOrDefault() ?? user.Role;
         var userResponse = new UserResponse(
             user.Id,
             user.FullName,
             user.Email,
-            user.Role,
+            primaryRole,
             user.CompanyId,
             user.Company?.Name);
 
         return new AuthResponse(token, expiresAtUtc, userResponse);
+    }
+
+    private static IReadOnlyList<string> GetRoleNames(User user)
+    {
+        var roleNames = user.UserRoles
+            .Select(userRole => userRole.Role?.Name)
+            .Where(roleName => !string.IsNullOrWhiteSpace(roleName))
+            .Select(roleName => roleName!)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        if (roleNames.Count == 0 && !string.IsNullOrWhiteSpace(user.Role))
+        {
+            roleNames.Add(user.Role);
+        }
+
+        return roleNames;
+    }
+
+    private static IReadOnlyList<string> GetPermissionNames(User user)
+    {
+        return user.UserRoles
+            .Where(userRole => userRole.Role is not null)
+            .SelectMany(userRole => userRole.Role!.RolePermissions)
+            .Select(rolePermission => rolePermission.Permission.Name)
+            .Concat(user.UserPermissions.Select(userPermission => userPermission.Permission.Name))
+            .Where(permissionName => !string.IsNullOrWhiteSpace(permissionName))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
     }
 }

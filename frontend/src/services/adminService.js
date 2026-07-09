@@ -75,3 +75,52 @@ export function updateAdminUserRole(token, userId, roleData) {
 export function getAdminRoles(token) {
   return requestAdmin("/api/admin/roles", token);
 }
+
+export function createAdminRole(token, role) {
+  return requestAdmin("/api/admin/roles", token, {
+    method: "POST",
+    body: JSON.stringify(role)
+  });
+}
+
+export function updateAdminRole(token, roleId, role) {
+  return requestAdmin(`/api/admin/roles/${roleId}`, token, {
+    method: "PATCH",
+    body: JSON.stringify(role)
+  });
+}
+
+export function deleteAdminRole(token, roleId) {
+  return requestAdmin(`/api/admin/roles/${roleId}`, token, {
+    method: "DELETE"
+  });
+}
+
+export function getAdminPermissions(token) {
+  return requestAdmin("/api/admin/permissions", token);
+}
+
+export function assignAdminRolePermissions(token, roleId, permissionIds) {
+  return requestAdmin(`/api/admin/roles/${roleId}/permissions`, token, {
+    method: "PUT",
+    body: JSON.stringify({ permissionIds })
+  });
+}
+
+export function assignAdminUserRoles(token, userId, roleIds) {
+  return requestAdmin(`/api/admin/users/${userId}/roles`, token, {
+    method: "PUT",
+    body: JSON.stringify({ roleIds })
+  });
+}
+
+export function getAdminUserPermissions(token, userId) {
+  return requestAdmin(`/api/admin/users/${userId}/permissions`, token);
+}
+
+export function assignAdminUserPermissions(token, userId, permissionIds) {
+  return requestAdmin(`/api/admin/users/${userId}/permissions`, token, {
+    method: "PUT",
+    body: JSON.stringify({ permissionIds })
+  });
+}

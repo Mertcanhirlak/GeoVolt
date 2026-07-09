@@ -1,6 +1,7 @@
 using System.Text;
 using GeoVolt.Application;
 using GeoVolt.Application.Auth.Options;
+using GeoVolt.Domain.Constants;
 using GeoVolt.Infrastructure;
 using GeoVolt.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -49,9 +50,35 @@ builder.Services
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey)),
             ClockSkew = TimeSpan.FromMinutes(1)
         };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var authorization = context.Request.Headers.Authorization.ToString();
+                const string duplicatedBearerPrefix = "Bearer Bearer ";
+
+                if (authorization.StartsWith(duplicatedBearerPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    context.Token = authorization[duplicatedBearerPrefix.Length..].Trim();
+                }
+
+                return Task.CompletedTask;
+            }
+        };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    foreach (var permission in PermissionNames.All)
+    {
+        options.AddPolicy(permission.Name, policy =>
+        {
+            policy.RequireAuthenticatedUser();
+            policy.RequireClaim("permission", permission.Name);
+        });
+    }
+});
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
