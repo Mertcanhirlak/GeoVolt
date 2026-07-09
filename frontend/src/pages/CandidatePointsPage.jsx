@@ -517,30 +517,32 @@ export default function CandidatePointsPage() {
                   </h3>
 
                   <p>
-                    <strong>Tahmini Maliyet:</strong>{" "}
-                    {formatMoney(selectedCandidate.estimatedCost)}
+                    <strong>Tahmini Maliyet:</strong>
+                    <span>{formatMoney(selectedCandidate.estimatedCost)}</span>
                   </p>
 
                   <p>
-                    <strong>Maliyet Skoru:</strong>{" "}
-                    {showScore(selectedCandidate.costScore)}
+                    <strong>Maliyet Skoru:</strong>
+                    <span>{showScore(selectedCandidate.costScore)}</span>
                   </p>
 
                   <p>
-                    <strong>Talep Skoru:</strong>{" "}
-                    {showScore(selectedCandidate.demandScore)}
+                    <strong>Talep Skoru:</strong>
+                    <span>{showScore(selectedCandidate.demandScore)}</span>
                   </p>
 
                   <p>
-                    <strong>Genel Skor:</strong>{" "}
-                    {showScore(selectedCandidate.generalScore)}
+                    <strong>Genel Skor:</strong>
+                    <span>{showScore(selectedCandidate.generalScore)}</span>
                   </p>
 
                   <p>
-                    <strong>Koordinat:</strong>{" "}
-                    {selectedCandidate.latitude && selectedCandidate.longitude
-                      ? `${selectedCandidate.latitude}, ${selectedCandidate.longitude}`
-                      : "Veri Eksik"}
+                    <strong>Koordinat:</strong>
+                    <span>
+                      {selectedCandidate.latitude && selectedCandidate.longitude
+                        ? `${selectedCandidate.latitude}, ${selectedCandidate.longitude}`
+                        : "Veri Eksik"}
+                    </span>
                   </p>
 
                   {selectedCandidate.status === "missing" && (
@@ -548,11 +550,14 @@ export default function CandidatePointsPage() {
                   )}
 
                   <button
+                    type="button"
                     className="popup-save-button"
                     data-testid={`popup-save-candidate-button-${selectedCandidate.id}`}
                     onClick={() => saveCandidate(selectedCandidate)}
+                    title="Aday noktayı kaydet"
                   >
-                    +
+                    <span className="popup-save-icon">+</span>
+                    <span className="popup-save-text">Kaydet</span>
                   </button>
                 </div>
               )}
