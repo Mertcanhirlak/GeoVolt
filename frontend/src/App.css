@@ -1491,3 +1491,178 @@ body {
   font-weight: 700;
   box-shadow: 0 16px 42px rgba(15, 23, 42, 0.28);
 }
+.saved-panel {
+  padding: 24px;
+}
+
+.saved-panel h2 {
+  margin-bottom: 18px;
+  color: #102033;
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.saved-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 18px;
+}
+
+.saved-card {
+  position: relative;
+  padding: 20px;
+  border-radius: 18px;
+  background: #ffffff;
+  border-left: 5px solid #22c55e;
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.08);
+  color: #102033;
+}
+
+.saved-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.saved-card-header h3 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-weight: 800;
+  color: #102033;
+}
+
+.saved-card-header span {
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #e7f7ef;
+  color: #157347;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.saved-card p {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0;
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: #f8fafc;
+  font-size: 13px;
+  color: #334155;
+}
+
+.saved-card p strong {
+  color: #475569;
+}
+
+.delete-button {
+  margin-top: 14px;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 12px;
+  background: #ef4444;
+  color: #ffffff;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(239, 68, 68, 0.22);
+}
+
+.delete-button:hover {
+  background: #dc2626;
+}
+
+.empty-message {
+  padding: 18px;
+  border-radius: 14px;
+  background: #f8fafc;
+  color: #64748b;
+  font-weight: 700;
+}
+.personalized-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.personalized-candidate-card {
+  position: relative;
+  padding: 22px;
+  border-radius: 18px;
+  background: #ffffff;
+  border-left: 5px solid #2563eb;
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.08);
+  color: #102033;
+  text-align: left;
+}
+
+.personalized-candidate-card h3 {
+  margin: 0 0 16px;
+  color: #102033;
+  font-size: 21px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.personalized-candidate-card p {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0;
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 13px;
+}
+
+.personalized-candidate-card p strong {
+  color: #475569;
+}
+
+.personalized-candidate-card .score-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: #eef4ff;
+}
+
+.personalized-candidate-card .score-row span {
+  display: flex;
+  justify-content: space-between;
+  color: #1e293b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.personalized-candidate-card .warning-box {
+  margin-top: 12px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: #fff3e5;
+  color: #b45418;
+  font-weight: 800;
+  text-align: center;
+}
+
+.personalized-candidate-card button {
+  margin-top: 14px;
+  padding: 11px 16px;
+  border: none;
+  border-radius: 12px;
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.22);
+}
+
+.personalized-candidate-card button:hover {
+  background: #1d4ed8;
+}
