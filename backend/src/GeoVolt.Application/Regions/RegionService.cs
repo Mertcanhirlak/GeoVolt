@@ -4,6 +4,7 @@ using GeoVolt.Application.Regions.Abstractions;
 using GeoVolt.Application.Regions.Dtos;
 using GeoVolt.Domain.Entities;
 using NetTopologySuite.Geometries;
+using GeoVolt.Application.Neighborhoods.Abstractions;
 
 // Bölge ve istasyon verilerini yönetmek için servis sınıfı
 namespace GeoVolt.Application.Regions;
@@ -12,13 +13,16 @@ public sealed class RegionService : IRegionService
 {
     private readonly IRegionRepository _regionRepository;
     private readonly IChargingStationRepository _chargingStationRepository;
+    private readonly INeighborhoodRepository _neighborhoodRepository;
 
     public RegionService(
-        IRegionRepository regionRepository,
-        IChargingStationRepository chargingStationRepository)
+      IRegionRepository regionRepository,
+      IChargingStationRepository chargingStationRepository,
+      INeighborhoodRepository neighborhoodRepository)
     {
         _regionRepository = regionRepository;
         _chargingStationRepository = chargingStationRepository;
+        _neighborhoodRepository = neighborhoodRepository;
     }
 
     public async Task<IReadOnlyList<RegionResponseDto>> GetAllAsync(
@@ -164,6 +168,70 @@ public sealed class RegionService : IRegionService
         };
     }
 
+    
+    public async Task<LocateRegionPointResponseDto?> LocatePointAsync(
+    int regionId,
+    RegionPointRequestDto request,
+    CancellationToken cancellationToken = default)
+    {
+        // Id değerine göre seçilen bölgeyi getirir
+        var region = await _regionRepository.GetByIdAsync(
+            regionId,
+            cancellationToken);
+
+        // Bölge bulunamazsa null döner
+        if (region is null)
+        {
+            return null;
+        }
+
+        // Enlem ve boylam bilgisinden Point oluşturur
+        var point = region.Boundary.Factory.CreatePoint(
+            new Coordinate(
+                request.Longitude,
+                request.Latitude));
+
+        // Noktanın seçilen bölge içinde veya sınır üzerinde
+        // olup olmadığını kontrol eder
+        var isInsideRegion = region.Boundary.Covers(
+            point);
+
+        // Nokta bölge dışındaysa mahalle araması yapmadan döner
+        if (!isInsideRegion)
+        {
+            return new LocateRegionPointResponseDto
+            {
+                RegionId = region.Id,
+                RegionName = region.Name,
+                IsInsideRegion = false,
+                NeighborhoodId = null,
+                NeighborhoodName = null,
+                Latitude = request.Latitude,
+                Longitude = request.Longitude
+            };
+        }
+
+        // Seçilen bölgeye bağlı mahalleleri getirir
+        var neighborhoods = await _neighborhoodRepository.GetByRegionIdAsync(
+            regionId,
+            cancellationToken);
+
+        // Noktanın hangi mahalle sınırı içinde olduğunu bulur
+        var neighborhood = neighborhoods.FirstOrDefault(
+            item => item.Boundary.Covers(point));
+
+        // Bölge ve varsa mahalle bilgisini döndürür
+        return new LocateRegionPointResponseDto
+        {
+            RegionId = region.Id,
+            RegionName = region.Name,
+            IsInsideRegion = true,
+            NeighborhoodId = neighborhood?.Id,
+            NeighborhoodName = neighborhood?.Name,
+            Latitude = request.Latitude,
+            Longitude = request.Longitude
+        };
+    }
     private static RegionResponseDto MapToResponseDto(
         Region region)
     {

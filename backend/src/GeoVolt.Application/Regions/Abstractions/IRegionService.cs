@@ -17,4 +17,12 @@ public interface IRegionService
     Task<RegionSummaryResponseDto?> GetSummaryAsync(
         int id,
         CancellationToken cancellationToken = default);
+
+    
+    // Verilen noktanın seçilen bölge içinde olup olmadığını
+    // ve hangi mahalleye denk geldiğini bulur
+    Task<LocateRegionPointResponseDto?> LocatePointAsync(
+        int regionId,
+       RegionPointRequestDto request,
+        CancellationToken cancellationToken = default);
 }

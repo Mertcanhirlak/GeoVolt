@@ -1,9 +1,10 @@
 ﻿using GeoVolt.Application.Regions.Abstractions;
+using GeoVolt.Application.Regions.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GeoVolt.Api.Controllers;
-
+// Bölge ve istasyon verilerini yönetmek için API controller sınıfı
 [ApiController]
 [Route("api/regions")]
 [Authorize]
@@ -71,5 +72,32 @@ public sealed class RegionsController : ControllerBase
         }
 
         return Ok(summary);
+    }
+    
+    // Verilen noktanın seçilen bölge içinde olup olmadığını ve hangi mahalleye denk geldiğini bulur
+    [HttpPost("{id:int}/locate-point")]
+    public async Task<IActionResult> LocatePointAsync(
+    int id,
+    [FromBody] RegionPointRequestDto request,
+    CancellationToken cancellationToken)
+    {
+        // Verilen noktanın seçilen bölge içinde olup olmadığını
+        // ve hangi mahalleye denk geldiğini bulur
+        var result = await _regionService.LocatePointAsync(
+            id,
+            request,
+            cancellationToken);
+
+        // Bölge bulunamazsa 404 döner
+        if (result is null)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = "Bölge bulunamadı."
+            });
+        }
+
+        return Ok(result);
     }
 }
