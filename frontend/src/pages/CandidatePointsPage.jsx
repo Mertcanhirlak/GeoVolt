@@ -2,23 +2,28 @@
   useEffect,
   useState,
 } from "react";
+
 import {
   Home,
   Zap,
   ListChecks,
   SlidersHorizontal,
 } from "lucide-react";
+
 import {
   getCandidatePoints,
 } from "../services/candidatePointsApi";
+
 import {
   saveCandidatePoint,
 } from "../services/savedCandidatePointsApi";
+
 import {
   getNeighborhoods,
   getRegions,
   getRegionSummary,
 } from "../services/regionsApi";
+
 import CandidateFilters from "../components/CandidateFilters";
 import SavedCandidates from "../components/SavedCandidates";
 import PersonalizationForm from "../components/PersonalizationForm";
@@ -79,12 +84,19 @@ function isScoreInRange(
 function formatMoney(value) {
   if (
     value === null ||
-    value === undefined
+    value === undefined ||
+    value === ""
   ) {
     return "Veri Eksik";
   }
 
-  return `${value.toLocaleString(
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return "Veri Eksik";
+  }
+
+  return `${numericValue.toLocaleString(
     "tr-TR"
   )} TL`;
 }
@@ -98,6 +110,172 @@ function showScore(value) {
   }
 
   return value;
+}
+
+function normalizeSearchText(value) {
+  return String(value ?? "")
+    .trim()
+    .toLocaleLowerCase("tr-TR")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ı/g, "i")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function getRegionId(region) {
+  return (
+    region?.id ??
+    region?.Id ??
+    region?.ID ??
+    region?.regionId ??
+    region?.RegionId ??
+    null
+  );
+}
+
+function getRegionName(region) {
+  return (
+    region?.name ??
+    region?.Name ??
+    region?.NAME ??
+    region?.regionName ??
+    region?.RegionName ??
+    ""
+  );
+}
+
+function getNeighborhoodName(
+  neighborhood
+) {
+  return (
+    neighborhood?.name ??
+    neighborhood?.Name ??
+    neighborhood?.NAME ??
+    neighborhood?.neighborhoodName ??
+    neighborhood?.NeighborhoodName ??
+    ""
+  );
+}
+
+function findBestNamedMatch(
+  items,
+  searchValue,
+  nameSelector
+) {
+  const normalizedSearch =
+    normalizeSearchText(searchValue);
+
+  if (!normalizedSearch) {
+    return null;
+  }
+
+  const searchableItems = items
+    .map((item) => ({
+      item,
+      normalizedName:
+        normalizeSearchText(
+          nameSelector(item)
+        ),
+    }))
+    .filter(
+      ({ normalizedName }) =>
+        normalizedName
+    );
+
+  const exactMatch =
+    searchableItems.find(
+      ({ normalizedName }) =>
+        normalizedName ===
+        normalizedSearch
+    );
+
+  if (exactMatch) {
+    return exactMatch.item;
+  }
+
+  const startsWithMatch =
+    searchableItems.find(
+      ({ normalizedName }) =>
+        normalizedName.startsWith(
+          normalizedSearch
+        )
+    );
+
+  if (startsWithMatch) {
+    return startsWithMatch.item;
+  }
+
+  const includesMatch =
+    searchableItems.find(
+      ({ normalizedName }) =>
+        normalizedName.includes(
+          normalizedSearch
+        )
+    );
+
+  return includesMatch?.item ?? null;
+}
+
+function candidateMatchesSearch(
+  candidate,
+  normalizedSearch
+) {
+  const searchableText = [
+    candidate?.name,
+    candidate?.estimatedAddress,
+    candidate?.region,
+    candidate?.regionName,
+    candidate?.neighborhood,
+    candidate?.neighborhoodName,
+    candidate?.systemType,
+    candidate?.placeType,
+  ]
+    .filter(Boolean)
+    .map(normalizeSearchText)
+    .join(" ");
+
+  return searchableText.includes(
+    normalizedSearch
+  );
+}
+
+function candidateBelongsToRegion(
+  candidate,
+  region
+) {
+  const candidateRegionId =
+    candidate?.regionId ??
+    candidate?.RegionId ??
+    null;
+
+  const regionId =
+    getRegionId(region);
+
+  if (
+    candidateRegionId !== null &&
+    regionId !== null &&
+    String(candidateRegionId) ===
+      String(regionId)
+  ) {
+    return true;
+  }
+
+  const candidateRegionName =
+    normalizeSearchText(
+      candidate?.region ??
+        candidate?.regionName
+    );
+
+  const regionName =
+    normalizeSearchText(
+      getRegionName(region)
+    );
+
+  return (
+    candidateRegionName !== "" &&
+    regionName !== "" &&
+    candidateRegionName === regionName
+  );
 }
 
 export default function CandidatePointsPage() {
@@ -176,6 +354,16 @@ export default function CandidatePointsPage() {
     setRegionsActive,
   ] = useState(false);
 
+  const [
+    focusedRegionId,
+    setFocusedRegionId,
+  ] = useState(null);
+
+  const [
+    regionFocusKey,
+    setRegionFocusKey,
+  ] = useState(0);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -195,28 +383,13 @@ export default function CandidatePointsPage() {
           : [];
 
       setCandidates(safeCandidates);
-
       setFilteredCandidates(
         safeCandidates
       );
-
       setPersonalizedCandidates(
         safeCandidates
       );
-
       setSelectedCandidate(null);
-
-      if (
-        result.source ===
-        "local-mock"
-      ) {
-        setMessage(
-          "Backend erişilemedi. Lokal mock veri gösteriliyor."
-        );
-
-        return;
-      }
-
       setMessage("");
     }
 
@@ -421,7 +594,6 @@ export default function CandidatePointsPage() {
       feedbackMessage
     ) {
       setMessage(feedbackMessage);
-
       setSaveFeedback(
         feedbackMessage
       );
@@ -539,7 +711,6 @@ export default function CandidatePointsPage() {
       regionId === 0
     ) {
       setSelectedRegionSummary(null);
-
       setRegionSummaryMessage("");
 
       return;
@@ -562,17 +733,6 @@ export default function CandidatePointsPage() {
       return;
     }
 
-    if (
-      result.source ===
-      "local-mock"
-    ) {
-      setRegionSummaryMessage(
-        "Bölge özeti lokal mock veriden gösteriliyor."
-      );
-
-      return;
-    }
-
     setRegionSummaryMessage("");
   }
 
@@ -585,6 +745,13 @@ export default function CandidatePointsPage() {
 
     setSelectedCandidate(
       candidate
+    );
+
+    setFocusedRegionId(null);
+
+    setRegionFocusKey(
+      (currentKey) =>
+        currentKey + 1
     );
 
     setCandidateSearch("");
@@ -600,9 +767,14 @@ export default function CandidatePointsPage() {
     );
 
     setSelectedCandidate(null);
+    setFocusedRegionId(null);
+
+    setRegionFocusKey(
+      (currentKey) =>
+        currentKey + 1
+    );
 
     setCandidateSearch("");
-
     setMessage("");
 
     setActiveTab(
@@ -618,65 +790,166 @@ export default function CandidatePointsPage() {
     );
 
     const normalizedSearch =
-      searchValue
-        .trim()
-        .toLocaleLowerCase(
-          "tr-TR"
-        );
+      normalizeSearchText(
+        searchValue
+      );
 
-    if (
-      normalizedSearch === ""
-    ) {
+    if (!normalizedSearch) {
       setFilteredCandidates(
         candidates
       );
 
       setSelectedCandidate(null);
+      setFocusedRegionId(null);
+
+      setRegionFocusKey(
+        (currentKey) =>
+          currentKey + 1
+      );
 
       setMessage("");
 
       return;
     }
 
-    const result =
+    const candidateMatches =
       candidates.filter(
-        (candidate) => {
-          const searchableText = [
-            candidate.name,
-            candidate.estimatedAddress,
-            candidate.region,
-            candidate.neighborhood,
-            candidate.systemType,
-            candidate.placeType,
-          ]
-            .filter(Boolean)
-            .join(" ")
-            .toLocaleLowerCase(
-              "tr-TR"
-            );
-
-          return searchableText.includes(
+        (candidate) =>
+          candidateMatchesSearch(
+            candidate,
             normalizedSearch
-          );
-        }
+          )
       );
 
-    setFilteredCandidates(result);
+    if (
+      candidateMatches.length > 0
+    ) {
+      setFilteredCandidates(
+        candidateMatches
+      );
 
-    setSelectedCandidate(
-      result[0] || null
-    );
+      setSelectedCandidate(
+        candidateMatches[0]
+      );
 
-    if (result.length === 0) {
+      setFocusedRegionId(null);
+
+      setRegionFocusKey(
+        (currentKey) =>
+          currentKey + 1
+      );
+
       setMessage(
-        "Aramaya uygun aday nokta bulunamadı."
+        `${candidateMatches.length} aday nokta bulundu.`
       );
 
       return;
     }
 
+    const selectableRegions =
+      regions.filter(
+        (region) =>
+          Number(
+            getRegionId(region)
+          ) !== 0
+      );
+
+    let matchedRegion =
+      findBestNamedMatch(
+        selectableRegions,
+        searchValue,
+        getRegionName
+      );
+
+    const matchedNeighborhood =
+      findBestNamedMatch(
+        neighborhoods,
+        searchValue,
+        getNeighborhoodName
+      );
+
+    if (
+      !matchedRegion &&
+      matchedNeighborhood
+    ) {
+      const neighborhoodRegionId =
+        matchedNeighborhood.regionId ??
+        matchedNeighborhood.RegionId ??
+        matchedNeighborhood.id ??
+        matchedNeighborhood.Id;
+
+      matchedRegion =
+        selectableRegions.find(
+          (region) =>
+            String(
+              getRegionId(region)
+            ) ===
+            String(
+              neighborhoodRegionId
+            )
+        ) ??
+        findBestNamedMatch(
+          selectableRegions,
+          matchedNeighborhood.regionName ??
+            getNeighborhoodName(
+              matchedNeighborhood
+            ),
+          getRegionName
+        );
+    }
+
+    if (matchedRegion) {
+      const regionId =
+        getRegionId(
+          matchedRegion
+        );
+
+      const regionCandidates =
+        candidates.filter(
+          (candidate) =>
+            candidateBelongsToRegion(
+              candidate,
+              matchedRegion
+            )
+        );
+
+      setRegionsActive(true);
+
+      setFocusedRegionId(
+        regionId
+      );
+
+      setRegionFocusKey(
+        (currentKey) =>
+          currentKey + 1
+      );
+
+      setFilteredCandidates(
+        regionCandidates
+      );
+
+      setSelectedCandidate(null);
+
+      setMessage(
+        `${getRegionName(
+          matchedRegion
+        )} bölgesi bulundu.`
+      );
+
+      return;
+    }
+
+    setFilteredCandidates([]);
+    setSelectedCandidate(null);
+    setFocusedRegionId(null);
+
+    setRegionFocusKey(
+      (currentKey) =>
+        currentKey + 1
+    );
+
     setMessage(
-      `${result.length} aday nokta bulundu.`
+      "Aramaya uygun aday nokta, bölge veya mahalle bulunamadı."
     );
   }
 
@@ -687,9 +960,64 @@ export default function CandidatePointsPage() {
       return;
     }
 
-    setMessage(
-      `${region.name || "Bölge"} seçildi.`
+    const regionName =
+      getRegionName(region);
+
+    const regionId =
+      getRegionId(region);
+
+    setCandidateSearch(
+      regionName
     );
+
+    setFocusedRegionId(
+      regionId
+    );
+
+    setFilteredCandidates(
+      candidates.filter(
+        (candidate) =>
+          candidateBelongsToRegion(
+            candidate,
+            region
+          )
+      )
+    );
+
+    setSelectedCandidate(null);
+
+    setMessage(
+      `${regionName || "Bölge"} seçildi.`
+    );
+  }
+
+  function toggleCandidateRegions() {
+    const nextValue =
+      !regionsActive;
+
+    setRegionsActive(
+      nextValue
+    );
+
+    if (!nextValue) {
+      setFocusedRegionId(null);
+      setSelectedCandidate(null);
+
+      setRegionFocusKey(
+        (currentKey) =>
+          currentKey + 1
+      );
+
+      return;
+    }
+
+    if (
+      candidateSearch.trim()
+    ) {
+      searchCandidates(
+        candidateSearch
+      );
+    }
   }
 
   return (
@@ -868,13 +1196,8 @@ export default function CandidatePointsPage() {
                     : "region-toggle"
                 }
                 data-testid="candidate-region-toggle-button"
-                onClick={() =>
-                  setRegionsActive(
-                    (
-                      currentValue
-                    ) =>
-                      !currentValue
-                  )
+                onClick={
+                  toggleCandidateRegions
                 }
               >
                 {regionsActive
@@ -895,6 +1218,12 @@ export default function CandidatePointsPage() {
                 selectedPointId={
                   selectedCandidate?.id ??
                   null
+                }
+                focusedRegionId={
+                  focusedRegionId
+                }
+                regionFocusKey={
+                  regionFocusKey
                 }
                 onPointSelect={
                   setSelectedCandidate

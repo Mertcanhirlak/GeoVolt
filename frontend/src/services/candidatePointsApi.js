@@ -1,45 +1,148 @@
-import { mockCandidatePoints } from "../data/mockCandidatePoints";
 import {
   mapCandidatePoint,
   mapCandidatePoints,
 } from "../utils/candidatePointMapper";
 
-const API_BASE_URL = String(
-  import.meta.env.VITE_API_BASE_URL ?? ""
-).replace(/\/+$/, "");
+const RAW_API_BASE_URL = String(
+  import.meta.env.VITE_API_BASE_URL ??
+    "http://localhost:5000"
+).trim();
 
-const CANDIDATE_POINTS_ENDPOINT = "/api/candidate-points";
+const API_BASE_URL = RAW_API_BASE_URL
+  .replace(/\/+$/, "")
+  .replace(/\/api$/i, "");
+
+const CANDIDATE_POINTS_API_ENABLED =
+  String(
+    import.meta.env
+      .VITE_ENABLE_CANDIDATE_POINTS_API ??
+      "false"
+  )
+    .trim()
+    .toLocaleLowerCase("tr-TR") ===
+  "true";
+
+const CANDIDATE_POINTS_ENDPOINT =
+  "/api/candidate-points";
 
 const REQUEST_TIMEOUT_MS = 15000;
 
-function getLocalMockCandidates() {
-  return Array.isArray(mockCandidatePoints)
-    ? mockCandidatePoints
-    : [];
+function getStorageToken(storage) {
+  if (!storage) {
+    return null;
+  }
+
+  const directTokenKeys = [
+    "token",
+    "accessToken",
+    "authToken",
+    "jwtToken",
+    "geovolt_token",
+  ];
+
+  for (const key of directTokenKeys) {
+    const value = storage.getItem(key);
+
+    if (value && value.trim()) {
+      return value
+        .replace(/^"|"$/g, "")
+        .trim();
+    }
+  }
+
+  const objectKeys = [
+    "auth",
+    "user",
+    "authUser",
+    "geovolt-auth",
+    "auth-storage",
+  ];
+
+  for (const key of objectKeys) {
+    const value = storage.getItem(key);
+
+    if (!value) {
+      continue;
+    }
+
+    try {
+      const parsedValue =
+        JSON.parse(value);
+
+      const token =
+        parsedValue?.token ??
+        parsedValue?.accessToken ??
+        parsedValue?.authToken ??
+        parsedValue?.jwtToken ??
+        parsedValue?.state?.token ??
+        parsedValue?.state?.accessToken;
+
+      if (token) {
+        return String(token).trim();
+      }
+    } catch {
+      // JSON olmayan kayıtlar atlanır.
+    }
+  }
+
+  return null;
 }
 
-function createApiUrl(path, queryParameters = {}) {
+function getStoredToken() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return (
+    getStorageToken(
+      window.localStorage
+    ) ??
+    getStorageToken(
+      window.sessionStorage
+    )
+  );
+}
+
+function createApiUrl(
+  path,
+  queryParameters = {}
+) {
   const query = new URLSearchParams();
 
-  Object.entries(queryParameters).forEach(([key, value]) => {
+  Object.entries(
+    queryParameters
+  ).forEach(([key, value]) => {
     if (
       value !== undefined &&
       value !== null &&
       value !== ""
     ) {
-      query.set(key, String(value));
+      query.set(
+        key,
+        String(value)
+      );
     }
   });
 
-  const queryString = query.toString();
-  const fullPath = `${API_BASE_URL}${path}`;
+  const normalizedPath =
+    path.startsWith("/")
+      ? path
+      : `/${path}`;
+
+  const queryString =
+    query.toString();
+
+  const url =
+    `${API_BASE_URL}${normalizedPath}`;
 
   return queryString
-    ? `${fullPath}?${queryString}`
-    : fullPath;
+    ? `${url}?${queryString}`
+    : url;
 }
 
-function extractCandidateList(responseBody) {
+function extractCandidateList(
+  responseBody
+) {
   if (Array.isArray(responseBody)) {
     return responseBody;
   }
@@ -61,28 +164,29 @@ function extractCandidateList(responseBody) {
     responseBody.candidates,
   ];
 
-  for (const candidateValue of directCandidates) {
-    if (Array.isArray(candidateValue)) {
+  for (
+    const candidateValue
+    of directCandidates
+  ) {
+    if (
+      Array.isArray(
+        candidateValue
+      )
+    ) {
       return candidateValue;
     }
   }
 
-  /*
-   * Bazı API cevapları şu yapıda olabilir:
-   *
-   * {
-   *   data: {
-   *     items: [...]
-   *   }
-   * }
-   */
   const nestedContainers = [
     responseBody.data,
     responseBody.result,
     responseBody.value,
   ];
 
-  for (const container of nestedContainers) {
+  for (
+    const container
+    of nestedContainers
+  ) {
     if (
       !container ||
       typeof container !== "object"
@@ -98,8 +202,15 @@ function extractCandidateList(responseBody) {
       container.candidates,
     ];
 
-    for (const candidateValue of nestedCandidates) {
-      if (Array.isArray(candidateValue)) {
+    for (
+      const candidateValue
+      of nestedCandidates
+    ) {
+      if (
+        Array.isArray(
+          candidateValue
+        )
+      ) {
         return candidateValue;
       }
     }
@@ -108,63 +219,126 @@ function extractCandidateList(responseBody) {
   return null;
 }
 
-async function requestJson(url, options = {}) {
-  const abortController = new AbortController();
+async function readResponseBody(
+  response
+) {
+  const contentType =
+    response.headers.get(
+      "content-type"
+    ) ?? "";
 
-  const timeoutId = window.setTimeout(() => {
-    abortController.abort();
-  }, REQUEST_TIMEOUT_MS);
+  if (
+    contentType.includes(
+      "application/json"
+    )
+  ) {
+    try {
+      return await response.json();
+    } catch {
+      return null;
+    }
+  }
 
   try {
-    const response = await fetch(url, {
-      ...options,
+    return await response.text();
+  } catch {
+    return null;
+  }
+}
 
-      headers: {
-        Accept: "application/json",
-        ...options.headers,
-      },
+async function requestJson(
+  url,
+  options = {}
+) {
+  const abortController =
+    new AbortController();
 
-      signal: abortController.signal,
-    });
+  const timeoutId =
+    globalThis.setTimeout(() => {
+      abortController.abort();
+    }, REQUEST_TIMEOUT_MS);
+
+  const token = getStoredToken();
+
+  try {
+    const response = await fetch(
+      url,
+      {
+        ...options,
+
+        mode: "cors",
+
+        headers: {
+          Accept:
+            "application/json",
+
+          ...(token
+            ? {
+                Authorization:
+                  `Bearer ${token}`,
+              }
+            : {}),
+
+          ...options.headers,
+        },
+
+        signal:
+          abortController.signal,
+      }
+    );
+
+    const responseBody =
+      await readResponseBody(
+        response
+      );
 
     if (!response.ok) {
-      let errorMessage =
-        `Aday nokta isteği başarısız oldu. HTTP ${response.status}`;
+      const serverMessage =
+        typeof responseBody ===
+        "object"
+          ? responseBody?.message ??
+            responseBody?.title
+          : null;
 
-      try {
-        const errorBody = await response.json();
-
-        errorMessage =
-          errorBody?.message ||
-          errorBody?.title ||
-          errorMessage;
-      } catch {
-        /*
-         * Hata cevabı JSON değilse varsayılan
-         * hata mesajı kullanılmaya devam eder.
-         */
-      }
-
-      throw new Error(errorMessage);
+      throw new Error(
+        serverMessage ||
+          `Aday nokta isteği başarısız oldu. HTTP ${response.status}`
+      );
     }
 
-    return await response.json();
+    return responseBody;
   } catch (error) {
-    if (error?.name === "AbortError") {
+    if (
+      error?.name ===
+      "AbortError"
+    ) {
       throw new Error(
         "Aday nokta isteği zaman aşımına uğradı."
       );
     }
 
+    if (
+      error instanceof TypeError
+    ) {
+      throw new Error(
+        `Aday nokta backend bağlantısı kurulamadı. Adres: ${url}`
+      );
+    }
+
     throw error;
   } finally {
-    window.clearTimeout(timeoutId);
+    globalThis.clearTimeout(
+      timeoutId
+    );
   }
 }
 
-function createCandidateQuery(filters = {}) {
+function createCandidateQuery(
+  filters = {}
+) {
   return {
-    regionId: filters.regionId,
+    regionId:
+      filters.regionId,
 
     neighborhoodId:
       filters.neighborhoodId,
@@ -213,81 +387,98 @@ function createCandidateQuery(filters = {}) {
 }
 
 /**
- * API'den aday noktaları getirir.
+ * Gerçek aday backend'i hazır olana kadar aday API'si
+ * .env üzerinden kapalı tutulur.
  *
- * Backend erişilemezse ekranın bozulmaması için
- * lokal mock veriye geri döner.
- *
- * Dönüş yapısı:
- *
- * {
- *   data: [],
- *   source: "api" | "local-mock",
- *   error: string | null
- * }
+ * Böylece MockCandidatePointRepository tarafından döndürülen
+ * sahte adaylar haritada gösterilmez.
  */
 export async function getCandidatePoints(
   filters = {}
 ) {
-  const query = createCandidateQuery(filters);
+  if (
+    !CANDIDATE_POINTS_API_ENABLED
+  ) {
+    return {
+      data: [],
+      source: "disabled",
+      error: null,
+      isRealData: false,
+    };
+  }
 
-  try {
-    const responseBody = await requestJson(
-      createApiUrl(
-        CANDIDATE_POINTS_ENDPOINT,
-        query
-      )
+  const query =
+    createCandidateQuery(
+      filters
     );
 
-    const rawCandidates =
-      extractCandidateList(responseBody);
+  const url = createApiUrl(
+    CANDIDATE_POINTS_ENDPOINT,
+    query
+  );
 
-    if (!Array.isArray(rawCandidates)) {
+  try {
+    const responseBody =
+      await requestJson(url);
+
+    const rawCandidates =
+      extractCandidateList(
+        responseBody
+      );
+
+    if (
+      !Array.isArray(
+        rawCandidates
+      )
+    ) {
       throw new Error(
         "Aday nokta API cevabında geçerli bir liste bulunamadı."
       );
     }
 
+    const candidates =
+      mapCandidatePoints(
+        rawCandidates
+      );
+
     return {
-      data: mapCandidatePoints(rawCandidates),
+      data: candidates,
       source: "api",
       error: null,
+      isRealData: true,
     };
   } catch (error) {
-    console.error(
-      "Aday nokta verileri API'den alınamadı:",
+    console.warn(
+      "Gerçek aday nokta verisi alınamadı:",
       error
     );
 
     return {
-      data: mapCandidatePoints(
-        getLocalMockCandidates()
-      ),
-
-      source: "local-mock",
+      data: [],
+      source: "unavailable",
 
       error:
         error instanceof Error
           ? error.message
-          : "Aday nokta verileri alınamadı.",
+          : "Gerçek aday nokta verisi alınamadı.",
+
+      isRealData: false,
     };
   }
 }
 
-/**
- * Mevcut liste üzerinden tek bir aday nokta bulur.
- * Backend'de detay endpointi olmasa da çalışır.
- */
 export async function getCandidatePointById(
   candidatePointId
 ) {
-  const result = await getCandidatePoints();
+  const result =
+    await getCandidatePoints();
 
-  const candidate = result.data.find(
-    (item) =>
-      String(item.id) ===
-      String(candidatePointId)
-  );
+  const candidate =
+    result.data.find(
+      (item) =>
+        String(item.id) ===
+        String(candidatePointId)
+    );
 
   return {
     ...result,
@@ -295,9 +486,6 @@ export async function getCandidatePointById(
   };
 }
 
-/**
- * Bölge seçildiğinde kullanılabilecek yardımcı fonksiyon.
- */
 export async function getCandidatePointsByRegion(
   regionId,
   additionalFilters = {}
@@ -308,13 +496,10 @@ export async function getCandidatePointsByRegion(
   });
 }
 
-/**
- * Talha'nın haritasından, API'den veya manuel pin
- * sonucundan gelen tek bir adayı ortak frontend
- * modeline dönüştürür.
- */
 export function normalizeCandidatePoint(
   candidatePoint
 ) {
-  return mapCandidatePoint(candidatePoint);
+  return mapCandidatePoint(
+    candidatePoint
+  );
 }
