@@ -118,7 +118,7 @@ export default function CandidatePointsPage() {
     let isMounted = true;
 
     async function loadCandidatePoints() {
-      setMessage("Hesaplaniyor...");
+      setMessage("Hesaplanıyor...");
 
       const result = await getCandidatePoints();
 
@@ -132,7 +132,7 @@ export default function CandidatePointsPage() {
       setSelectedCandidate(result.data[0] || null);
 
       if (result.source === "local-mock") {
-        setMessage("Backend erisilemedi. Lokal mock veri gosteriliyor.");
+        setMessage("Sunucuya erişilemedi. Yerel deneme verileri gösteriliyor.");
         return;
       }
 
@@ -175,7 +175,7 @@ export default function CandidatePointsPage() {
       const numberValue = Number(value);
 
       if (Number.isNaN(numberValue) || numberValue < 0 || numberValue > 100) {
-        setMessage("Skor degerleri 0 ile 100 arasinda olmalidir.");
+        setMessage("Puan değerleri 0 ile 100 arasında olmalıdır.");
         return false;
       }
     }
@@ -188,7 +188,7 @@ export default function CandidatePointsPage() {
     const generalMax = getNumberOrDefault(filters.generalMax, 100);
 
     if (costMin > costMax || demandMin > demandMax || generalMin > generalMax) {
-      setMessage("Minimum deger maksimum degerden buyuk olamaz.");
+      setMessage("En düşük değer, en yüksek değerden büyük olamaz.");
       return false;
     }
 
@@ -219,9 +219,9 @@ export default function CandidatePointsPage() {
     setSelectedCandidate(result[0] || null);
 
     if (result.length === 0) {
-      setMessage("Uygun aday nokta bulunamadi.");
+      setMessage("Uygun aday nokta bulunamadı.");
     } else {
-      setMessage("Filtreleme uygulandi.");
+      setMessage("Filtreleme uygulandı.");
     }
   }
 
@@ -291,12 +291,12 @@ export default function CandidatePointsPage() {
     setSelectedRegionSummary(result.data);
 
     if (result.source === "api") {
-      setRegionSummaryMessage("Bölge özeti API üzerinden getirildi.");
+      setRegionSummaryMessage("Bölge özeti sunucudan getirildi.");
       return;
     }
 
     if (result.source === "local-mock") {
-      setRegionSummaryMessage("Bölge özeti lokal mock veriden gösteriliyor.");
+      setRegionSummaryMessage("Bölge özeti yerel deneme verilerinden gösteriliyor.");
       return;
     }
 
@@ -473,7 +473,7 @@ export default function CandidatePointsPage() {
 
               <p>
                 Aday nokta pinlerine tiklayarak detay kartini harita uzerinde
-                goruntuleyebilirsiniz.
+                görüntüleyebilirsiniz.
               </p>
 
               {filteredCandidates.map((candidate, index) => {

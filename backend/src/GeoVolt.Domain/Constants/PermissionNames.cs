@@ -20,21 +20,21 @@ public static class PermissionNames
 
     public static readonly IReadOnlyList<PermissionSeed> All = new[]
     {
-        new PermissionSeed(PointCreate, "Point ekleme", "Point"),
-        new PermissionSeed(PointRead, "Point listeleme", "Point"),
-        new PermissionSeed(PointUpdate, "Point guncelleme", "Point"),
-        new PermissionSeed(PointDelete, "Point silme", "Point"),
-        new PermissionSeed(UserCreate, "Kullanici ekleme", "Kullanici"),
-        new PermissionSeed(UserRead, "Kullanici listeleme", "Kullanici"),
-        new PermissionSeed(UserUpdate, "Kullanici guncelleme", "Kullanici"),
-        new PermissionSeed(UserDelete, "Kullanici silme", "Kullanici"),
-        new PermissionSeed(UserRoleAssign, "Kullanici rol atama", "Kullanici"),
+        new PermissionSeed(PointCreate, "Nokta ekleme", "Nokta"),
+        new PermissionSeed(PointRead, "Nokta listeleme", "Nokta"),
+        new PermissionSeed(PointUpdate, "Nokta güncelleme", "Nokta"),
+        new PermissionSeed(PointDelete, "Nokta silme", "Nokta"),
+        new PermissionSeed(UserCreate, "Kullanıcı ekleme", "Kullanıcı"),
+        new PermissionSeed(UserRead, "Kullanıcı listeleme", "Kullanıcı"),
+        new PermissionSeed(UserUpdate, "Kullanıcı güncelleme", "Kullanıcı"),
+        new PermissionSeed(UserDelete, "Kullanıcı silme", "Kullanıcı"),
+        new PermissionSeed(UserRoleAssign, "Kullanıcıya rol atama", "Kullanıcı"),
         new PermissionSeed(RoleCreate, "Rol ekleme", "Rol"),
         new PermissionSeed(RoleRead, "Rol listeleme", "Rol"),
-        new PermissionSeed(RoleUpdate, "Rol guncelleme", "Rol"),
+        new PermissionSeed(RoleUpdate, "Rol güncelleme", "Rol"),
         new PermissionSeed(RoleDelete, "Rol silme", "Rol"),
         new PermissionSeed(PermissionAssign, "Yetki atama", "Yetki"),
-        new PermissionSeed(DashboardAdminView, "Genel istatistikleri goruntuleme", "Dashboard")
+        new PermissionSeed(DashboardAdminView, "Genel istatistikleri görüntüleme", "Genel")
     };
 }
 

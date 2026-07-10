@@ -78,7 +78,7 @@ export async function login(email, password) {
       setTimeout(() => {
         const user = mockUsers.find((mockUser) => mockUser.email === email && mockUser.password === password);
 
-        if (!user) return reject(new Error("Email veya şifre hatalı"));
+        if (!user) return reject(new Error("E-posta veya şifre hatalı"));
         if (!user.isActive) return reject(new Error("Kullanıcı pasif durumda"));
 
         resolve({ token: createMockToken(user), user });
@@ -95,7 +95,7 @@ export async function login(email, password) {
   const response = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw new Error(response.message || "Email veya şifre hatalı");
+    throw new Error(response.message || "E-posta veya şifre hatalı");
   }
 
   return normalizeAuthResponse(response);
@@ -104,7 +104,7 @@ export async function login(email, password) {
 export async function createCompanyUser(newUserData, requesterToken) {
   if (MOCK_MODE) {
     return new Promise((resolve) => {
-      setTimeout(() => resolve({ success: true, message: "Kullanıcı oluşturuldu (mock)" }), 300);
+      setTimeout(() => resolve({ success: true, message: "Kullanıcı oluşturuldu (deneme modu)" }), 300);
     });
   }
 

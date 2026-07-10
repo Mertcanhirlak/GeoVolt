@@ -66,24 +66,33 @@ function formatDate(value) {
 
 function getPermissionLabel(permissionName) {
   const labels = {
-    "user.read": "Kullanici listeleme",
-    "user.create": "Kullanici ekleme",
-    "user.update": "Kullanici guncelleme",
-    "user.delete": "Kullanici silme",
+    "user.read": "Kullanıcı listeleme",
+    "user.create": "Kullanıcı ekleme",
+    "user.update": "Kullanıcı güncelleme",
+    "user.delete": "Kullanıcı silme",
     "user.role.assign": "Rol atama",
     "role.read": "Rol listeleme",
     "role.create": "Rol ekleme",
-    "role.update": "Rol guncelleme",
+    "role.update": "Rol güncelleme",
     "role.delete": "Rol silme",
     "permission.assign": "Yetki atama",
-    "point.read": "Point listeleme",
-    "point.create": "Point ekleme",
-    "point.update": "Point guncelleme",
-    "point.delete": "Point silme",
+    "point.read": "Nokta listeleme",
+    "point.create": "Nokta ekleme",
+    "point.update": "Nokta güncelleme",
+    "point.delete": "Nokta silme",
     "dashboard.admin.view": "Genel durum"
   };
 
   return labels[permissionName] ?? permissionName;
+}
+
+function getRoleLabel(roleName) {
+  const labels = {
+    Admin: "Yönetici",
+    CompanyUser: "Firma Kullanıcısı"
+  };
+
+  return labels[roleName] ?? roleName;
 }
 
 export default function AdminPanel() {
@@ -110,6 +119,7 @@ export default function AdminPanel() {
   const [roleAssignmentUserId, setRoleAssignmentUserId] = useState("");
   const [roleAssignmentIds, setRoleAssignmentIds] = useState([]);
   const [activeUserAction, setActiveUserAction] = useState("");
+  const [activeRoleAction, setActiveRoleAction] = useState("");
   const [userRoleForm, setUserRoleForm] = useState(emptyUserRoleForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -124,15 +134,15 @@ export default function AdminPanel() {
     }
 
     if (hasAnyPermission(permissionGroups.users)) {
-      tabs.push({ id: "users", label: "Kullanici Islemleri" });
+      tabs.push({ id: "users", label: "Kullanıcı İşlemleri" });
     }
 
     if (hasAnyPermission(permissionGroups.map)) {
-      tabs.push({ id: "map", label: "Harita Islemleri" });
+      tabs.push({ id: "map", label: "Harita İşlemleri" });
     }
 
     if (hasAnyPermission(permissionGroups.roles)) {
-      tabs.push({ id: "roles", label: "Rol Yonetimi" });
+      tabs.push({ id: "roles", label: "Rol Yönetimi" });
     }
 
     if (hasAnyPermission(permissionGroups.roleAssignment)) {
@@ -143,7 +153,7 @@ export default function AdminPanel() {
   }, [hasAnyPermission]);
 
   const roleOptions = useMemo(
-    () => roles.map((role) => ({ value: String(role.id), label: role.name })),
+    () => roles.map((role) => ({ value: String(role.id), label: getRoleLabel(role.name) })),
     [roles]
   );
 
@@ -165,7 +175,7 @@ export default function AdminPanel() {
     const availableSlots = Math.max(totalCapacity - usedSlots, 0);
     const occupancyRate = totalCapacity === 0 ? 0 : Math.round((usedSlots / totalCapacity) * 100);
     const roleDistribution = roles.map((role) => ({
-      role: role.name,
+      role: getRoleLabel(role.name),
       count: users.filter((item) => item.role === role.name).length
     }));
     const recentUsers = [...users]
@@ -291,7 +301,7 @@ export default function AdminPanel() {
         contactEmail: companyForm.contactEmail || null
       });
       setCompanyForm(emptyCompanyForm);
-      setNotice("Firma olusturuldu.");
+      setNotice("Firma oluşturuldu.");
       await loadAdminData();
     } catch (err) {
       setFailure(err.message);
@@ -312,7 +322,7 @@ export default function AdminPanel() {
         companyId: Number(userForm.companyId)
       });
       setUserForm(emptyUserForm);
-      setNotice("Kullanici olusturuldu.");
+      setNotice("Kullanıcı oluşturuldu.");
       await loadAdminData();
     } catch (err) {
       setFailure(err.message);
@@ -326,7 +336,7 @@ export default function AdminPanel() {
 
     try {
       await deleteAdminUser(token, userId);
-      setNotice("Kullanici silindi.");
+      setNotice("Kullanıcı silindi.");
       await loadAdminData();
     } catch (err) {
       setFailure(err.message);
@@ -359,7 +369,7 @@ export default function AdminPanel() {
         description: roleForm.description || null
       });
       setRoleForm(emptyRoleForm);
-      setNotice("Rol olusturuldu.");
+      setNotice("Rol oluşturuldu.");
       await loadAdminData();
     } catch (err) {
       setFailure(err.message);
@@ -376,7 +386,7 @@ export default function AdminPanel() {
         name: role.name,
         description: role.description
       });
-      setNotice("Rol guncellendi.");
+      setNotice("Rol güncellendi.");
       await loadAdminData();
     } catch (err) {
       setFailure(err.message);
@@ -406,7 +416,7 @@ export default function AdminPanel() {
 
     try {
       await assignAdminRolePermissions(token, Number(selectedRoleId), selectedRolePermissionIds);
-      setNotice("Rol yetkileri guncellendi.");
+      setNotice("Rol yetkileri güncellendi.");
       await loadAdminData();
     } catch (err) {
       setFailure(err.message);
@@ -424,7 +434,7 @@ export default function AdminPanel() {
 
     try {
       await assignAdminUserRoles(token, Number(roleAssignmentUserId), roleAssignmentIds.map(Number));
-      setNotice("Kullanici rolleri guncellendi.");
+      setNotice("Kullanıcı rolleri güncellendi.");
       await loadAdminData();
     } catch (err) {
       setFailure(err.message);
@@ -458,6 +468,25 @@ export default function AdminPanel() {
   function closeUserAction() {
     setActiveUserAction("");
     setUserRoleForm(emptyUserRoleForm);
+  }
+
+  function openRoleAction(action) {
+    setActiveRoleAction(action);
+    setMessage("");
+    setError("");
+  }
+
+  function closeRoleAction() {
+    setActiveRoleAction("");
+    setSelectedRoleId("");
+    setMessage("");
+    setError("");
+  }
+
+  function updateRoleDraft(roleId, field, value) {
+    setRoles((currentRoles) => currentRoles.map((role) => (
+      role.id === roleId ? { ...role, [field]: value } : role
+    )));
   }
 
   function selectUserForRoleUpdate(userId) {
@@ -509,7 +538,7 @@ export default function AdminPanel() {
         </div>
         <div className="admin-session">
           <span>{user?.fullName ?? user?.email}</span>
-          <span className="admin-role-pill">{user?.role}</span>
+          <span className="admin-role-pill">{getRoleLabel(user?.role)}</span>
           <button type="button" className="admin-secondary-button" onClick={() => navigate("/dashboard")}>
             Harita
           </button>
@@ -519,13 +548,13 @@ export default function AdminPanel() {
         </div>
       </header>
 
-      {(message || error) && (
+      {(message || error) && !activeRoleAction && (
         <div className={error ? "admin-alert admin-alert-error" : "admin-alert"}>
           {error || message}
         </div>
       )}
 
-      <section className="admin-tabs" aria-label="Yonetim sekmeleri">
+      <section className="admin-tabs" aria-label="Yönetim sekmeleri">
         {visibleTabs.map((tab) => (
           <button
             key={tab.id}
@@ -544,32 +573,32 @@ export default function AdminPanel() {
             <div className="admin-summary-item">
               <span>Toplam Firma</span>
               <strong>{companies.length}</strong>
-              <small>{dashboard.emptyCompanyCount} firma kullanici bekliyor</small>
+              <small>{dashboard.emptyCompanyCount} firma kullanıcı bekliyor</small>
             </div>
             <div className="admin-summary-item">
-              <span>Toplam Kullanici</span>
+              <span>Toplam Kullanıcı</span>
               <strong>{users.length}</strong>
-              <small>{dashboard.companyUserCount} firma kullanicisi</small>
+              <small>{dashboard.companyUserCount} firma kullanıcısı</small>
             </div>
             <div className="admin-summary-item">
-              <span>Admin Sayisi</span>
+              <span>Yönetici Sayısı</span>
               <strong>{dashboard.adminCount}</strong>
               <small>Tam yetkili hesaplar</small>
             </div>
             <div className="admin-summary-item">
-              <span>Rol Sayisi</span>
+              <span>Rol Sayısı</span>
               <strong>{roles.length}</strong>
-              <small>Aktif rol katalogu</small>
+              <small>Aktif rol kataloğu</small>
             </div>
             <div className="admin-summary-item">
-              <span>Permission</span>
+              <span>Yetki Sayısı</span>
               <strong>{permissionsCatalog.length || permissions.length}</strong>
-              <small>Yonetilen yetki sayisi</small>
+              <small>Yönetilen yetki sayısı</small>
             </div>
             <div className="admin-summary-item">
               <span>Doluluk</span>
               <strong>{dashboard.occupancyRate}%</strong>
-              <small>{dashboard.availableSlots} bos slot</small>
+              <small>{dashboard.availableSlots} boş kontenjan</small>
             </div>
           </div>
           <div className="admin-status-grid">
@@ -586,7 +615,7 @@ export default function AdminPanel() {
               <div className="admin-progress admin-status-progress">
                 <span style={{ width: `${dashboard.occupancyRate}%` }} />
               </div>
-              <p>{dashboard.availableSlots} kullanıcı slotu boş, {dashboard.fullCompanyCount} firma kapasite limitinde.</p>
+              <p>{dashboard.availableSlots} kullanıcı kontenjanı boş, {dashboard.fullCompanyCount} firma kapasite sınırında.</p>
             </div>
 
             <div className="admin-status-card">
@@ -620,7 +649,7 @@ export default function AdminPanel() {
                 {dashboard.recentUsers.map((item) => (
                   <div className="admin-mini-row" key={item.id}>
                     <span>{item.fullName}</span>
-                    <strong>{item.role}</strong>
+                    <strong>{getRoleLabel(item.role)}</strong>
                   </div>
                 ))}
                 {dashboard.recentUsers.length === 0 && <p className="admin-muted-text">Kullanıcı verisi yok.</p>}
@@ -645,7 +674,7 @@ export default function AdminPanel() {
                   <strong>{dashboard.fullCompanyCount}</strong>
                 </div>
                 <div className="admin-mini-row">
-                  <span>Yedek admin ihtiyacı</span>
+                  <span>Yedek yönetici ihtiyacı</span>
                   <strong>{dashboard.adminCount <= 1 ? "Var" : "Yok"}</strong>
                 </div>
               </div>
@@ -830,7 +859,7 @@ export default function AdminPanel() {
                             <tr key={item.id}>
                               <td>{item.fullName}</td>
                               <td>{item.email}</td>
-                              <td>{item.role}</td>
+                              <td>{getRoleLabel(item.role)}</td>
                               <td>{item.companyName ?? "-"}</td>
                             </tr>
                           ))}
@@ -870,7 +899,7 @@ export default function AdminPanel() {
                         <option value="">Rol seçin</option>
                         {roles.map((role) => (
                           <option key={role.id} value={role.name}>
-                            {role.name}
+                            {getRoleLabel(role.name)}
                           </option>
                         ))}
                       </select>
@@ -924,7 +953,7 @@ export default function AdminPanel() {
                             <tr key={item.id}>
                               <td>{item.fullName}</td>
                               <td>{item.email}</td>
-                              <td>{item.role}</td>
+                              <td>{getRoleLabel(item.role)}</td>
                               <td className="admin-action-cell">
                                 <button
                                   type="button"
@@ -959,7 +988,7 @@ export default function AdminPanel() {
         <section className="admin-tab-panel">
           <div className="admin-panel admin-wide-panel">
             <div className="admin-panel-heading">
-              <h2>Harita Islemleri</h2>
+              <h2>Harita İşlemleri</h2>
               <button type="button" className="admin-secondary-button" onClick={() => navigate("/dashboard")}>
                 Haritaya Git
               </button>
@@ -980,106 +1009,173 @@ export default function AdminPanel() {
 
       {activeTab === "roles" && (
         <section className="admin-tab-panel">
-          {hasPermission("role.create") && (
-            <div className="admin-panel admin-wide-panel">
-              <div className="admin-panel-heading">
-                <h2>Rol Ekle</h2>
-              </div>
-              <form className="admin-form" onSubmit={handleCreateRole}>
-                <label>
-                  Rol adi
-                  <input
-                    value={roleForm.name}
-                    onChange={(event) => setRoleForm({ ...roleForm, name: event.target.value })}
-                    maxLength={80}
-                    required
-                  />
-                </label>
-                <label>
-                  Aciklama
-                  <input
-                    value={roleForm.description}
-                    onChange={(event) => setRoleForm({ ...roleForm, description: event.target.value })}
-                    maxLength={240}
-                  />
-                </label>
-                <button type="submit" disabled={saving}>
-                  Rol Kaydet
-                </button>
-              </form>
-            </div>
-          )}
+          <div className="admin-user-action-grid admin-role-action-grid">
+            {hasPermission("role.create") && (
+              <button type="button" className="admin-user-action-card" onClick={() => openRoleAction("create")}>
+                <span>01</span>
+                <strong>Rol Ekle</strong>
+                <small>Yeni bir rol adı ve açıklaması belirle.</small>
+              </button>
+            )}
 
-          {hasPermission("role.read") && (
-            <div className="admin-panel admin-wide-panel">
-              <div className="admin-panel-heading">
-                <h2>Roller</h2>
-              </div>
-              <div className="admin-role-card-grid">
-                {roles.map((role) => (
-                  <article className="admin-role-card" key={role.id}>
-                    <div>
-                      <strong>{role.name}</strong>
-                      <span>{role.description ?? "Aciklama yok"}</span>
+            {hasPermission("role.read") && (
+              <button type="button" className="admin-user-action-card" onClick={() => openRoleAction("manage")}>
+                <span>02</span>
+                <strong>Rolleri Yönet</strong>
+                <small>Rolleri görüntüle, düzenle veya sil.</small>
+              </button>
+            )}
+
+            {hasPermission("permission.assign") && (
+              <button type="button" className="admin-user-action-card" onClick={() => openRoleAction("permissions")}>
+                <span>03</span>
+                <strong>Role Yetki Ver</strong>
+                <small>Bir rol seçerek yönetim yetkilerini düzenle.</small>
+              </button>
+            )}
+          </div>
+
+          {activeRoleAction && (
+            <div className="admin-modal-backdrop" role="presentation">
+              <section className="admin-modal" role="dialog" aria-modal="true" aria-label="Rol işlemi">
+                <div className="admin-modal-heading">
+                  <div>
+                    <span>Rol Yönetimi</span>
+                    <h2>
+                      {activeRoleAction === "create" && "Rol Ekle"}
+                      {activeRoleAction === "manage" && "Rolleri Yönet"}
+                      {activeRoleAction === "permissions" && "Role Yetki Ver"}
+                    </h2>
+                  </div>
+                  <button type="button" className="admin-close-button" onClick={closeRoleAction} aria-label="Kapat">
+                    ×
+                  </button>
+                </div>
+
+                {(message || error) && (
+                  <div className={error ? "admin-alert admin-alert-error" : "admin-alert"}>
+                    {error || message}
+                  </div>
+                )}
+
+                {activeRoleAction === "create" && (
+                  <form className="admin-form admin-modal-form" onSubmit={handleCreateRole}>
+                    <label>
+                      Rol adı
+                      <input
+                        value={roleForm.name}
+                        onChange={(event) => setRoleForm({ ...roleForm, name: event.target.value })}
+                        maxLength={80}
+                        required
+                      />
+                    </label>
+                    <label>
+                      Açıklama
+                      <input
+                        value={roleForm.description}
+                        onChange={(event) => setRoleForm({ ...roleForm, description: event.target.value })}
+                        maxLength={240}
+                      />
+                    </label>
+                    <button type="submit" disabled={saving}>
+                      Rol Kaydet
+                    </button>
+                  </form>
+                )}
+
+                {activeRoleAction === "manage" && (
+                  <div className="admin-modal-table">
+                    <div className="admin-panel-heading">
+                      <h2>Kayıtlı Roller</h2>
+                      <button type="button" className="admin-secondary-button" onClick={loadAdminData} disabled={loading}>
+                        Yenile
+                      </button>
                     </div>
-                    <small>{role.userCount} kullanici</small>
-                    <div className="admin-permission-grid">
-                      {(role.permissions ?? []).map((permission) => (
-                        <span className="admin-permission-chip is-granted" key={permission.id}>
-                          {permission.description}
-                        </span>
+                    <div className="admin-role-card-grid">
+                      {roles.map((role) => (
+                        <article className="admin-role-card" key={role.id}>
+                          <div className="admin-role-fields">
+                            <label>
+                              Rol adı
+                              <input
+                                value={role.isSystem ? getRoleLabel(role.name) : role.name}
+                                onChange={(event) => updateRoleDraft(role.id, "name", event.target.value)}
+                                maxLength={80}
+                                disabled={role.isSystem || !hasPermission("role.update")}
+                              />
+                            </label>
+                            <label>
+                              Açıklama
+                              <input
+                                value={role.description ?? ""}
+                                onChange={(event) => updateRoleDraft(role.id, "description", event.target.value)}
+                                maxLength={240}
+                                disabled={role.isSystem || !hasPermission("role.update")}
+                              />
+                            </label>
+                          </div>
+                          <small>{role.userCount} kullanıcı · {(role.permissions ?? []).length} yetki</small>
+                          <div className="admin-permission-grid">
+                            {(role.permissions ?? []).map((permission) => (
+                              <span className="admin-permission-chip is-granted" key={permission.id}>
+                                {permission.description}
+                              </span>
+                            ))}
+                          </div>
+                          <div className="admin-action-cell">
+                            {role.isSystem && <small>Sistem rolü</small>}
+                            {hasPermission("role.update") && !role.isSystem && (
+                              <button type="button" className="admin-secondary-button" onClick={() => handleUpdateRole(role)} disabled={saving || !role.name.trim()}>
+                                Kaydet
+                              </button>
+                            )}
+                            {hasPermission("role.delete") && !role.isSystem && (
+                              <button type="button" className="admin-danger-button" onClick={() => handleDeleteRole(role.id)} disabled={saving}>
+                                Sil
+                              </button>
+                            )}
+                          </div>
+                        </article>
                       ))}
                     </div>
-                    <div className="admin-action-cell">
-                      {hasPermission("role.update") && !role.isSystem && (
-                        <button type="button" className="admin-secondary-button" onClick={() => handleUpdateRole(role)} disabled={saving}>
-                          Kaydet
-                        </button>
-                      )}
-                      {hasPermission("role.delete") && !role.isSystem && (
-                        <button type="button" className="admin-danger-button" onClick={() => handleDeleteRole(role.id)} disabled={saving}>
-                          Sil
-                        </button>
-                      )}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </div>
-          )}
+                  </div>
+                )}
 
-          {hasPermission("permission.assign") && (
-            <div className="admin-panel admin-wide-panel">
-              <div className="admin-panel-heading">
-                <h2>Role Yetki Ver</h2>
-                <button type="button" className="admin-secondary-button" onClick={handleSaveRolePermissions} disabled={saving || !selectedRoleId}>
-                  Yetkileri Kaydet
-                </button>
-              </div>
-              <label className="admin-inline-label">
-                Rol
-                <select value={selectedRoleId} onChange={(event) => setSelectedRoleId(event.target.value)}>
-                  <option value="">Rol secin</option>
-                  {roleOptions.map((role) => (
-                    <option key={role.value} value={role.value}>
-                      {role.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="admin-permission-grid">
-                {permissionsCatalog.map((permission) => (
-                  <label className="admin-permission-check" key={permission.id}>
-                    <input
-                      type="checkbox"
-                      checked={selectedRolePermissionIds.includes(permission.id)}
-                      onChange={() => toggleRolePermission(permission.id)}
-                      disabled={!selectedRoleId}
-                    />
-                    <span>{permission.description}</span>
-                  </label>
-                ))}
-              </div>
+                {activeRoleAction === "permissions" && (
+                  <div className="admin-modal-table">
+                    <div className="admin-panel-heading">
+                      <h2>Rol Yetkileri</h2>
+                      <button type="button" className="admin-secondary-button" onClick={handleSaveRolePermissions} disabled={saving || !selectedRoleId}>
+                        Yetkileri Kaydet
+                      </button>
+                    </div>
+                    <label className="admin-inline-label">
+                      Rol
+                      <select value={selectedRoleId} onChange={(event) => setSelectedRoleId(event.target.value)}>
+                        <option value="">Rol seçin</option>
+                        {roleOptions.map((role) => (
+                          <option key={role.value} value={role.value}>
+                            {role.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="admin-permission-grid">
+                      {permissionsCatalog.map((permission) => (
+                        <label className="admin-permission-check" key={permission.id}>
+                          <input
+                            type="checkbox"
+                            checked={selectedRolePermissionIds.includes(permission.id)}
+                            onChange={() => toggleRolePermission(permission.id)}
+                            disabled={!selectedRoleId}
+                          />
+                          <span>{permission.description}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </section>
             </div>
           )}
         </section>
@@ -1089,11 +1185,11 @@ export default function AdminPanel() {
         <section className="admin-tab-panel">
           <div className="admin-panel admin-wide-panel">
             <div className="admin-panel-heading">
-              <h2>Kullaniciya Rol Ata</h2>
+              <h2>Kullanıcıya Rol Ata</h2>
             </div>
             <form className="admin-form" onSubmit={handleAssignUserRoles}>
               <label>
-                Kullanici
+                Kullanıcı
                 <select
                   value={roleAssignmentUserId}
                   onChange={(event) => {
@@ -1106,7 +1202,7 @@ export default function AdminPanel() {
                   }}
                   required
                 >
-                  <option value="">Kullanici secin</option>
+                  <option value="">Kullanıcı seçin</option>
                   {users.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.fullName} - {item.email}
@@ -1122,7 +1218,7 @@ export default function AdminPanel() {
                       checked={roleAssignmentIds.includes(role.id)}
                       onChange={() => toggleAssignmentRole(role.id)}
                     />
-                    <span>{role.name}</span>
+                    <span>{getRoleLabel(role.name)}</span>
                   </label>
                 ))}
               </div>

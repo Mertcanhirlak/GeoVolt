@@ -94,14 +94,14 @@ async function getRoadsFromLocalGeoJson() {
   const response = await fetch(LOCAL_ROAD_URL);
 
   if (!response.ok) {
-    throw new Error("Local YOL.geojson file could not be loaded.");
+    throw new Error("Yerel YOL.geojson dosyası yüklenemedi.");
   }
 
   const result = await response.json();
   const roadArray = extractArray(result);
 
   if (!roadArray) {
-    throw new Error("Local YOL.geojson response is invalid.");
+    throw new Error("Yerel YOL.geojson yanıtı geçersiz.");
   }
 
   return normalizeRoads(roadArray);

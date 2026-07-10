@@ -69,7 +69,7 @@ export default function TrafoSummary() {
       }
 
       if (result.source === "local-mock") {
-        setMessage("Trafo mock verisi kullanılıyor.");
+        setMessage("Yerel trafo deneme verileri kullanılıyor.");
         return;
       }
 

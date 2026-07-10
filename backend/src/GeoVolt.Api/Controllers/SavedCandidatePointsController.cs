@@ -59,7 +59,7 @@ public sealed class SavedCandidatePointsController : ControllerBase
 
         if (candidatePoint is null)
         {
-            return NotFound(ApiResponse<CandidatePointResponse>.Fail("Aday nokta bulunamadi."));
+            return NotFound(ApiResponse<CandidatePointResponse>.Fail("Aday nokta bulunamadı."));
         }
 
         return Ok(ApiResponse<CandidatePointResponse>.Ok(
@@ -87,10 +87,10 @@ public sealed class SavedCandidatePointsController : ControllerBase
 
         if (!deleted)
         {
-            return NotFound(ApiResponse<bool>.Fail("Kaydedilen aday nokta bulunamadi."));
+            return NotFound(ApiResponse<bool>.Fail("Kaydedilen aday nokta bulunamadı."));
         }
 
-        return Ok(ApiResponse<bool>.Ok(true, "Kaydedilen aday nokta kaldirildi."));
+        return Ok(ApiResponse<bool>.Ok(true, "Kaydedilen aday nokta kaldırıldı."));
     }
 
     private bool TryGetUserId(out int userId)

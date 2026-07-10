@@ -119,14 +119,14 @@ async function getTrafosFromLocalGeoJson() {
   const response = await fetch(LOCAL_TRAFO_URL);
 
   if (!response.ok) {
-    throw new Error("Local TRAFO.geojson file could not be loaded.");
+    throw new Error("Yerel TRAFO.geojson dosyası yüklenemedi.");
   }
 
   const result = await response.json();
   const trafoArray = extractArray(result);
 
   if (!trafoArray) {
-    throw new Error("Local TRAFO.geojson response is invalid.");
+    throw new Error("Yerel TRAFO.geojson yanıtı geçersiz.");
   }
 
   return normalizeTrafos(trafoArray);

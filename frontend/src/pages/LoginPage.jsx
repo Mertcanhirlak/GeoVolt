@@ -88,7 +88,7 @@ function LoginPage() {
 
           <form onSubmit={handleSubmit} className="login-form" data-testid="login-form">
             <label htmlFor="login-email">
-              Email
+              E-posta
               <input
                 id="login-email"
                 type="email"

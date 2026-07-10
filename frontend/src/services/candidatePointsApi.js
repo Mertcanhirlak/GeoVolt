@@ -105,14 +105,14 @@ export async function getCandidatePoints() {
     const response = await fetch(`${API_BASE_URL}/api/candidate-points`);
 
     if (!response.ok) {
-      throw new Error(`Candidate points request failed: ${response.status}`);
+      throw new Error(`Aday nokta isteği başarısız oldu: ${response.status}`);
     }
 
     const result = await response.json();
     const candidateArray = extractCandidateArray(result);
 
     if (!candidateArray) {
-      throw new Error("Candidate points response is invalid.");
+      throw new Error("Aday nokta yanıtı geçersiz.");
     }
 
     const normalizedData = candidateArray.map((candidate, index) =>

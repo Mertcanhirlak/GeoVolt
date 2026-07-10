@@ -35,8 +35,8 @@ public sealed class DatabaseSeeder
 
     private async Task SeedRolesAsync(CancellationToken cancellationToken)
     {
-        await EnsureRoleAsync(UserRoles.Admin, "Sistem yoneticisi", true, cancellationToken);
-        await EnsureRoleAsync(UserRoles.CompanyUser, "Firma kullanicisi", true, cancellationToken);
+        await EnsureRoleAsync(UserRoles.Admin, "Sistem yöneticisi", true, cancellationToken);
+        await EnsureRoleAsync(UserRoles.CompanyUser, "Firma kullanıcısı", true, cancellationToken);
     }
 
     private async Task EnsureRoleAsync(
@@ -61,7 +61,7 @@ public sealed class DatabaseSeeder
             return;
         }
 
-        role.Description ??= description;
+        role.Description = description;
         role.IsSystem = isSystem;
         await _dbContext.SaveChangesAsync(cancellationToken);
     }

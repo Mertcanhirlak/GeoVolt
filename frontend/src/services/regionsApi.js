@@ -436,14 +436,14 @@ async function getRegionsFromApi() {
   const response = await fetch(`${API_BASE_URL}/api/regions`);
 
   if (!response.ok) {
-    throw new Error(`Regions request failed: ${response.status}`);
+    throw new Error(`Bölge isteği başarısız oldu: ${response.status}`);
   }
 
   const result = await response.json();
   const regionArray = extractArray(result);
 
   if (!regionArray) {
-    throw new Error("Regions API response is invalid.");
+    throw new Error("Bölge sunucusu yanıtı geçersiz.");
   }
 
   return normalizeRegions(regionArray);
@@ -453,14 +453,14 @@ async function getRegionsFromLocalGeoJson() {
   const response = await fetch(LOCAL_MAHALLE_URL);
 
   if (!response.ok) {
-    throw new Error("Local MAHALLE.geojson file could not be loaded.");
+    throw new Error("Yerel MAHALLE.geojson dosyası yüklenemedi.");
   }
 
   const result = await response.json();
   const regionArray = extractArray(result);
 
   if (!regionArray) {
-    throw new Error("Local MAHALLE.geojson response is invalid.");
+    throw new Error("Yerel MAHALLE.geojson yanıtı geçersiz.");
   }
 
   return normalizeRegions(regionArray);
@@ -470,14 +470,14 @@ async function getNeighborhoodsFromApi() {
   const response = await fetch(`${API_BASE_URL}/api/neighborhoods`);
 
   if (!response.ok) {
-    throw new Error(`Neighborhoods request failed: ${response.status}`);
+    throw new Error(`Mahalle isteği başarısız oldu: ${response.status}`);
   }
 
   const result = await response.json();
   const neighborhoodArray = extractArray(result);
 
   if (!neighborhoodArray) {
-    throw new Error("Neighborhoods API response is invalid.");
+    throw new Error("Mahalle sunucusu yanıtı geçersiz.");
   }
 
   return normalizeNeighborhoods(neighborhoodArray);
@@ -487,14 +487,14 @@ async function getNeighborhoodsFromLocalGeoJson() {
   const response = await fetch(LOCAL_MAHALLE_URL);
 
   if (!response.ok) {
-    throw new Error("Local MAHALLE.geojson file could not be loaded.");
+    throw new Error("Yerel MAHALLE.geojson dosyası yüklenemedi.");
   }
 
   const result = await response.json();
   const neighborhoodArray = extractArray(result);
 
   if (!neighborhoodArray) {
-    throw new Error("Local MAHALLE.geojson response is invalid.");
+    throw new Error("Yerel MAHALLE.geojson yanıtı geçersiz.");
   }
 
   return normalizeNeighborhoods(neighborhoodArray);
@@ -577,14 +577,14 @@ export async function getRegionSummary(regionId) {
     const response = await fetch(`${API_BASE_URL}/api/regions/${regionId}/summary`);
 
     if (!response.ok) {
-      throw new Error(`Region summary request failed: ${response.status}`);
+      throw new Error(`Bölge özeti isteği başarısız oldu: ${response.status}`);
     }
 
     const result = await response.json();
     const summaryObject = extractObject(result);
 
     if (!summaryObject) {
-      throw new Error("Region summary response is invalid.");
+      throw new Error("Bölge özeti yanıtı geçersiz.");
     }
 
     return {

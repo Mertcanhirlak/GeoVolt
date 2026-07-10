@@ -18,11 +18,11 @@ async function requestAdmin(path, token, options = {}) {
     }
 
     if (response.status === 403) {
-      throw new Error("Bu işlem için admin yetkisi gerekiyor.");
+      throw new Error("Bu işlem için yönetici yetkisi gerekiyor.");
     }
 
     if (response.status === 404) {
-      throw new Error("Backend bu admin endpointini bulamadı. API'yi yeniden başlatın.");
+      throw new Error("Sunucu bu yönetim işlemini bulamadı. Uygulama sunucusunu yeniden başlatın.");
     }
 
     throw new Error(payload.message || "İşlem tamamlanamadı.");

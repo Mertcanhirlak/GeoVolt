@@ -42,12 +42,12 @@ export default function SavedCandidates({ refreshKey }) {
     setSavedCandidates(result.data || []);
 
     if (result.source === "api-and-local-storage") {
-      setMessage("Kaydedilenler API ve lokal veriden gösteriliyor.");
+      setMessage("Kaydedilenler sunucu ve yerel verilerden gösteriliyor.");
       return;
     }
 
     if (result.source === "local-storage") {
-      setMessage("Kaydedilenler lokal veriden gösteriliyor.");
+      setMessage("Kaydedilenler yerel verilerden gösteriliyor.");
       return;
     }
 
@@ -65,11 +65,11 @@ export default function SavedCandidates({ refreshKey }) {
       );
 
       if (result.source === "api-and-local-storage") {
-        setMessage("Kayıt API ve lokal veriden silindi.");
+        setMessage("Kayıt sunucu ve yerel verilerden silindi.");
         return;
       }
 
-      setMessage("Kayıt lokal veriden silindi.");
+      setMessage("Kayıt yerel verilerden silindi.");
     }
   }
 
