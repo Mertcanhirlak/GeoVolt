@@ -1,0 +1,181 @@
+{
+  "hash": "d5fb2695",
+  "configHash": "6baaa8ca",
+  "lockfileHash": "578c03ef",
+  "browserHash": "90e49cfa",
+  "optimized": {
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "68e37345",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "a5a6cdee",
+      "needsInterop": true
+    },
+    "react-router-dom": {
+      "src": "../../node_modules/react-router-dom/dist/index.mjs",
+      "file": "react-router-dom.js",
+      "fileHash": "0d8e6d32",
+      "needsInterop": false
+    },
+    "ol/Feature": {
+      "src": "../../node_modules/ol/Feature.js",
+      "file": "ol_Feature.js",
+      "fileHash": "71ed584a",
+      "needsInterop": false
+    },
+    "ol/Map": {
+      "src": "../../node_modules/ol/Map.js",
+      "file": "ol_Map.js",
+      "fileHash": "7ba96439",
+      "needsInterop": false
+    },
+    "ol/View": {
+      "src": "../../node_modules/ol/View.js",
+      "file": "ol_View.js",
+      "fileHash": "472ab578",
+      "needsInterop": false
+    },
+    "ol/format/GeoJSON": {
+      "src": "../../node_modules/ol/format/GeoJSON.js",
+      "file": "ol_format_GeoJSON.js",
+      "fileHash": "599aa8e9",
+      "needsInterop": false
+    },
+    "ol/geom/Point": {
+      "src": "../../node_modules/ol/geom/Point.js",
+      "file": "ol_geom_Point.js",
+      "fileHash": "9ebd3386",
+      "needsInterop": false
+    },
+    "ol/layer/Tile": {
+      "src": "../../node_modules/ol/layer/Tile.js",
+      "file": "ol_layer_Tile.js",
+      "fileHash": "06d44bd0",
+      "needsInterop": false
+    },
+    "ol/layer/Vector": {
+      "src": "../../node_modules/ol/layer/Vector.js",
+      "file": "ol_layer_Vector.js",
+      "fileHash": "e19c288f",
+      "needsInterop": false
+    },
+    "ol/proj": {
+      "src": "../../node_modules/ol/proj.js",
+      "file": "ol_proj.js",
+      "fileHash": "e21d8808",
+      "needsInterop": false
+    },
+    "ol/source/OSM": {
+      "src": "../../node_modules/ol/source/OSM.js",
+      "file": "ol_source_OSM.js",
+      "fileHash": "c2c721a2",
+      "needsInterop": false
+    },
+    "ol/source/Vector": {
+      "src": "../../node_modules/ol/source/Vector.js",
+      "file": "ol_source_Vector.js",
+      "fileHash": "da412c95",
+      "needsInterop": false
+    },
+    "ol/style": {
+      "src": "../../node_modules/ol/style.js",
+      "file": "ol_style.js",
+      "fileHash": "57f884ad",
+      "needsInterop": false
+    },
+    "lucide-react": {
+      "src": "../../node_modules/lucide-react/dist/esm/lucide-react.mjs",
+      "file": "lucide-react.js",
+      "fileHash": "b59607f9",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "chunk-NPF4YR4A": {
+      "file": "chunk-NPF4YR4A.js"
+    },
+    "chunk-VRUVF5VK": {
+      "file": "chunk-VRUVF5VK.js"
+    },
+    "chunk-V7QO5WW4": {
+      "file": "chunk-V7QO5WW4.js"
+    },
+    "chunk-XTBWPNTP": {
+      "file": "chunk-XTBWPNTP.js"
+    },
+    "chunk-WSPQGYBW": {
+      "file": "chunk-WSPQGYBW.js"
+    },
+    "chunk-GXQ5JSN7": {
+      "file": "chunk-GXQ5JSN7.js"
+    },
+    "chunk-3TH2XOAI": {
+      "file": "chunk-3TH2XOAI.js"
+    },
+    "chunk-BW6UQ3IW": {
+      "file": "chunk-BW6UQ3IW.js"
+    },
+    "chunk-EKHUD4D6": {
+      "file": "chunk-EKHUD4D6.js"
+    },
+    "chunk-W7CO3KP4": {
+      "file": "chunk-W7CO3KP4.js"
+    },
+    "chunk-2J7BOOUT": {
+      "file": "chunk-2J7BOOUT.js"
+    },
+    "chunk-LFESUI5B": {
+      "file": "chunk-LFESUI5B.js"
+    },
+    "chunk-VLTZGDTC": {
+      "file": "chunk-VLTZGDTC.js"
+    },
+    "chunk-GXWGLM7L": {
+      "file": "chunk-GXWGLM7L.js"
+    },
+    "chunk-6Q2KMQAW": {
+      "file": "chunk-6Q2KMQAW.js"
+    },
+    "chunk-QBUEIRCB": {
+      "file": "chunk-QBUEIRCB.js"
+    },
+    "chunk-KGS34AF4": {
+      "file": "chunk-KGS34AF4.js"
+    },
+    "chunk-FMNGDYBL": {
+      "file": "chunk-FMNGDYBL.js"
+    },
+    "chunk-7BZNLASL": {
+      "file": "chunk-7BZNLASL.js"
+    },
+    "chunk-VUDXURHU": {
+      "file": "chunk-VUDXURHU.js"
+    },
+    "chunk-GOEGMZQM": {
+      "file": "chunk-GOEGMZQM.js"
+    },
+    "chunk-CQGYTO3N": {
+      "file": "chunk-CQGYTO3N.js"
+    },
+    "chunk-YNSLHB4D": {
+      "file": "chunk-YNSLHB4D.js"
+    },
+    "chunk-Z6D76LLD": {
+      "file": "chunk-Z6D76LLD.js"
+    },
+    "chunk-M2SNNX63": {
+      "file": "chunk-M2SNNX63.js"
+    },
+    "chunk-R5DNHDJW": {
+      "file": "chunk-R5DNHDJW.js"
+    },
+    "chunk-DC5AMYBS": {
+      "file": "chunk-DC5AMYBS.js"
+    }
+  }
+}

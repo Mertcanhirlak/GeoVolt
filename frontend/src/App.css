@@ -821,6 +821,11 @@ body {
   color: #111827;
 }
 
+.home-map-search {
+  width: 32%;
+  max-width: 620px;
+}
+
 /* Filtre paneli ekrandan taşmasın */
 .map-filter-overlay {
   position: absolute;

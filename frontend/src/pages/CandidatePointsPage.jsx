@@ -283,7 +283,7 @@ export default function CandidatePointsPage() {
           <section className="map-screen" data-testid="home-map-screen">
             <div className="map-topbar">
               <input
-                className="map-search"
+                className="map-search home-map-search"
                 data-testid="home-search-input"
                 placeholder="Adres veya mahalle ara"
                 value={stationSearch}

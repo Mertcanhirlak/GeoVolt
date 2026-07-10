@@ -56,6 +56,12 @@ function normalizeStation(station, regionLookup = new Map()) {
   const regionName = station.regionName || regionLookup.get(station.regionId);
   const connectorText = formatConnectors(station.connectors);
   const powerText = formatPower(station.connectors);
+  const latitude = Number(station.latitude);
+  const longitude = Number(station.longitude);
+  const coordinateText =
+    Number.isFinite(latitude) && Number.isFinite(longitude)
+      ? `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`
+      : "Koordinat yok";
 
   return {
     id: station.id,
@@ -63,11 +69,18 @@ function normalizeStation(station, regionLookup = new Map()) {
     district: station.district || "Cankaya",
     neighborhood: station.neighborhood || regionName || "Bolge bilgisi yok",
     address: station.address || `${station.neighborhood || regionName || "Cankaya"}, Ankara`,
-    latitude: Number(station.latitude),
-    longitude: Number(station.longitude),
+    latitude,
+    longitude,
+    coordinateText,
+    company:
+      station.companyName ||
+      station.operatorName ||
+      station.company ||
+      station.operator ||
+      "Firma bilgisi yok",
     socketType: station.socketType || station.connectorType || connectorText || "Soket bilgisi yok",
     status,
-    power: station.power || powerText || station.operatorName || "Guc bilgisi yok",
+    power: station.power || station.powerCapacity || powerText || "Guc bilgisi yok",
   };
 }
 
@@ -186,6 +199,9 @@ export default function ExistingStationsMap({ searchTerm = "", mapStep = 1 }) {
   const [loadingDetailId, setLoadingDetailId] = useState(null);
   const [loadingRegionSummary, setLoadingRegionSummary] = useState(false);
   const [regionsActive, setRegionsActive] = useState(false);
+  const [isLoadingMapData, setIsLoadingMapData] = useState(false);
+  const [mapNotice, setMapNotice] = useState("");
+  const [mapNoticeTone, setMapNoticeTone] = useState("info");
 
   const visibleStations = useMemo(() => {
     return stations.filter((station) => matchesSearch(station, searchTerm));
@@ -272,23 +288,36 @@ export default function ExistingStationsMap({ searchTerm = "", mapStep = 1 }) {
     let isMounted = true;
 
     async function loadMapData() {
+      setIsLoadingMapData(true);
+      setMapNotice("Harita verileri yukleniyor...");
+      setMapNoticeTone("info");
+
       try {
         const [stationData, regionData] = await Promise.all([getChargingStations(), getRegions()]);
 
         if (!isMounted) return;
 
+        const safeStations = Array.isArray(stationData) ? stationData : [];
         const safeRegions = Array.isArray(regionData) ? regionData : [];
         const regionLookup = new Map(safeRegions.map((region) => [region.id, region.name]));
 
         setRegions(safeRegions);
-        setStations(stationData.map((station) => normalizeStation(station, regionLookup)));
+        setStations(safeStations.map((station) => normalizeStation(station, regionLookup)));
         setSource("api");
+        setMapNotice(safeStations.length === 0 ? "Mevcut istasyon verisi bulunamadi." : "");
+        setMapNoticeTone(safeStations.length === 0 ? "warning" : "info");
       } catch {
         if (!isMounted) return;
 
         setRegions([]);
         setStations(mockChargingStations);
         setSource("mock");
+        setMapNotice("Canli veri alinamadi. Mock veri gosteriliyor.");
+        setMapNoticeTone("warning");
+      } finally {
+        if (isMounted) {
+          setIsLoadingMapData(false);
+        }
       }
     }
 
@@ -437,10 +466,19 @@ export default function ExistingStationsMap({ searchTerm = "", mapStep = 1 }) {
         getChargingStations(regionId),
       ]);
       const regionLookup = new Map(latestRef.current.regions.map((item) => [item.id, item.name]));
+      const safeStationData = Array.isArray(stationData) ? stationData : [];
 
       setRegionSummary(summary);
-      setStations(stationData.map((station) => normalizeStation(station, regionLookup)));
+      setStations(safeStationData.map((station) => normalizeStation(station, regionLookup)));
+      setMapNotice(
+        safeStationData.length === 0
+          ? `${region.name} bolgesinde istasyon bulunamadi.`
+          : ""
+      );
+      setMapNoticeTone(safeStationData.length === 0 ? "warning" : "info");
     } catch {
+      setMapNotice("Bolge ozeti veya istasyon verisi alinamadi.");
+      setMapNoticeTone("error");
       setRegionSummary({
         regionId,
         regionName: region.name,
@@ -482,9 +520,14 @@ export default function ExistingStationsMap({ searchTerm = "", mapStep = 1 }) {
     try {
       const stationData = await getChargingStations();
       const regionLookup = new Map(latestRef.current.regions.map((item) => [item.id, item.name]));
-      setStations(stationData.map((station) => normalizeStation(station, regionLookup)));
+      const safeStationData = Array.isArray(stationData) ? stationData : [];
+      setStations(safeStationData.map((station) => normalizeStation(station, regionLookup)));
+      setMapNotice(safeStationData.length === 0 ? "Mevcut istasyon verisi bulunamadi." : "");
+      setMapNoticeTone(safeStationData.length === 0 ? "warning" : "info");
     } catch {
       setStations(mockChargingStations);
+      setMapNotice("Canli veri alinamadi. Mock veri gosteriliyor.");
+      setMapNoticeTone("warning");
     }
   }
 
@@ -499,6 +542,19 @@ export default function ExistingStationsMap({ searchTerm = "", mapStep = 1 }) {
     });
   }
 
+  function handleRegionSelect(event) {
+    const regionId = Number(event.target.value);
+
+    if (!regionId) {
+      setRegionsActive(false);
+      clearRegionSelection(true);
+      return;
+    }
+
+    setRegionsActive(true);
+    selectRegion(regionId);
+  }
+
   return (
     <div className="existing-map" data-testid="existing-stations-map">
       <div ref={mapElementRef} className="openlayers-map" />
@@ -508,6 +564,14 @@ export default function ExistingStationsMap({ searchTerm = "", mapStep = 1 }) {
         {regionsActive && !selectedRegion && "Bolgeler aktif"}
         {regionsActive && selectedRegion && "Bolge detayi"}
       </div>
+
+      {(isLoadingMapData || mapNotice || visibleStations.length === 0) && (
+        <div className={`existing-map-notice ${mapNoticeTone}`}>
+          {isLoadingMapData
+            ? "Harita verileri yukleniyor..."
+            : mapNotice || "Goruntulenecek istasyon bulunamadi."}
+        </div>
+      )}
 
       <button
         type="button"
@@ -519,6 +583,22 @@ export default function ExistingStationsMap({ searchTerm = "", mapStep = 1 }) {
         <span>Bolgeler: {regionsActive ? "Aktif" : "Inaktif"}</span>
         <i aria-hidden="true" />
       </button>
+
+      <label className="existing-region-select" aria-label="Mahalle veya bolge sec">
+        <span>Mahalle / Bolge</span>
+        <select
+          value={selectedRegion?.id || ""}
+          onChange={handleRegionSelect}
+          disabled={regions.length === 0}
+        >
+          <option value="">Tum alanlar</option>
+          {regions.map((region) => (
+            <option key={region.id} value={region.id}>
+              {region.name}
+            </option>
+          ))}
+        </select>
+      </label>
 
       {regionsActive && selectedRegion && (
         <>
@@ -535,7 +615,7 @@ export default function ExistingStationsMap({ searchTerm = "", mapStep = 1 }) {
                 <dl>
                   <div>
                     <dt>Istasyon</dt>
-                    <dd>{regionSummary?.chargingStationCount ?? 0}</dd>
+                    <dd>{regionSummary?.chargingStationCount ?? "Veri yok"}</dd>
                   </div>
                   <div>
                     <dt>Trafik</dt>
@@ -600,6 +680,14 @@ export default function ExistingStationsMap({ searchTerm = "", mapStep = 1 }) {
             <p>{selectedStation.address}</p>
 
             <dl>
+              <div>
+                <dt>Firma</dt>
+                <dd>{loadingDetailId === selectedStation.id ? "Yukleniyor..." : selectedStation.company}</dd>
+              </div>
+              <div>
+                <dt>Koordinat</dt>
+                <dd>{selectedStation.coordinateText}</dd>
+              </div>
               <div>
                 <dt>Soket</dt>
                 <dd>{loadingDetailId === selectedStation.id ? "Yukleniyor..." : selectedStation.socketType}</dd>

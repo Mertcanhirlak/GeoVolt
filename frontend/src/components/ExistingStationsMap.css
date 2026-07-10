@@ -18,7 +18,7 @@
 .existing-station-popup {
   position: absolute;
   z-index: 8;
-  width: min(286px, calc(100vw - 112px));
+  width: min(326px, calc(100vw - 112px));
   padding: 14px 16px;
   color: #111827;
   background: rgba(255, 255, 255, 0.97);
@@ -61,8 +61,8 @@
 
 .existing-station-popup dl {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(82px, 0.75fr);
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 14px;
   margin: 0;
 }
 
@@ -171,7 +171,7 @@
 .region-back-button {
   position: absolute;
   right: 34px;
-  bottom: 64px;
+  bottom: 84px;
   z-index: 7;
   margin: 0;
   padding: 10px 16px;
@@ -258,6 +258,35 @@
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
 }
 
+.existing-map-notice {
+  position: absolute;
+  left: 18px;
+  top: 122px;
+  z-index: 9;
+  max-width: min(360px, calc(100vw - 128px));
+  padding: 10px 14px;
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(203, 213, 225, 0.95);
+  border-radius: 18px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
+  backdrop-filter: blur(10px);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.existing-map-notice.warning {
+  color: #713f12;
+  background: rgba(254, 249, 195, 0.96);
+  border-color: rgba(250, 204, 21, 0.7);
+}
+
+.existing-map-notice.error {
+  color: #7f1d1d;
+  background: rgba(254, 226, 226, 0.96);
+  border-color: rgba(248, 113, 113, 0.72);
+}
+
 .existing-region-toggle {
   position: absolute;
   top: 26px;
@@ -324,6 +353,76 @@
 .existing-region-toggle.active i::after {
   transform: translateX(20px);
 }
+.existing-region-select {
+  position: absolute;
+  top: 26px;
+  right: 250px;
+  z-index: 9;
+  width: 280px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 24px; /* 🌟 Arayı açmak için 12px'den 24px'e çıkardık */
+  padding: 0 13px 0 15px;
+  color: #111827;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  border-radius: 999px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
+  backdrop-filter: blur(10px);
+}
+
+.existing-region-select span {
+  display: inline-flex;
+  align-items: center;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+  font-family: inherit; 
+}
+
+.existing-region-select select {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  color: #0f172a;
+  background: transparent;
+  border: none;
+  outline: none;
+  
+  font-family: inherit; 
+  font-size: 12px;      
+  font-weight: 900;     
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+
+  padding: 0 24px 0 0; 
+  margin: 0;
+  box-sizing: border-box;
+  
+  position: relative;
+  top: -1px; 
+}
+
+.existing-region-select::after {
+  content: "";
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #0f172a;
+  border-bottom: 2px solid #0f172a;
+  pointer-events: none;
+  transform: translateY(-65%) rotate(45deg);
+}
+
+.existing-region-select select:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
 
 @media (max-width: 760px) {
   .region-summary-card {
@@ -357,6 +456,13 @@
     top: 72px;
   }
 
+  .existing-map-notice {
+    left: 14px;
+    right: 14px;
+    top: 164px;
+    max-width: none;
+  }
+
   .existing-region-toggle {
     top: 76px;
     right: 14px;
@@ -377,5 +483,20 @@
 
   .existing-region-toggle.active i::after {
     transform: translateX(16px);
+  }
+
+  .existing-region-select {
+    top: 118px;
+    right: 14px;
+    left: 14px;
+    width: auto;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 1100px) and (min-width: 761px) {
+  .existing-region-select {
+    top: 74px;
+    right: 28px;
   }
 }
