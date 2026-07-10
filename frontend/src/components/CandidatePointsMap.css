@@ -1,6 +1,8 @@
 .candidate-points-map {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   background: #dbeafe;
 }
@@ -8,6 +10,8 @@
 .candidate-points-map-canvas {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   background: #dbeafe;
 }
 
@@ -226,8 +230,6 @@
   background: #2563eb;
   border-radius: 999px;
 }
-
-/* POI ve Trafo detay popupı */
 
 .candidate-layer-detail-popup {
   position: absolute;

@@ -1,0 +1,260 @@
+/*
+ * Harita üst çubuğunun üzerindeki arama alanlarının
+ * fare ve klavye olaylarını almasını sağlar.
+ */
+.map-topbar {
+  overflow: visible;
+  z-index: 100;
+}
+
+.candidate-search-shell,
+.home-search-shell {
+  position: relative;
+  z-index: 110;
+  flex: 1 1 auto;
+  min-width: 0;
+
+  /*
+   * Harita katmanına geçen tıklamaları engeller.
+   */
+  pointer-events: auto;
+  isolation: isolate;
+}
+
+.candidate-search-shell
+  .candidate-search-input,
+.home-search-shell
+  .home-search-input {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  padding-right: 42px;
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+.candidate-search-clear-button {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 25px;
+  padding: 0;
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 50%;
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  transform: translateY(-50%);
+}
+
+.candidate-search-clear-button:hover {
+  color: #0f172a;
+  background: #e2e8f0;
+  border-color: #94a3b8;
+}
+
+.candidate-search-clear-button:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.22);
+  outline-offset: 2px;
+}
+
+.candidate-search-suggestions {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  left: 0;
+
+  /*
+   * Filtre paneli ve OpenLayers haritasının
+   * üstünde kalmasını sağlar.
+   */
+  z-index: 9999;
+
+  display: block;
+  max-height: 310px;
+  padding: 7px;
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  background: rgba(255, 255, 255, 0.99);
+  border: 1px solid rgba(148, 163, 184, 0.55);
+  border-radius: 12px;
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.22);
+
+  scrollbar-width: thin;
+
+  /*
+   * Liste tıklamalarının haritaya geçmesini engeller.
+   */
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.candidate-search-suggestions::-webkit-scrollbar {
+  width: 6px;
+}
+
+.candidate-search-suggestions::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.42);
+  border-radius: 999px;
+}
+
+.candidate-search-suggestion {
+  position: relative;
+  z-index: 1;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+
+  width: 100%;
+  margin: 0;
+  padding: 10px 11px;
+
+  color: #0f172a;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+
+  font-family: inherit;
+  text-align: left;
+
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.candidate-search-suggestion:hover,
+.candidate-search-suggestion.active {
+  background: #eff6ff;
+}
+
+.candidate-search-suggestion:active {
+  background: #dbeafe;
+}
+
+.candidate-search-suggestion:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+}
+
+.candidate-search-suggestion-main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  pointer-events: none;
+}
+
+.candidate-search-suggestion-main strong {
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.candidate-search-suggestion-main small {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.candidate-search-suggestion em {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  color: #1d4ed8;
+  background: #dbeafe;
+  border-radius: 999px;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 900;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.candidate-search-suggestion[
+  data-testid*="station"
+] em {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.candidate-search-suggestion[
+  data-testid*="poi"
+] em {
+  color: #ffffff;
+  background: #0f172a;
+}
+
+.candidate-search-suggestion[
+  data-testid*="trafo"
+] em {
+  color: #ffffff;
+  background: #ea580c;
+}
+
+.candidate-search-suggestion[
+  data-testid*="road"
+] em {
+  color: #ffffff;
+  background: #2563eb;
+}
+
+.candidate-search-suggestion[
+  data-testid*="place"
+] em {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.candidate-search-empty {
+  padding: 14px 12px;
+  color: #64748b;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  pointer-events: auto;
+}
+
+/*
+ * Sağdaki bölge aktif/pasif düğmesinin de
+ * harita üzerinde tıklanabilir kalmasını sağlar.
+ */
+.map-topbar .region-toggle {
+  position: relative;
+  z-index: 111;
+  pointer-events: auto;
+}
+
+@media (max-width: 760px) {
+  .candidate-search-suggestions {
+    max-height: 240px;
+  }
+
+  .candidate-search-suggestion {
+    padding: 9px;
+  }
+
+  .candidate-search-suggestion-main small {
+    white-space: normal;
+  }
+}

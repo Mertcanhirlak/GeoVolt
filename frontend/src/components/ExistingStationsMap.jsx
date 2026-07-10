@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
 import Feature from "ol/Feature";
 import OlMap from "ol/Map";
 import View from "ol/View";
@@ -6,9 +12,17 @@ import GeoJSON from "ol/format/GeoJSON";
 import Point from "ol/geom/Point";
 import TileLayer from "ol/layer/Tile";
 import VectorLayer from "ol/layer/Vector";
+
 import "ol/ol.css";
-import { getCenter } from "ol/extent";
-import { fromLonLat } from "ol/proj";
+
+import {
+  getCenter,
+} from "ol/extent";
+
+import {
+  fromLonLat,
+} from "ol/proj";
+
 import Cluster from "ol/source/Cluster";
 import OSM from "ol/source/OSM";
 import VectorSource from "ol/source/Vector";
@@ -22,7 +36,9 @@ import {
   Text,
 } from "ol/style";
 
-import { mockChargingStations } from "../data/mockChargingStations";
+import {
+  mockChargingStations,
+} from "../data/mockChargingStations";
 
 import {
   getChargingStationDetail,
@@ -44,14 +60,13 @@ const GEOJSON_URLS = {
   road: "/data/YOL.geojson",
 };
 
-/*
- * Bölge isimleri bu çözünürlük değerinin altında görünür.
- * Yaklaşık olarak zoom 13 ve üzerindeki seviyelere karşılık gelir.
- */
-const REGION_LABEL_MAX_RESOLUTION = 24;
+const REGION_LABEL_MAX_RESOLUTION =
+  24;
 
 const PLACE_SEARCH_PRESETS = [
   {
+    id: "odtu",
+    label: "ODTÜ",
     aliases: [
       "odtu",
       "odtü",
@@ -65,6 +80,8 @@ const PLACE_SEARCH_PRESETS = [
     zoom: 15.7,
   },
   {
+    id: "bilkent",
+    label: "Bilkent Üniversitesi",
     aliases: [
       "bilkent",
       "bilkent universitesi",
@@ -75,6 +92,8 @@ const PLACE_SEARCH_PRESETS = [
     zoom: 15.5,
   },
   {
+    id: "hacettepe",
+    label: "Hacettepe Beytepe",
     aliases: [
       "hacettepe",
       "hacettepe beytepe",
@@ -86,6 +105,8 @@ const PLACE_SEARCH_PRESETS = [
     zoom: 15.5,
   },
   {
+    id: "kizilay",
+    label: "Kızılay",
     aliases: [
       "kizilay",
       "kızılay",
@@ -95,14 +116,16 @@ const PLACE_SEARCH_PRESETS = [
     zoom: 16,
   },
   {
-    aliases: [
-      "ulus",
-    ],
+    id: "ulus",
+    label: "Ulus",
+    aliases: ["ulus"],
     longitude: 32.8548,
     latitude: 39.9415,
     zoom: 16,
   },
   {
+    id: "bahcelievler",
+    label: "Bahçelievler",
     aliases: [
       "bahcelievler",
       "bahçelievler",
@@ -112,17 +135,17 @@ const PLACE_SEARCH_PRESETS = [
     zoom: 15.5,
   },
   {
-    aliases: [
-      "dikmen",
-    ],
+    id: "dikmen",
+    label: "Dikmen",
+    aliases: ["dikmen"],
     longitude: 32.8403,
     latitude: 39.8873,
     zoom: 15.5,
   },
   {
-    aliases: [
-      "cebeci",
-    ],
+    id: "cebeci",
+    label: "Cebeci",
+    aliases: ["cebeci"],
     longitude: 32.8782,
     latitude: 39.9263,
     zoom: 15.5,
@@ -138,18 +161,22 @@ const regionColors = [
   "rgba(45, 212, 191, 0.5)",
 ];
 
-const regionStyleCache = new Map();
-const poiClusterStyleCache = new Map();
-const trafoClusterStyleCache = new Map();
+const regionStyleCache =
+  new Map();
+
+const poiClusterStyleCache =
+  new Map();
+
+const trafoClusterStyleCache =
+  new Map();
 
 const singlePoiStyle = new Style({
   image: new CircleStyle({
     radius: 3.5,
-
     fill: new Fill({
-      color: "rgba(15, 23, 42, 0.92)",
+      color:
+        "rgba(15, 23, 42, 0.92)",
     }),
-
     stroke: new Stroke({
       color: "#ffffff",
       width: 1,
@@ -157,24 +184,25 @@ const singlePoiStyle = new Style({
   }),
 });
 
-const singleTrafoStyle = new Style({
-  image: new CircleStyle({
-    radius: 4,
-
-    fill: new Fill({
-      color: "rgba(234, 88, 12, 0.94)",
+const singleTrafoStyle =
+  new Style({
+    image: new CircleStyle({
+      radius: 4,
+      fill: new Fill({
+        color:
+          "rgba(234, 88, 12, 0.94)",
+      }),
+      stroke: new Stroke({
+        color: "#ffffff",
+        width: 1,
+      }),
     }),
-
-    stroke: new Stroke({
-      color: "#ffffff",
-      width: 1,
-    }),
-  }),
-});
+  });
 
 const roadStyle = new Style({
   stroke: new Stroke({
-    color: "rgba(37, 99, 235, 0.38)",
+    color:
+      "rgba(37, 99, 235, 0.38)",
     width: 1.2,
   }),
 });
@@ -183,25 +211,57 @@ function normalizeText(value) {
   return String(value ?? "")
     .toLocaleLowerCase("tr-TR")
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(
+      /[\u0300-\u036f]/g,
+      ""
+    )
     .replace(/ı/g, "i")
-    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(
+      /[^a-z0-9\s]/g,
+      " "
+    )
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function findPreset(searchValue) {
-  const normalizedSearch =
-    normalizeText(searchValue);
+function getSearchMatchScore(
+  value,
+  normalizedSearch
+) {
+  const normalizedValue =
+    normalizeText(value);
 
-  return PLACE_SEARCH_PRESETS.find(
-    (preset) =>
-      preset.aliases.some(
-        (alias) =>
-          normalizeText(alias) ===
-          normalizedSearch
-      )
-  );
+  if (
+    !normalizedValue ||
+    !normalizedSearch
+  ) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  if (
+    normalizedValue ===
+    normalizedSearch
+  ) {
+    return 0;
+  }
+
+  if (
+    normalizedValue.startsWith(
+      normalizedSearch
+    )
+  ) {
+    return 1;
+  }
+
+  if (
+    normalizedValue.includes(
+      normalizedSearch
+    )
+  ) {
+    return 2;
+  }
+
+  return Number.POSITIVE_INFINITY;
 }
 
 function createClusterStyle(
@@ -246,13 +306,11 @@ function createClusterStyle(
   const style = new Style({
     image: new CircleStyle({
       radius,
-
       fill: new Fill({
         color: isPoi
           ? "rgba(15, 23, 42, 0.9)"
           : "rgba(234, 88, 12, 0.92)",
       }),
-
       stroke: new Stroke({
         color: "#ffffff",
         width: 2,
@@ -261,16 +319,14 @@ function createClusterStyle(
 
     text: new Text({
       text: String(size),
-
       fill: new Fill({
         color: "#ffffff",
       }),
-
       stroke: new Stroke({
-        color: "rgba(0, 0, 0, 0.8)",
+        color:
+          "rgba(0, 0, 0, 0.8)",
         width: 2,
       }),
-
       font: "bold 11px Arial",
     }),
   });
@@ -280,7 +336,9 @@ function createClusterStyle(
   return style;
 }
 
-function formatConnectors(connectors = []) {
+function formatConnectors(
+  connectors = []
+) {
   if (
     !Array.isArray(connectors) ||
     connectors.length === 0
@@ -300,7 +358,9 @@ function formatConnectors(connectors = []) {
     .join(" + ");
 }
 
-function formatPower(connectors = []) {
+function formatPower(
+  connectors = []
+) {
   if (
     !Array.isArray(connectors) ||
     connectors.length === 0
@@ -311,7 +371,9 @@ function formatPower(connectors = []) {
   const maxPower = Math.max(
     ...connectors.map(
       (connector) =>
-        Number(connector.powerKw) || 0
+        Number(
+          connector.powerKw
+        ) || 0
     )
   );
 
@@ -351,23 +413,23 @@ function normalizeStation(
 
     name:
       station.name ||
-      "Sarj Istasyonu",
+      "Şarj İstasyonu",
 
     district:
       station.district ||
-      "Cankaya",
+      "Çankaya",
 
     neighborhood:
       station.neighborhood ||
       regionName ||
-      "Bolge bilgisi yok",
+      "Bölge bilgisi yok",
 
     address:
       station.address ||
       `${
         station.neighborhood ||
         regionName ||
-        "Cankaya"
+        "Çankaya"
       }, Ankara`,
 
     latitude:
@@ -392,35 +454,8 @@ function normalizeStation(
       station.power ||
       powerText ||
       station.operatorName ||
-      "Guc bilgisi yok",
+      "Güç bilgisi yok",
   };
-}
-
-function stationMatchesSearch(
-  station,
-  searchTerm
-) {
-  const normalizedSearch =
-    normalizeText(searchTerm);
-
-  if (!normalizedSearch) {
-    return true;
-  }
-
-  const searchableText =
-    normalizeText(
-      [
-        station.name,
-        station.district,
-        station.neighborhood,
-        station.address,
-        station.socketType,
-      ].join(" ")
-    );
-
-  return searchableText.includes(
-    normalizedSearch
-  );
 }
 
 function createPinStyle(
@@ -445,7 +480,11 @@ function createPinStyle(
           >
             <path
               d="M15 36s12-11.5 12-22A12 12 0 1 0 3 14c0 10.5 12 22 12 22z"
-              fill="${isSelected ? "#2563eb" : color}"
+              fill="${
+                isSelected
+                  ? "#2563eb"
+                  : color
+              }"
               stroke="white"
               stroke-width="3"
             />
@@ -485,13 +524,12 @@ function createStationFeature(
 
   const feature =
     new Feature({
-      geometry:
-        new Point(
-          fromLonLat([
-            station.longitude,
-            station.latitude,
-          ])
-        ),
+      geometry: new Point(
+        fromLonLat([
+          station.longitude,
+          station.latitude,
+        ])
+      ),
 
       station,
 
@@ -510,21 +548,19 @@ function createStationFeature(
   return feature;
 }
 
-/*
- * Ev haritasında isimler:
- * - Uzak görünümde gizlidir.
- * - Yakınlaşınca görünür.
- * - Seçilen bölgenin adı her zaman görünür.
- */
 function createRegionStyle(
   feature,
   resolution
 ) {
   const index =
-    feature.get("regionIndex") ?? 0;
+    feature.get(
+      "regionIndex"
+    ) ?? 0;
 
   const isSelected =
-    feature.get("selected") === true;
+    feature.get(
+      "selected"
+    ) === true;
 
   const regionName =
     feature.get("name") ||
@@ -537,18 +573,24 @@ function createRegionStyle(
       REGION_LABEL_MAX_RESOLUTION;
 
   const cacheKey = [
-    index % regionColors.length,
+    index %
+      regionColors.length,
+
     isSelected
       ? "selected"
       : "default",
+
     showLabel
       ? "label"
       : "no-label",
+
     regionName,
   ].join("-");
 
   if (
-    regionStyleCache.has(cacheKey)
+    regionStyleCache.has(
+      cacheKey
+    )
   ) {
     return regionStyleCache.get(
       cacheKey
@@ -589,11 +631,6 @@ function createRegionStyle(
             color: "#0f172a",
           }),
 
-          /*
-           * Beyaz kutu kaldırıldı.
-           * Bu stroke yalnızca harflerin çevresinde
-           * ince bir okunabilirlik çizgisi oluşturur.
-           */
           stroke: new Stroke({
             color:
               "rgba(255, 255, 255, 0.92)",
@@ -603,7 +640,12 @@ function createRegionStyle(
               : 3,
           }),
 
-          padding: [0, 0, 0, 0],
+          padding: [
+            0,
+            0,
+            0,
+            0,
+          ],
         })
       : undefined,
   });
@@ -616,7 +658,9 @@ function createRegionStyle(
   return style;
 }
 
-function createRegionFeatures(regions) {
+function createRegionFeatures(
+  regions
+) {
   const parser =
     new GeoJSON();
 
@@ -683,7 +727,7 @@ function createRegionFeatures(regions) {
         );
       } catch (error) {
         console.error(
-          `${region.name} bolge GeoJSON verisi okunamadi:`,
+          `${region.name} bölge GeoJSON verisi okunamadı:`,
           error
         );
 
@@ -702,7 +746,7 @@ async function loadGeoJsonFeatures(
 
   if (!response.ok) {
     throw new Error(
-      `${url} yuklenemedi. HTTP ${response.status}`
+      `${url} yüklenemedi. HTTP ${response.status}`
     );
   }
 
@@ -798,103 +842,248 @@ function getClusterExtent(
   return extent;
 }
 
-function featureContainsText(
+function getFeatureProperty(
   feature,
-  searchValue
+  propertyNames
 ) {
-  const normalizedSearch =
-    normalizeText(searchValue);
-
-  const properties =
-    feature.getProperties();
-
-  return Object.entries(
-    properties
-  ).some(([key, value]) => {
-    if (
-      key === "geometry" ||
-      value === null ||
-      value === undefined ||
-      typeof value === "object"
-    ) {
-      return false;
-    }
-
-    return normalizeText(
-      value
-    ).includes(
-      normalizedSearch
-    );
-  });
-}
-
-function getPoiName(feature) {
-  return (
-    feature.get("NAME") ||
-    feature.get("name") ||
-    ""
-  );
-}
-
-function findBestPoiFeature(
-  features,
-  searchValue
-) {
-  const normalizedSearch =
-    normalizeText(searchValue);
-
-  const matches =
-    features
-      .map((feature) => {
-        const poiName =
-          normalizeText(
-            getPoiName(feature)
-          );
-
-        let score = 0;
-
-        if (
-          poiName ===
-          normalizedSearch
-        ) {
-          score = 1000;
-        } else if (
-          poiName.startsWith(
-            normalizedSearch
-          )
-        ) {
-          score = 750;
-        } else if (
-          poiName.includes(
-            normalizedSearch
-          )
-        ) {
-          score = 500;
-        }
-
-        return {
-          feature,
-          score,
-        };
-      })
-      .filter(
-        (item) =>
-          item.score > 0
-      )
-      .sort(
-        (first, second) =>
-          second.score -
-          first.score
+  for (
+    const propertyName
+    of propertyNames
+  ) {
+    const value =
+      feature.get(
+        propertyName
       );
 
-  return (
-    matches[0]?.feature ||
-    null
+    if (
+      value !== null &&
+      value !== undefined &&
+      String(value).trim() !== ""
+    ) {
+      return String(
+        value
+      ).trim();
+    }
+  }
+
+  return "";
+}
+
+function getFeatureSearchText(
+  feature
+) {
+  return Object.entries(
+    feature.getProperties()
+  )
+    .filter(
+      ([key, value]) =>
+        key !== "geometry" &&
+        value !== null &&
+        value !== undefined &&
+        typeof value !==
+          "object"
+    )
+    .map(
+      ([, value]) =>
+        String(value)
+    )
+    .join(" ");
+}
+
+function getFeatureDisplayName(
+  feature,
+  featureType,
+  index
+) {
+  const propertyNames =
+    featureType === "road"
+      ? [
+          "NAME",
+          "name",
+          "Name",
+          "ROAD_NAME",
+          "roadName",
+          "YOL_ADI",
+          "YOLADI",
+        ]
+      : [
+          "NAME",
+          "name",
+          "Name",
+        ];
+
+  const name =
+    getFeatureProperty(
+      feature,
+      propertyNames
+    );
+
+  if (name) {
+    return name;
+  }
+
+  const id =
+    getFeatureProperty(
+      feature,
+      [
+        "ID",
+        "id",
+        "Id",
+      ]
+    );
+
+  if (featureType === "poi") {
+    return id
+      ? `POI ${id}`
+      : `POI ${index + 1}`;
+  }
+
+  if (
+    featureType === "trafo"
+  ) {
+    return id
+      ? `Trafo ${id}`
+      : `Trafo ${index + 1}`;
+  }
+
+  return id
+    ? `Yol ${id}`
+    : `Yol ${index + 1}`;
+}
+
+function createFeatureSuggestions(
+  features,
+  featureType,
+  normalizedSearch
+) {
+  const typeLabels = {
+    poi: "POI",
+    trafo: "Trafo",
+    road: "Yol",
+  };
+
+  const suggestions = [];
+
+  features.forEach(
+    (feature, index) => {
+      const label =
+        getFeatureDisplayName(
+          feature,
+          featureType,
+          index
+        );
+
+      let score =
+        getSearchMatchScore(
+          label,
+          normalizedSearch
+        );
+
+      const fullSearchText =
+        normalizeText(
+          getFeatureSearchText(
+            feature
+          )
+        );
+
+      if (
+        !Number.isFinite(
+          score
+        ) &&
+        fullSearchText.includes(
+          normalizedSearch
+        )
+      ) {
+        score = 3;
+      }
+
+      if (
+        !Number.isFinite(
+          score
+        )
+      ) {
+        return;
+      }
+
+      const id =
+        getFeatureProperty(
+          feature,
+          [
+            "ID",
+            "id",
+            "Id",
+          ]
+        ) ||
+        `${featureType}-${index}`;
+
+      const geometry =
+        feature.getGeometry();
+
+      if (!geometry) {
+        return;
+      }
+
+      const category =
+        getFeatureProperty(
+          feature,
+          [
+            "CATEGORY",
+            "category",
+            "Category",
+            "SUB_CATEGORY",
+            "subCategory",
+          ]
+        );
+
+      suggestions.push({
+        key:
+          `${featureType}-${id}`,
+
+        id,
+
+        type:
+          featureType,
+
+        typeLabel:
+          typeLabels[
+            featureType
+          ],
+
+        label,
+
+        description:
+          category ||
+          `${
+            typeLabels[
+              featureType
+            ]
+          } katmanında göster`,
+
+        score,
+
+        coordinate:
+          geometry.getType() ===
+          "Point"
+            ? [
+                ...geometry.getCoordinates(),
+              ]
+            : null,
+
+        extent: [
+          ...geometry.getExtent(),
+        ],
+      });
+    }
   );
+
+  return suggestions;
 }
 
 export default function ExistingStationsMap({
   searchTerm = "",
+  searchSelection = null,
+  searchSelectionKey = 0,
+  onSearchSuggestionsChange,
   mapStep = 1,
 }) {
   const mapElementRef =
@@ -932,9 +1121,7 @@ export default function ExistingStationsMap({
     useRef(
       new Cluster({
         distance: 55,
-
         minDistance: 24,
-
         source:
           poiSourceRef.current,
       })
@@ -944,9 +1131,7 @@ export default function ExistingStationsMap({
     useRef(
       new Cluster({
         distance: 60,
-
         minDistance: 26,
-
         source:
           trafoSourceRef.current,
       })
@@ -1054,18 +1239,10 @@ export default function ExistingStationsMap({
   });
 
   const visibleStations =
-    useMemo(() => {
-      return stations.filter(
-        (station) =>
-          stationMatchesSearch(
-            station,
-            searchTerm
-          )
-      );
-    }, [
-      stations,
-      searchTerm,
-    ]);
+    useMemo(
+      () => stations,
+      [stations]
+    );
 
   const selectedStation =
     stations.find(
@@ -1106,14 +1283,11 @@ export default function ExistingStationsMap({
         style:
           createRegionStyle,
 
-        visible:
-          false,
+        visible: false,
 
-        declutter:
-          true,
+        declutter: true,
 
-        renderBuffer:
-          100,
+        renderBuffer: 100,
 
         zIndex: 2,
       });
@@ -1126,8 +1300,7 @@ export default function ExistingStationsMap({
         style:
           roadStyle,
 
-        visible:
-          false,
+        visible: false,
 
         zIndex: 3,
       });
@@ -1143,8 +1316,7 @@ export default function ExistingStationsMap({
             "poi"
           ),
 
-        visible:
-          false,
+        visible: false,
 
         zIndex: 4,
       });
@@ -1160,8 +1332,7 @@ export default function ExistingStationsMap({
             "trafo"
           ),
 
-        visible:
-          false,
+        visible: false,
 
         zIndex: 4,
       });
@@ -1192,17 +1363,16 @@ export default function ExistingStationsMap({
           stationLayer,
         ],
 
-        view:
-          new View({
-            center:
-              CANKAYA_CENTER,
+        view: new View({
+          center:
+            CANKAYA_CENTER,
 
-            zoom: 12.4,
+          zoom: 12.4,
 
-            minZoom: 10.5,
+          minZoom: 10.5,
 
-            maxZoom: 18,
-          }),
+          maxZoom: 18,
+        }),
 
         controls: [],
       });
@@ -1242,8 +1412,7 @@ export default function ExistingStationsMap({
           map.forEachFeatureAtPixel(
             event.pixel,
 
-            (item) =>
-              item,
+            (item) => item,
 
             {
               hitTolerance: 7,
@@ -1327,8 +1496,7 @@ export default function ExistingStationsMap({
       }
     );
 
-    mapRef.current =
-      map;
+    mapRef.current = map;
 
     regionLayerRef.current =
       regionLayer;
@@ -1350,8 +1518,7 @@ export default function ExistingStationsMap({
         undefined
       );
 
-      mapRef.current =
-        null;
+      mapRef.current = null;
 
       regionLayerRef.current =
         null;
@@ -1426,12 +1593,10 @@ export default function ExistingStationsMap({
           )
         );
 
-        setSource(
-          "api"
-        );
+        setSource("api");
       } catch (error) {
         console.error(
-          "Harita API verileri alinamadi:",
+          "Harita API verileri alınamadı:",
           error
         );
 
@@ -1445,9 +1610,7 @@ export default function ExistingStationsMap({
           mockChargingStations
         );
 
-        setSource(
-          "mock"
-        );
+        setSource("mock");
       }
     }
 
@@ -1465,28 +1628,22 @@ export default function ExistingStationsMap({
       const layerDefinitions = [
         {
           key: "poi",
-
           url:
             GEOJSON_URLS.poi,
-
           sourceRef:
             poiSourceRef,
         },
         {
           key: "trafo",
-
           url:
             GEOJSON_URLS.trafo,
-
           sourceRef:
             trafoSourceRef,
         },
         {
           key: "road",
-
           url:
             GEOJSON_URLS.road,
-
           sourceRef:
             roadSourceRef,
         },
@@ -1519,7 +1676,9 @@ export default function ExistingStationsMap({
               setLayerStatus(
                 (current) => ({
                   ...current,
-                  [key]: "ready",
+
+                  [key]:
+                    "ready",
                 })
               );
             } catch (error) {
@@ -1534,7 +1693,9 @@ export default function ExistingStationsMap({
               setLayerStatus(
                 (current) => ({
                   ...current,
-                  [key]: "error",
+
+                  [key]:
+                    "error",
                 })
               );
             }
@@ -1549,6 +1710,634 @@ export default function ExistingStationsMap({
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    const normalizedSearch =
+      normalizeText(
+        searchTerm
+      );
+
+    if (
+      normalizedSearch.length < 2
+    ) {
+      onSearchSuggestionsChange?.(
+        []
+      );
+
+      return;
+    }
+
+    const timeoutId =
+      window.setTimeout(
+        () => {
+          const stationSuggestions =
+            stations
+              .map((station) => {
+                const searchableText =
+                  [
+                    station.name,
+                    station.district,
+                    station.neighborhood,
+                    station.address,
+                    station.socketType,
+                  ]
+                    .filter(Boolean)
+                    .join(" ");
+
+                let score =
+                  getSearchMatchScore(
+                    station.name,
+                    normalizedSearch
+                  );
+
+                if (
+                  !Number.isFinite(
+                    score
+                  ) &&
+                  normalizeText(
+                    searchableText
+                  ).includes(
+                    normalizedSearch
+                  )
+                ) {
+                  score = 3;
+                }
+
+                return {
+                  key:
+                    `station-${station.id}`,
+
+                  id:
+                    station.id,
+
+                  type:
+                    "station",
+
+                  typeLabel:
+                    "İstasyon",
+
+                  label:
+                    station.name,
+
+                  description:
+                    station.address,
+
+                  score,
+
+                  stationId:
+                    station.id,
+
+                  longitude:
+                    station.longitude,
+
+                  latitude:
+                    station.latitude,
+                };
+              })
+              .filter(
+                (suggestion) =>
+                  Number.isFinite(
+                    suggestion.score
+                  )
+              );
+
+          const regionSuggestions =
+            regions
+              .map((region) => {
+                const feature =
+                  regionSourceRef.current
+                    .getFeatures()
+                    .find(
+                      (
+                        currentFeature
+                      ) =>
+                        String(
+                          currentFeature.get(
+                            "regionId"
+                          )
+                        ) ===
+                        String(
+                          region.id
+                        )
+                    );
+
+                return {
+                  key:
+                    `region-${region.id}`,
+
+                  id:
+                    region.id,
+
+                  type:
+                    "region",
+
+                  typeLabel:
+                    "Mahalle",
+
+                  label:
+                    region.name,
+
+                  description:
+                    "Mahalle sınırını haritada göster",
+
+                  score:
+                    getSearchMatchScore(
+                      region.name,
+                      normalizedSearch
+                    ),
+
+                  regionId:
+                    region.id,
+
+                  extent:
+                    feature
+                      ?.getGeometry()
+                      ?.getExtent()
+                      ? [
+                          ...feature
+                            .getGeometry()
+                            .getExtent(),
+                        ]
+                      : null,
+                };
+              })
+              .filter(
+                (suggestion) =>
+                  Number.isFinite(
+                    suggestion.score
+                  )
+              );
+
+          const placeSuggestions =
+            PLACE_SEARCH_PRESETS
+              .map((place) => {
+                const aliasScores =
+                  place.aliases.map(
+                    (alias) =>
+                      getSearchMatchScore(
+                        alias,
+                        normalizedSearch
+                      )
+                  );
+
+                const score =
+                  Math.min(
+                    getSearchMatchScore(
+                      place.label,
+                      normalizedSearch
+                    ),
+
+                    ...aliasScores
+                  );
+
+                return {
+                  key:
+                    `place-${place.id}`,
+
+                  id:
+                    place.id,
+
+                  type:
+                    "place",
+
+                  typeLabel:
+                    "Konum",
+
+                  label:
+                    place.label,
+
+                  description:
+                    "Haritada konuma git",
+
+                  score,
+
+                  longitude:
+                    place.longitude,
+
+                  latitude:
+                    place.latitude,
+
+                  zoom:
+                    place.zoom,
+                };
+              })
+              .filter(
+                (suggestion) =>
+                  Number.isFinite(
+                    suggestion.score
+                  )
+              );
+
+          const poiSuggestions =
+            createFeatureSuggestions(
+              poiSourceRef.current
+                .getFeatures(),
+
+              "poi",
+
+              normalizedSearch
+            );
+
+          const trafoSuggestions =
+            createFeatureSuggestions(
+              trafoSourceRef.current
+                .getFeatures(),
+
+              "trafo",
+
+              normalizedSearch
+            );
+
+          const roadSuggestions =
+            createFeatureSuggestions(
+              roadSourceRef.current
+                .getFeatures(),
+
+              "road",
+
+              normalizedSearch
+            );
+
+          const typePriority = {
+            station: 0,
+            region: 1,
+            place: 2,
+            poi: 3,
+            trafo: 4,
+            road: 5,
+          };
+
+          const suggestions = [
+            ...stationSuggestions,
+            ...regionSuggestions,
+            ...placeSuggestions,
+            ...poiSuggestions,
+            ...trafoSuggestions,
+            ...roadSuggestions,
+          ]
+            .sort(
+              (
+                first,
+                second
+              ) => {
+                if (
+                  first.score !==
+                  second.score
+                ) {
+                  return (
+                    first.score -
+                    second.score
+                  );
+                }
+
+                const priorityDifference =
+                  typePriority[
+                    first.type
+                  ] -
+                  typePriority[
+                    second.type
+                  ];
+
+                if (
+                  priorityDifference !==
+                  0
+                ) {
+                  return priorityDifference;
+                }
+
+                return first.label.localeCompare(
+                  second.label,
+                  "tr-TR"
+                );
+              }
+            )
+            .slice(0, 8);
+
+          onSearchSuggestionsChange?.(
+            suggestions
+          );
+        },
+        180
+      );
+
+    return () => {
+      window.clearTimeout(
+        timeoutId
+      );
+    };
+  }, [
+    searchTerm,
+    stations,
+    regions,
+    layerStatus.poi,
+    layerStatus.trafo,
+    layerStatus.road,
+    onSearchSuggestionsChange,
+  ]);
+
+  useEffect(() => {
+    if (
+      searchSelectionKey === 0 ||
+      !mapRef.current
+    ) {
+      return;
+    }
+
+    const map =
+      mapRef.current;
+
+    async function applySearchSelection() {
+      if (!searchSelection) {
+        setSelectedStationId(
+          null
+        );
+
+        setPopupPixel(null);
+
+        setSelectedRegion(null);
+
+        setRegionSummary(null);
+
+        regionSourceRef.current
+          .getFeatures()
+          .forEach(
+            (feature) => {
+              feature.set(
+                "selected",
+                false
+              );
+
+              feature.changed();
+            }
+          );
+
+        if (
+          latestRef.current
+            .source === "api"
+        ) {
+          try {
+            const stationData =
+              await getChargingStations();
+
+            const safeStations =
+              Array.isArray(
+                stationData
+              )
+                ? stationData
+                : [];
+
+            const regionLookup =
+              new Map(
+                latestRef.current
+                  .regions
+                  .map(
+                    (region) => [
+                      region.id,
+                      region.name,
+                    ]
+                  )
+              );
+
+            setStations(
+              safeStations.map(
+                (station) =>
+                  normalizeStation(
+                    station,
+                    regionLookup
+                  )
+              )
+            );
+          } catch (error) {
+            console.error(
+              "İstasyonlar yenilenemedi:",
+              error
+            );
+          }
+        } else {
+          setStations(
+            mockChargingStations
+          );
+        }
+
+        if (
+          latestRef.current
+            .mapStep > 1
+        ) {
+          const extent =
+            regionSourceRef.current
+              .getExtent();
+
+          if (
+            extent &&
+            Number.isFinite(
+              extent[0]
+            )
+          ) {
+            map.getView().fit(
+              extent,
+              {
+                padding: [
+                  110,
+                  110,
+                  80,
+                  110,
+                ],
+
+                maxZoom:
+                  12.2,
+
+                duration:
+                  350,
+              }
+            );
+
+            return;
+          }
+        }
+
+        map.getView().animate({
+          center:
+            CANKAYA_CENTER,
+
+          zoom: 12.4,
+
+          duration: 350,
+        });
+
+        return;
+      }
+
+      if (
+        searchSelection.type ===
+        "station"
+      ) {
+        await selectStation(
+          searchSelection.stationId
+        );
+
+        map.getView().animate({
+          center:
+            fromLonLat([
+              Number(
+                searchSelection.longitude
+              ),
+
+              Number(
+                searchSelection.latitude
+              ),
+            ]),
+
+          zoom: 16,
+
+          duration: 450,
+        });
+
+        return;
+      }
+
+      if (
+        searchSelection.type ===
+        "region"
+      ) {
+        if (
+          latestRef.current
+            .mapStep > 1
+        ) {
+          await selectRegion(
+            searchSelection.regionId
+          );
+
+          return;
+        }
+
+        if (
+          searchSelection.extent
+        ) {
+          map.getView().fit(
+            searchSelection.extent,
+            {
+              padding: [
+                100,
+                220,
+                100,
+                100,
+              ],
+
+              maxZoom: 15,
+
+              duration: 450,
+            }
+          );
+        }
+
+        return;
+      }
+
+      setSelectedStationId(
+        null
+      );
+
+      setPopupPixel(null);
+
+      if (
+        searchSelection.type ===
+        "place"
+      ) {
+        map.getView().animate({
+          center:
+            fromLonLat([
+              searchSelection.longitude,
+              searchSelection.latitude,
+            ]),
+
+          zoom:
+            searchSelection.zoom ||
+            16,
+
+          duration: 450,
+        });
+
+        return;
+      }
+
+      if (
+        searchSelection.type ===
+        "poi"
+      ) {
+        setPoiVisible(true);
+
+        setTrafoVisible(false);
+
+        if (
+          searchSelection.coordinate
+        ) {
+          map.getView().animate({
+            center:
+              searchSelection.coordinate,
+
+            zoom: 17,
+
+            duration: 450,
+          });
+        }
+
+        return;
+      }
+
+      if (
+        searchSelection.type ===
+        "trafo"
+      ) {
+        setTrafoVisible(true);
+
+        setPoiVisible(false);
+
+        if (
+          searchSelection.coordinate
+        ) {
+          map.getView().animate({
+            center:
+              searchSelection.coordinate,
+
+            zoom: 17,
+
+            duration: 450,
+          });
+        }
+
+        return;
+      }
+
+      if (
+        searchSelection.type ===
+          "road" &&
+        searchSelection.extent
+      ) {
+        setRoadVisible(true);
+
+        map.getView().fit(
+          searchSelection.extent,
+          {
+            padding: [
+              100,
+              100,
+              100,
+              100,
+            ],
+
+            maxZoom: 16,
+
+            duration: 450,
+          }
+        );
+      }
+    }
+
+    applySearchSelection();
+  }, [
+    searchSelection,
+    searchSelectionKey,
+  ]);
 
   useEffect(() => {
     const features =
@@ -1586,55 +2375,39 @@ export default function ExistingStationsMap({
   }, [regions]);
 
   useEffect(() => {
-    if (
-      poiLayerRef.current
-    ) {
-      poiLayerRef.current.setVisible(
+    poiLayerRef.current
+      ?.setVisible(
         poiVisible
       );
-    }
   }, [poiVisible]);
 
   useEffect(() => {
-    if (
-      trafoLayerRef.current
-    ) {
-      trafoLayerRef.current.setVisible(
+    trafoLayerRef.current
+      ?.setVisible(
         trafoVisible
       );
-    }
   }, [trafoVisible]);
 
   useEffect(() => {
-    if (
-      roadLayerRef.current
-    ) {
-      roadLayerRef.current.setVisible(
+    roadLayerRef.current
+      ?.setVisible(
         roadVisible
       );
-    }
   }, [roadVisible]);
 
   useEffect(() => {
-    const regionsActive =
+    const active =
       mapStep > 1;
 
-    if (
-      regionLayerRef.current
-    ) {
-      regionLayerRef.current.setVisible(
-        regionsActive
-      );
-    }
-
-    if (!regionsActive) {
-      setSelectedRegion(
-        null
+    regionLayerRef.current
+      ?.setVisible(
+        active
       );
 
-      setRegionSummary(
-        null
-      );
+    if (!active) {
+      setSelectedRegion(null);
+
+      setRegionSummary(null);
 
       regionSourceRef.current
         .getFeatures()
@@ -1652,21 +2425,11 @@ export default function ExistingStationsMap({
       return;
     }
 
-    if (
-      normalizeText(
-        searchTerm
-      ).length >= 2
-    ) {
-      return;
-    }
-
     setSelectedStationId(
       null
     );
 
-    setPopupPixel(
-      null
-    );
+    setPopupPixel(null);
 
     const extent =
       regionSourceRef.current
@@ -1700,363 +2463,6 @@ export default function ExistingStationsMap({
   }, [
     mapStep,
     regions,
-    searchTerm,
-  ]);
-
-  useEffect(() => {
-    const normalizedSearch =
-      normalizeText(
-        searchTerm
-      );
-
-    if (
-      normalizedSearch.length <
-        2 ||
-      !mapRef.current
-    ) {
-      return;
-    }
-
-    const timeoutId =
-      window.setTimeout(
-        () => {
-          const map =
-            mapRef.current;
-
-          if (!map) {
-            return;
-          }
-
-          const view =
-            map.getView();
-
-          view.cancelAnimations();
-
-          setSelectedRegion(
-            null
-          );
-
-          setRegionSummary(
-            null
-          );
-
-          setSelectedStationId(
-            null
-          );
-
-          setPopupPixel(
-            null
-          );
-
-          regionSourceRef.current
-            .getFeatures()
-            .forEach(
-              (feature) => {
-                feature.set(
-                  "selected",
-                  false
-                );
-
-                feature.changed();
-              }
-            );
-
-          const presetMatch =
-            findPreset(
-              searchTerm
-            );
-
-          if (
-            presetMatch
-          ) {
-            const targetCoordinate =
-              fromLonLat([
-                presetMatch.longitude,
-                presetMatch.latitude,
-              ]);
-
-            view.setCenter(
-              targetCoordinate
-            );
-
-            view.setZoom(
-              presetMatch.zoom
-            );
-
-            map.renderSync();
-
-            return;
-          }
-
-          const stationMatch =
-            stations
-              .map(
-                (station) => {
-                  const normalizedName =
-                    normalizeText(
-                      station.name
-                    );
-
-                  const searchableText =
-                    normalizeText(
-                      [
-                        station.name,
-                        station.district,
-                        station.neighborhood,
-                        station.address,
-                        station.socketType,
-                      ].join(" ")
-                    );
-
-                  let score = 0;
-
-                  if (
-                    normalizedName ===
-                    normalizedSearch
-                  ) {
-                    score = 1000;
-                  } else if (
-                    normalizedName.startsWith(
-                      normalizedSearch
-                    )
-                  ) {
-                    score = 750;
-                  } else if (
-                    normalizedName.includes(
-                      normalizedSearch
-                    )
-                  ) {
-                    score = 550;
-                  } else if (
-                    searchableText.includes(
-                      normalizedSearch
-                    )
-                  ) {
-                    score = 250;
-                  }
-
-                  return {
-                    station,
-                    score,
-                  };
-                }
-              )
-              .filter(
-                (item) =>
-                  item.score > 0
-              )
-              .sort(
-                (
-                  first,
-                  second
-                ) =>
-                  second.score -
-                  first.score
-              )[0]?.station;
-
-          if (
-            stationMatch
-          ) {
-            setSelectedStationId(
-              stationMatch.id
-            );
-
-            view.setCenter(
-              fromLonLat([
-                stationMatch.longitude,
-                stationMatch.latitude,
-              ])
-            );
-
-            view.setZoom(16);
-
-            map.renderSync();
-
-            return;
-          }
-
-          const regionMatch =
-            regionSourceRef.current
-              .getFeatures()
-              .find(
-                (feature) => {
-                  const regionName =
-                    normalizeText(
-                      feature.get(
-                        "name"
-                      ) ||
-                      feature.get(
-                        "region"
-                      )?.name
-                    );
-
-                  return (
-                    regionName ===
-                      normalizedSearch ||
-                    regionName.startsWith(
-                      normalizedSearch
-                    ) ||
-                    regionName.includes(
-                      normalizedSearch
-                    )
-                  );
-                }
-              );
-
-          if (
-            regionMatch
-          ) {
-            const extent =
-              regionMatch
-                .getGeometry()
-                ?.getExtent();
-
-            if (extent) {
-              view.fit(
-                extent,
-                {
-                  padding: [
-                    100,
-                    220,
-                    100,
-                    100,
-                  ],
-
-                  maxZoom: 15,
-
-                  duration: 450,
-                }
-              );
-            }
-
-            return;
-          }
-
-          const poiFeature =
-            findBestPoiFeature(
-              poiSourceRef.current
-                .getFeatures(),
-
-              searchTerm
-            );
-
-          if (
-            poiFeature
-          ) {
-            setPoiVisible(
-              true
-            );
-
-            const geometry =
-              poiFeature.getGeometry();
-
-            if (geometry) {
-              view.setCenter(
-                getCenter(
-                  geometry.getExtent()
-                )
-              );
-
-              view.setZoom(17);
-
-              map.renderSync();
-            }
-
-            return;
-          }
-
-          const trafoFeature =
-            trafoSourceRef.current
-              .getFeatures()
-              .find(
-                (feature) =>
-                  featureContainsText(
-                    feature,
-                    searchTerm
-                  )
-              );
-
-          if (
-            trafoFeature
-          ) {
-            setTrafoVisible(
-              true
-            );
-
-            const geometry =
-              trafoFeature.getGeometry();
-
-            if (geometry) {
-              view.setCenter(
-                getCenter(
-                  geometry.getExtent()
-                )
-              );
-
-              view.setZoom(17);
-
-              map.renderSync();
-            }
-
-            return;
-          }
-
-          const roadFeature =
-            roadSourceRef.current
-              .getFeatures()
-              .find(
-                (feature) =>
-                  featureContainsText(
-                    feature,
-                    searchTerm
-                  )
-              );
-
-          if (
-            roadFeature
-          ) {
-            setRoadVisible(
-              true
-            );
-
-            const extent =
-              roadFeature
-                .getGeometry()
-                ?.getExtent();
-
-            if (extent) {
-              view.fit(
-                extent,
-                {
-                  padding: [
-                    100,
-                    100,
-                    100,
-                    100,
-                  ],
-
-                  maxZoom: 16,
-
-                  duration: 450,
-                }
-              );
-            }
-          }
-        },
-        350
-      );
-
-    return () => {
-      window.clearTimeout(
-        timeoutId
-      );
-    };
-  }, [
-    searchTerm,
-    stations,
-    layerStatus.poi,
-    layerStatus.trafo,
-    layerStatus.road,
   ]);
 
   useEffect(() => {
@@ -2064,9 +2470,7 @@ export default function ExistingStationsMap({
       !selectedStation ||
       !mapRef.current
     ) {
-      setPopupPixel(
-        null
-      );
+      setPopupPixel(null);
 
       return;
     }
@@ -2153,7 +2557,9 @@ export default function ExistingStationsMap({
         );
 
       setStations(
-        (currentStations) =>
+        (
+          currentStations
+        ) =>
           currentStations.map(
             (item) =>
               item.id ===
@@ -2164,7 +2570,7 @@ export default function ExistingStationsMap({
       );
     } catch (error) {
       console.error(
-        "Istasyon detay bilgisi alinamadi:",
+        "İstasyon detay bilgisi alınamadı:",
         error
       );
     } finally {
@@ -2186,8 +2592,8 @@ export default function ExistingStationsMap({
         .regions
         .find(
           (item) =>
-            item.id ===
-            regionId
+            String(item.id) ===
+            String(regionId)
         );
 
     if (!region) {
@@ -2202,9 +2608,9 @@ export default function ExistingStationsMap({
       null
     );
 
-    setRegionSummary(
-      null
-    );
+    setPopupPixel(null);
+
+    setRegionSummary(null);
 
     setLoadingRegionSummary(
       true
@@ -2218,9 +2624,12 @@ export default function ExistingStationsMap({
       .forEach(
         (feature) => {
           const isSelected =
-            feature.get(
-              "regionId"
-            ) === regionId;
+            String(
+              feature.get(
+                "regionId"
+              )
+            ) ===
+            String(regionId);
 
           feature.set(
             "selected",
@@ -2229,9 +2638,7 @@ export default function ExistingStationsMap({
 
           feature.changed();
 
-          if (
-            isSelected
-          ) {
+          if (isSelected) {
             selectedFeature =
               feature;
           }
@@ -2348,7 +2755,7 @@ export default function ExistingStationsMap({
       );
     } catch (error) {
       console.error(
-        "Bolge detay bilgisi alinamadi:",
+        "Bölge detay bilgisi alınamadı:",
         error
       );
 
@@ -2362,7 +2769,7 @@ export default function ExistingStationsMap({
           0,
 
         trafficLevel:
-          "Veri alinamadi",
+          "Veri alınamadı",
 
         mostCommonSocketType:
           null,
@@ -2383,13 +2790,15 @@ export default function ExistingStationsMap({
   async function clearRegionSelection(
     restoreStations = true
   ) {
-    setSelectedRegion(
+    setSelectedRegion(null);
+
+    setRegionSummary(null);
+
+    setSelectedStationId(
       null
     );
 
-    setRegionSummary(
-      null
-    );
+    setPopupPixel(null);
 
     regionSourceRef.current
       .getFeatures()
@@ -2404,19 +2813,48 @@ export default function ExistingStationsMap({
         }
       );
 
-    if (
-      mapRef.current
-    ) {
-      mapRef.current
-        .getView()
-        .animate({
-          center:
-            CANKAYA_CENTER,
+    if (mapRef.current) {
+      if (mapStep > 1) {
+        const extent =
+          regionSourceRef.current
+            .getExtent();
 
-          zoom: 12.4,
+        if (
+          extent &&
+          Number.isFinite(
+            extent[0]
+          )
+        ) {
+          mapRef.current
+            .getView()
+            .fit(
+              extent,
+              {
+                padding: [
+                  110,
+                  110,
+                  80,
+                  110,
+                ],
 
-          duration: 300,
-        });
+                maxZoom: 12.2,
+
+                duration: 300,
+              }
+            );
+        }
+      } else {
+        mapRef.current
+          .getView()
+          .animate({
+            center:
+              CANKAYA_CENTER,
+
+            zoom: 12.4,
+
+            duration: 300,
+          });
+      }
     }
 
     if (!restoreStations) {
@@ -2468,7 +2906,7 @@ export default function ExistingStationsMap({
       );
     } catch (error) {
       console.error(
-        "Istasyon listesi yenilenemedi:",
+        "İstasyon listesi yenilenemedi:",
         error
       );
 
@@ -2486,18 +2924,18 @@ export default function ExistingStationsMap({
     if (
       status === "loading"
     ) {
-      return `${label} yukleniyor`;
+      return `${label} yükleniyor`;
     }
 
     if (
       status === "error"
     ) {
-      return `${label} bulunamadi`;
+      return `${label} bulunamadı`;
     }
 
     return active
-      ? `${label} acik`
-      : `${label} kapali`;
+      ? `${label} açık`
+      : `${label} kapalı`;
   }
 
   return (
@@ -2506,9 +2944,7 @@ export default function ExistingStationsMap({
       data-testid="existing-stations-map"
     >
       <div
-        ref={
-          mapElementRef
-        }
+        ref={mapElementRef}
         className="openlayers-map"
         data-testid="existing-stations-map-canvas"
       />
@@ -2518,7 +2954,7 @@ export default function ExistingStationsMap({
         data-testid="map-layer-controls"
       >
         <strong>
-          Harita Katmanlari
+          Harita Katmanları
         </strong>
 
         <button
@@ -2614,10 +3050,10 @@ export default function ExistingStationsMap({
           "1 / Mevcut istasyonlar"}
 
         {mapStep === 2 &&
-          "2 / Bolgeler aktif"}
+          "2 / Bölgeler aktif"}
 
         {mapStep === 3 &&
-          "3 / Bolge detayi"}
+          "3 / Bölge detayı"}
       </div>
 
       {mapStep > 1 &&
@@ -2646,14 +3082,14 @@ export default function ExistingStationsMap({
                   className="region-summary-loading"
                   data-testid="region-summary-loading"
                 >
-                  Yukleniyor...
+                  Yükleniyor...
                 </p>
               ) : (
                 <div className="region-summary-content">
                   <dl>
                     <div>
                       <dt>
-                        Istasyon
+                        İstasyon
                       </dt>
 
                       <dd data-testid="region-summary-station-count">
@@ -2677,7 +3113,7 @@ export default function ExistingStationsMap({
 
                     <div>
                       <dt>
-                        Yaygin Soket
+                        Yaygın Soket
                       </dt>
 
                       <dd data-testid="region-summary-socket-type">
@@ -2689,7 +3125,7 @@ export default function ExistingStationsMap({
 
                     <div>
                       <dt>
-                        Yaygin Guc
+                        Yaygın Güç
                       </dt>
 
                       <dd data-testid="region-summary-power">
@@ -2703,7 +3139,7 @@ export default function ExistingStationsMap({
 
                   <div className="company-distribution">
                     <span>
-                      Firma Dagilimi
+                      Firma Dağılımı
                     </span>
 
                     {(
@@ -2711,10 +3147,7 @@ export default function ExistingStationsMap({
                         ?.companyDistribution ||
                       []
                     )
-                      .slice(
-                        0,
-                        4
-                      )
+                      .slice(0, 4)
                       .map(
                         (
                           company,
@@ -2772,7 +3205,7 @@ export default function ExistingStationsMap({
               }
               data-testid="region-back-button"
             >
-              Bolgelere geri don
+              Bölgelere geri dön
             </button>
           </>
         )}
@@ -2836,14 +3269,14 @@ export default function ExistingStationsMap({
                 <dd data-testid="selected-station-socket">
                   {loadingDetailId ===
                   selectedStation.id
-                    ? "Yukleniyor..."
+                    ? "Yükleniyor..."
                     : selectedStation.socketType}
                 </dd>
               </div>
 
               <div>
                 <dt>
-                  Guc
+                  Güç
                 </dt>
 
                 <dd data-testid="selected-station-power">
@@ -2862,7 +3295,7 @@ export default function ExistingStationsMap({
         data-testid="existing-map-source"
       >
         {source === "api"
-          ? "Canli veri"
+          ? "Canlı veri"
           : "Mock veri"}
       </div>
     </div>

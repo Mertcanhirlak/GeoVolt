@@ -1,5 +1,6 @@
 ﻿import React, {
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
@@ -32,6 +33,8 @@ import CandidatePointsMap from "../components/CandidatePointsMap";
 import PoiSummary from "../components/PoiSummary";
 import TrafoSummary from "../components/TrafoSummary";
 import RoadSummary from "../components/RoadSummary";
+
+import "./CandidateSearch.css";
 
 const defaultFilters = {
   costMin: "",
@@ -144,78 +147,6 @@ function getRegionName(region) {
   );
 }
 
-function getNeighborhoodName(
-  neighborhood
-) {
-  return (
-    neighborhood?.name ??
-    neighborhood?.Name ??
-    neighborhood?.NAME ??
-    neighborhood?.neighborhoodName ??
-    neighborhood?.NeighborhoodName ??
-    ""
-  );
-}
-
-function findBestNamedMatch(
-  items,
-  searchValue,
-  nameSelector
-) {
-  const normalizedSearch =
-    normalizeSearchText(searchValue);
-
-  if (!normalizedSearch) {
-    return null;
-  }
-
-  const searchableItems = items
-    .map((item) => ({
-      item,
-      normalizedName:
-        normalizeSearchText(
-          nameSelector(item)
-        ),
-    }))
-    .filter(
-      ({ normalizedName }) =>
-        normalizedName
-    );
-
-  const exactMatch =
-    searchableItems.find(
-      ({ normalizedName }) =>
-        normalizedName ===
-        normalizedSearch
-    );
-
-  if (exactMatch) {
-    return exactMatch.item;
-  }
-
-  const startsWithMatch =
-    searchableItems.find(
-      ({ normalizedName }) =>
-        normalizedName.startsWith(
-          normalizedSearch
-        )
-    );
-
-  if (startsWithMatch) {
-    return startsWithMatch.item;
-  }
-
-  const includesMatch =
-    searchableItems.find(
-      ({ normalizedName }) =>
-        normalizedName.includes(
-          normalizedSearch
-        )
-    );
-
-  return includesMatch?.item ?? null;
-}
-
 function candidateMatchesSearch(
   candidate,
   normalizedSearch
@@ -276,6 +207,57 @@ function candidateBelongsToRegion(
     regionName !== "" &&
     candidateRegionName === regionName
   );
+}
+
+function getSearchMatchScore(
+  value,
+  normalizedSearch
+) {
+  const normalizedValue =
+    normalizeSearchText(value);
+
+  if (
+    !normalizedValue ||
+    !normalizedSearch
+  ) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  if (
+    normalizedValue ===
+    normalizedSearch
+  ) {
+    return 0;
+  }
+
+  if (
+    normalizedValue.startsWith(
+      normalizedSearch
+    )
+  ) {
+    return 1;
+  }
+
+  if (
+    normalizedValue.includes(
+      normalizedSearch
+    )
+  ) {
+    return 2;
+  }
+
+  return Number.POSITIVE_INFINITY;
+}
+
+function createSearchTestIdPart(value) {
+  return String(
+    value ?? "unknown"
+  )
+    .trim()
+    .replace(
+      /[^a-zA-Z0-9_-]/g,
+      "-"
+    );
 }
 
 export default function CandidatePointsPage() {
@@ -345,6 +327,31 @@ export default function CandidatePointsPage() {
   ] = useState("");
 
   const [
+    homeSearchSuggestions,
+    setHomeSearchSuggestions,
+  ] = useState([]);
+
+  const [
+    homeSearchOpen,
+    setHomeSearchOpen,
+  ] = useState(false);
+
+  const [
+    activeHomeSearchIndex,
+    setActiveHomeSearchIndex,
+  ] = useState(-1);
+
+  const [
+    selectedHomeSearchResult,
+    setSelectedHomeSearchResult,
+  ] = useState(null);
+
+  const [
+    homeSearchSelectionKey,
+    setHomeSearchSelectionKey,
+  ] = useState(0);
+
+  const [
     candidateSearch,
     setCandidateSearch,
   ] = useState("");
@@ -363,6 +370,195 @@ export default function CandidatePointsPage() {
     regionFocusKey,
     setRegionFocusKey,
   ] = useState(0);
+
+  const [
+    candidateSearchOpen,
+    setCandidateSearchOpen,
+  ] = useState(false);
+
+  const [
+    activeSearchSuggestionIndex,
+    setActiveSearchSuggestionIndex,
+  ] = useState(-1);
+
+  const candidateSearchSuggestions =
+    useMemo(() => {
+      const normalizedSearch =
+        normalizeSearchText(
+          candidateSearch
+        );
+
+      if (
+        normalizedSearch.length < 2
+      ) {
+        return [];
+      }
+
+      const candidateSuggestions =
+        candidates
+          .map((candidate) => {
+            const candidateName =
+              candidate?.name ||
+              "Aday Nokta";
+
+            let score =
+              getSearchMatchScore(
+                candidateName,
+                normalizedSearch
+              );
+
+            if (
+              !Number.isFinite(score) &&
+              candidateMatchesSearch(
+                candidate,
+                normalizedSearch
+              )
+            ) {
+              score = 3;
+            }
+
+            return {
+              key:
+                `candidate-${candidate.id}`,
+
+              id:
+                candidate.id,
+
+              type:
+                "candidate",
+
+              typeLabel:
+                "Aday Nokta",
+
+              label:
+                candidateName,
+
+              description:
+                candidate.estimatedAddress ||
+                candidate.region ||
+                "Adres bilgisi yok",
+
+              score,
+
+              value:
+                candidate,
+            };
+          })
+          .filter(
+            (suggestion) =>
+              Number.isFinite(
+                suggestion.score
+              )
+          );
+
+      const usedRegionIds =
+        new Set();
+
+      const regionSuggestions =
+        regions
+          .filter((region) => {
+            const regionId =
+              getRegionId(region);
+
+            return (
+              regionId !== null &&
+              regionId !== undefined &&
+              Number(regionId) !== 0
+            );
+          })
+          .map((region) => {
+            const regionId =
+              getRegionId(region);
+
+            const regionName =
+              getRegionName(region);
+
+            return {
+              key:
+                `region-${regionId}`,
+
+              id:
+                regionId,
+
+              type:
+                "region",
+
+              typeLabel:
+                "Mahalle",
+
+              label:
+                regionName,
+
+              description:
+                "Mahalle sınırını haritada göster",
+
+              score:
+                getSearchMatchScore(
+                  regionName,
+                  normalizedSearch
+                ),
+
+              value:
+                region,
+            };
+          })
+          .filter((suggestion) => {
+            if (
+              !Number.isFinite(
+                suggestion.score
+              )
+            ) {
+              return false;
+            }
+
+            const regionKey =
+              String(
+                suggestion.id
+              );
+
+            if (
+              usedRegionIds.has(
+                regionKey
+              )
+            ) {
+              return false;
+            }
+
+            usedRegionIds.add(
+              regionKey
+            );
+
+            return true;
+          });
+
+      return [
+        ...candidateSuggestions,
+        ...regionSuggestions,
+      ]
+        .sort(
+          (first, second) => {
+            if (
+              first.score !==
+              second.score
+            ) {
+              return (
+                first.score -
+                second.score
+              );
+            }
+
+            return first.label.localeCompare(
+              second.label,
+              "tr-TR"
+            );
+          }
+        )
+        .slice(0, 8);
+    }, [
+      candidateSearch,
+      candidates,
+      regions,
+    ]);
 
   useEffect(() => {
     let isMounted = true;
@@ -740,6 +936,159 @@ export default function CandidatePointsPage() {
     setRegionSummaryMessage("");
   }
 
+  function handleHomeSearchChange(
+    searchValue
+  ) {
+    setStationSearch(
+      searchValue
+    );
+
+    setActiveHomeSearchIndex(
+      -1
+    );
+
+    const normalizedSearch =
+      normalizeSearchText(
+        searchValue
+      );
+
+    if (!normalizedSearch) {
+      clearHomeSearch();
+      return;
+    }
+
+    setHomeSearchOpen(
+      normalizedSearch.length >= 2
+    );
+  }
+
+  function clearHomeSearch() {
+    setStationSearch("");
+
+    setHomeSearchOpen(false);
+
+    setHomeSearchSuggestions([]);
+
+    setActiveHomeSearchIndex(
+      -1
+    );
+
+    setSelectedHomeSearchResult(
+      null
+    );
+
+    setHomeSearchSelectionKey(
+      (currentKey) =>
+        currentKey + 1
+    );
+  }
+
+  function selectHomeSearchSuggestion(
+    suggestion
+  ) {
+    if (!suggestion) {
+      return;
+    }
+
+    setStationSearch(
+      suggestion.label
+    );
+
+    setSelectedHomeSearchResult(
+      suggestion
+    );
+
+    setHomeSearchOpen(false);
+
+    setActiveHomeSearchIndex(
+      -1
+    );
+
+    setHomeSearchSelectionKey(
+      (currentKey) =>
+        currentKey + 1
+    );
+  }
+
+  function handleHomeSearchKeyDown(
+    event
+  ) {
+    if (event.key === "Escape") {
+      setHomeSearchOpen(false);
+
+      setActiveHomeSearchIndex(
+        -1
+      );
+
+      return;
+    }
+
+    if (
+      homeSearchSuggestions.length ===
+      0
+    ) {
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+
+      setHomeSearchOpen(true);
+
+      setActiveHomeSearchIndex(
+        (currentIndex) => {
+          if (
+            currentIndex >=
+            homeSearchSuggestions.length -
+              1
+          ) {
+            return 0;
+          }
+
+          return currentIndex + 1;
+        }
+      );
+
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+
+      setHomeSearchOpen(true);
+
+      setActiveHomeSearchIndex(
+        (currentIndex) => {
+          if (currentIndex <= 0) {
+            return (
+              homeSearchSuggestions.length -
+              1
+            );
+          }
+
+          return currentIndex - 1;
+        }
+      );
+
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+
+      const suggestion =
+        homeSearchSuggestions[
+          activeHomeSearchIndex >= 0
+            ? activeHomeSearchIndex
+            : 0
+        ];
+
+      selectHomeSearchSuggestion(
+        suggestion
+      );
+    }
+  }
+
   function showCandidateOnMap(
     candidate
   ) {
@@ -760,6 +1109,14 @@ export default function CandidatePointsPage() {
 
     setCandidateSearch("");
 
+    setCandidateSearchOpen(
+      false
+    );
+
+    setActiveSearchSuggestionIndex(
+      -1
+    );
+
     setActiveTab(
       "candidateMap"
     );
@@ -779,6 +1136,15 @@ export default function CandidatePointsPage() {
     );
 
     setCandidateSearch("");
+
+    setCandidateSearchOpen(
+      false
+    );
+
+    setActiveSearchSuggestionIndex(
+      -1
+    );
+
     setMessage("");
 
     setActiveTab(
@@ -802,16 +1168,15 @@ export default function CandidatePointsPage() {
     setMessage("");
   }
 
-  function searchCandidates(
+  function handleCandidateSearchChange(
     searchValue
   ) {
-    /*
-     * Input değeri yalnızca kullanıcının yazdığı
-     * metinden güncellenir. Bölge eşleşmesi input
-     * değerini değiştirmez.
-     */
     setCandidateSearch(
       searchValue
+    );
+
+    setActiveSearchSuggestionIndex(
+      -1
     );
 
     const normalizedSearch =
@@ -820,16 +1185,22 @@ export default function CandidatePointsPage() {
       );
 
     if (!normalizedSearch) {
+      setCandidateSearchOpen(
+        false
+      );
+
       resetCandidateSearch();
+
       return;
     }
 
-    /*
-     * Tek harfte otomatik bölge seçimi yapılmaz.
-     * Kullanıcının özgürce yazabilmesi için en az
-     * iki karakter beklenir.
-     */
-    if (normalizedSearch.length < 2) {
+    if (
+      normalizedSearch.length < 2
+    ) {
+      setCandidateSearchOpen(
+        false
+      );
+
       setFilteredCandidates(
         candidates
       );
@@ -847,6 +1218,12 @@ export default function CandidatePointsPage() {
       return;
     }
 
+    setCandidateSearchOpen(true);
+
+    setSelectedCandidate(null);
+    setFocusedRegionId(null);
+    setMessage("");
+
     const candidateMatches =
       candidates.filter(
         (candidate) =>
@@ -856,15 +1233,59 @@ export default function CandidatePointsPage() {
           )
       );
 
-    if (
+    setFilteredCandidates(
       candidateMatches.length > 0
+        ? candidateMatches
+        : candidates
+    );
+  }
+
+  function clearCandidateSearch() {
+    setCandidateSearch("");
+
+    setCandidateSearchOpen(
+      false
+    );
+
+    setActiveSearchSuggestionIndex(
+      -1
+    );
+
+    resetCandidateSearch();
+  }
+
+  function selectCandidateSearchSuggestion(
+    suggestion
+  ) {
+    if (!suggestion) {
+      return;
+    }
+
+    setCandidateSearch(
+      suggestion.label
+    );
+
+    setCandidateSearchOpen(
+      false
+    );
+
+    setActiveSearchSuggestionIndex(
+      -1
+    );
+
+    if (
+      suggestion.type ===
+      "candidate"
     ) {
-      setFilteredCandidates(
-        candidateMatches
-      );
+      const candidate =
+        suggestion.value;
+
+      setFilteredCandidates([
+        candidate,
+      ]);
 
       setSelectedCandidate(
-        candidateMatches[0]
+        candidate
       );
 
       setFocusedRegionId(null);
@@ -875,119 +1296,132 @@ export default function CandidatePointsPage() {
       );
 
       setMessage(
-        `${candidateMatches.length} aday nokta bulundu.`
+        `${candidate.name} aday noktası seçildi.`
       );
 
       return;
     }
 
-    const selectableRegions =
-      regions.filter(
-        (region) =>
-          Number(
-            getRegionId(region)
-          ) !== 0
-      );
+    const region =
+      suggestion.value;
 
-    let matchedRegion =
-      findBestNamedMatch(
-        selectableRegions,
-        searchValue,
-        getRegionName
-      );
+    const regionId =
+      getRegionId(region);
 
-    const matchedNeighborhood =
-      findBestNamedMatch(
-        neighborhoods,
-        searchValue,
-        getNeighborhoodName
-      );
+    const regionName =
+      getRegionName(region);
 
-    if (
-      !matchedRegion &&
-      matchedNeighborhood
-    ) {
-      const neighborhoodRegionId =
-        matchedNeighborhood.regionId ??
-        matchedNeighborhood.RegionId ??
-        matchedNeighborhood.id ??
-        matchedNeighborhood.Id;
+    setRegionsActive(true);
 
-      matchedRegion =
-        selectableRegions.find(
-          (region) =>
-            String(
-              getRegionId(region)
-            ) ===
-            String(
-              neighborhoodRegionId
-            )
-        ) ??
-        findBestNamedMatch(
-          selectableRegions,
-
-          matchedNeighborhood.regionName ??
-            getNeighborhoodName(
-              matchedNeighborhood
-            ),
-
-          getRegionName
-        );
-    }
-
-    if (matchedRegion) {
-      const regionId =
-        getRegionId(
-          matchedRegion
-        );
-
-      const regionCandidates =
-        candidates.filter(
-          (candidate) =>
-            candidateBelongsToRegion(
-              candidate,
-              matchedRegion
-            )
-        );
-
-      setRegionsActive(true);
-
-      setFocusedRegionId(
-        regionId
-      );
-
-      setRegionFocusKey(
-        (currentKey) =>
-          currentKey + 1
-      );
-
-      setFilteredCandidates(
-        regionCandidates
-      );
-
-      setSelectedCandidate(null);
-
-      setMessage(
-        `${getRegionName(
-          matchedRegion
-        )} bölgesi bulundu.`
-      );
-
-      return;
-    }
-
-    setFilteredCandidates([]);
-    setSelectedCandidate(null);
-    setFocusedRegionId(null);
+    setFocusedRegionId(
+      regionId
+    );
 
     setRegionFocusKey(
       (currentKey) =>
         currentKey + 1
     );
 
-    setMessage(
-      "Aramaya uygun aday nokta, bölge veya mahalle bulunamadı."
+    setFilteredCandidates(
+      candidates.filter(
+        (candidate) =>
+          candidateBelongsToRegion(
+            candidate,
+            region
+          )
+      )
     );
+
+    setSelectedCandidate(null);
+
+    setMessage(
+      `${regionName} mahallesi seçildi.`
+    );
+  }
+
+  function handleCandidateSearchKeyDown(
+    event
+  ) {
+    if (event.key === "Escape") {
+      setCandidateSearchOpen(
+        false
+      );
+
+      setActiveSearchSuggestionIndex(
+        -1
+      );
+
+      return;
+    }
+
+    if (
+      candidateSearchSuggestions.length ===
+      0
+    ) {
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+
+      setCandidateSearchOpen(
+        true
+      );
+
+      setActiveSearchSuggestionIndex(
+        (currentIndex) => {
+          if (
+            currentIndex >=
+            candidateSearchSuggestions.length -
+              1
+          ) {
+            return 0;
+          }
+
+          return currentIndex + 1;
+        }
+      );
+
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+
+      setCandidateSearchOpen(
+        true
+      );
+
+      setActiveSearchSuggestionIndex(
+        (currentIndex) => {
+          if (currentIndex <= 0) {
+            return (
+              candidateSearchSuggestions.length -
+              1
+            );
+          }
+
+          return currentIndex - 1;
+        }
+      );
+
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+
+      const selectedSuggestion =
+        candidateSearchSuggestions[
+          activeSearchSuggestionIndex >= 0
+            ? activeSearchSuggestionIndex
+            : 0
+        ];
+
+      selectCandidateSearchSuggestion(
+        selectedSuggestion
+      );
+    }
   }
 
   function handleCandidateRegionSelect(
@@ -1003,12 +1437,14 @@ export default function CandidatePointsPage() {
     const regionId =
       getRegionId(region);
 
-    /*
-     * Burada setCandidateSearch(regionName)
-     * kullanılmıyor. Böylece haritadan veya
-     * aramadan bölge seçildiğinde input içeriği
-     * otomatik değiştirilmez.
-     */
+    setCandidateSearchOpen(
+      false
+    );
+
+    setActiveSearchSuggestionIndex(
+      -1
+    );
+
     setFocusedRegionId(
       regionId
     );
@@ -1026,7 +1462,7 @@ export default function CandidatePointsPage() {
     setSelectedCandidate(null);
 
     setMessage(
-      `${regionName || "Bölge"} seçildi.`
+      `${regionName || "Bölge"} mahallesi seçildi.`
     );
   }
 
@@ -1042,6 +1478,14 @@ export default function CandidatePointsPage() {
       setFocusedRegionId(null);
       setSelectedCandidate(null);
 
+      setCandidateSearchOpen(
+        false
+      );
+
+      setActiveSearchSuggestionIndex(
+        -1
+      );
+
       setRegionFocusKey(
         (currentKey) =>
           currentKey + 1
@@ -1051,10 +1495,12 @@ export default function CandidatePointsPage() {
     }
 
     if (
-      candidateSearch.trim()
-    ) {
-      searchCandidates(
+      normalizeSearchText(
         candidateSearch
+      ).length >= 2
+    ) {
+      setCandidateSearchOpen(
+        true
       );
     }
   }
@@ -1163,19 +1609,182 @@ export default function CandidatePointsPage() {
             data-testid="home-map-screen"
           >
             <div className="map-topbar">
-              <input
-                className="map-search"
-                data-testid="home-search-input"
-                placeholder="Adres veya mahalle ara"
-                value={stationSearch}
-                autoComplete="off"
-                spellCheck={false}
-                onChange={(event) =>
-                  setStationSearch(
-                    event.target.value
-                  )
-                }
-              />
+              <div
+                className="home-search-shell"
+                data-testid="home-search-shell"
+              >
+                <input
+                  className="map-search home-search-input"
+                  data-testid="home-search-input"
+                  placeholder="İstasyon, mahalle veya konum ara"
+                  value={stationSearch}
+                  autoComplete="off"
+                  spellCheck={false}
+                  role="combobox"
+                  aria-autocomplete="list"
+                  aria-expanded={
+                    homeSearchOpen
+                  }
+                  aria-controls="home-search-suggestions"
+                  aria-activedescendant={
+                    activeHomeSearchIndex >=
+                    0
+                      ? `home-search-option-${
+                          homeSearchSuggestions[
+                            activeHomeSearchIndex
+                          ]?.key
+                        }`
+                      : undefined
+                  }
+                  onFocus={() => {
+                    if (
+                      normalizeSearchText(
+                        stationSearch
+                      ).length >= 2
+                    ) {
+                      setHomeSearchOpen(
+                        true
+                      );
+                    }
+                  }}
+                  onBlur={() => {
+                    window.setTimeout(
+                      () => {
+                        setHomeSearchOpen(
+                          false
+                        );
+
+                        setActiveHomeSearchIndex(
+                          -1
+                        );
+                      },
+                      120
+                    );
+                  }}
+                  onKeyDown={
+                    handleHomeSearchKeyDown
+                  }
+                  onChange={(event) =>
+                    handleHomeSearchChange(
+                      event.target.value
+                    )
+                  }
+                />
+
+                {stationSearch && (
+                  <button
+                    type="button"
+                    className="candidate-search-clear-button"
+                    aria-label="Aramayı temizle"
+                    title="Aramayı temizle"
+                    data-testid="home-search-clear-button"
+                    onMouseDown={(
+                      event
+                    ) =>
+                      event.preventDefault()
+                    }
+                    onClick={
+                      clearHomeSearch
+                    }
+                  >
+                    ×
+                  </button>
+                )}
+
+                {homeSearchOpen && (
+                  <div
+                    id="home-search-suggestions"
+                    className="candidate-search-suggestions"
+                    role="listbox"
+                    data-testid="home-search-suggestions"
+                  >
+                    {homeSearchSuggestions.map(
+                      (
+                        suggestion,
+                        index
+                      ) => {
+                        const testIdPart =
+                          createSearchTestIdPart(
+                            suggestion.id
+                          );
+
+                        const isActive =
+                          index ===
+                          activeHomeSearchIndex;
+
+                        return (
+                          <button
+                            key={
+                              suggestion.key
+                            }
+                            id={`home-search-option-${suggestion.key}`}
+                            type="button"
+                            role="option"
+                            aria-selected={
+                              isActive
+                            }
+                            className={
+                              isActive
+                                ? "candidate-search-suggestion active"
+                                : "candidate-search-suggestion"
+                            }
+                            data-testid={`home-search-suggestion-${suggestion.type}-${testIdPart}`}
+                            onMouseDown={(
+                              event
+                            ) =>
+                              event.preventDefault()
+                            }
+                            onMouseEnter={() =>
+                              setActiveHomeSearchIndex(
+                                index
+                              )
+                            }
+                            onClick={() =>
+                              selectHomeSearchSuggestion(
+                                suggestion
+                              )
+                            }
+                          >
+                            <span className="candidate-search-suggestion-main">
+                              <strong
+                                data-testid={`home-search-suggestion-${suggestion.type}-${testIdPart}-label`}
+                              >
+                                {
+                                  suggestion.label
+                                }
+                              </strong>
+
+                              <small>
+                                {
+                                  suggestion.description
+                                }
+                              </small>
+                            </span>
+
+                            <em
+                              data-testid={`home-search-suggestion-${suggestion.type}-${testIdPart}-type`}
+                            >
+                              {
+                                suggestion.typeLabel
+                              }
+                            </em>
+                          </button>
+                        );
+                      }
+                    )}
+
+                    {homeSearchSuggestions.length ===
+                      0 && (
+                      <div
+                        className="candidate-search-empty"
+                        data-testid="home-search-no-results"
+                      >
+                        Eşleşen istasyon, mahalle veya konum bulunamadı.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               <button
                 type="button"
@@ -1205,6 +1814,15 @@ export default function CandidatePointsPage() {
                 searchTerm={
                   stationSearch
                 }
+                searchSelection={
+                  selectedHomeSearchResult
+                }
+                searchSelectionKey={
+                  homeSearchSelectionKey
+                }
+                onSearchSuggestionsChange={
+                  setHomeSearchSuggestions
+                }
                 mapStep={
                   regionsActive
                     ? 2
@@ -1222,19 +1840,182 @@ export default function CandidatePointsPage() {
             data-testid="candidate-map-screen"
           >
             <div className="map-topbar">
-              <input
-                className="map-search"
-                data-testid="candidate-search-input"
-                placeholder="Aday nokta, bölge veya mahalle ara"
-                value={candidateSearch}
-                autoComplete="off"
-                spellCheck={false}
-                onChange={(event) =>
-                  searchCandidates(
-                    event.target.value
-                  )
-                }
-              />
+              <div
+                className="candidate-search-shell"
+                data-testid="candidate-search-shell"
+              >
+                <input
+                  className="map-search candidate-search-input"
+                  data-testid="candidate-search-input"
+                  placeholder="Aday nokta veya mahalle ara"
+                  value={candidateSearch}
+                  autoComplete="off"
+                  spellCheck={false}
+                  role="combobox"
+                  aria-autocomplete="list"
+                  aria-expanded={
+                    candidateSearchOpen
+                  }
+                  aria-controls="candidate-search-suggestions"
+                  aria-activedescendant={
+                    activeSearchSuggestionIndex >=
+                    0
+                      ? `candidate-search-option-${
+                          candidateSearchSuggestions[
+                            activeSearchSuggestionIndex
+                          ]?.key
+                        }`
+                      : undefined
+                  }
+                  onFocus={() => {
+                    if (
+                      normalizeSearchText(
+                        candidateSearch
+                      ).length >= 2
+                    ) {
+                      setCandidateSearchOpen(
+                        true
+                      );
+                    }
+                  }}
+                  onBlur={() => {
+                    window.setTimeout(
+                      () => {
+                        setCandidateSearchOpen(
+                          false
+                        );
+
+                        setActiveSearchSuggestionIndex(
+                          -1
+                        );
+                      },
+                      120
+                    );
+                  }}
+                  onKeyDown={
+                    handleCandidateSearchKeyDown
+                  }
+                  onChange={(event) =>
+                    handleCandidateSearchChange(
+                      event.target.value
+                    )
+                  }
+                />
+
+                {candidateSearch && (
+                  <button
+                    type="button"
+                    className="candidate-search-clear-button"
+                    aria-label="Aramayı temizle"
+                    title="Aramayı temizle"
+                    data-testid="candidate-search-clear-button"
+                    onMouseDown={(
+                      event
+                    ) =>
+                      event.preventDefault()
+                    }
+                    onClick={
+                      clearCandidateSearch
+                    }
+                  >
+                    ×
+                  </button>
+                )}
+
+                {candidateSearchOpen && (
+                  <div
+                    id="candidate-search-suggestions"
+                    className="candidate-search-suggestions"
+                    role="listbox"
+                    data-testid="candidate-search-suggestions"
+                  >
+                    {candidateSearchSuggestions.map(
+                      (
+                        suggestion,
+                        index
+                      ) => {
+                        const testIdPart =
+                          createSearchTestIdPart(
+                            suggestion.id
+                          );
+
+                        const isActive =
+                          index ===
+                          activeSearchSuggestionIndex;
+
+                        return (
+                          <button
+                            key={
+                              suggestion.key
+                            }
+                            id={`candidate-search-option-${suggestion.key}`}
+                            type="button"
+                            role="option"
+                            aria-selected={
+                              isActive
+                            }
+                            className={
+                              isActive
+                                ? "candidate-search-suggestion active"
+                                : "candidate-search-suggestion"
+                            }
+                            data-testid={`candidate-search-suggestion-${suggestion.type}-${testIdPart}`}
+                            onMouseDown={(
+                              event
+                            ) =>
+                              event.preventDefault()
+                            }
+                            onMouseEnter={() =>
+                              setActiveSearchSuggestionIndex(
+                                index
+                              )
+                            }
+                            onClick={() =>
+                              selectCandidateSearchSuggestion(
+                                suggestion
+                              )
+                            }
+                          >
+                            <span className="candidate-search-suggestion-main">
+                              <strong
+                                data-testid={`candidate-search-suggestion-${suggestion.type}-${testIdPart}-label`}
+                              >
+                                {
+                                  suggestion.label
+                                }
+                              </strong>
+
+                              <small>
+                                {
+                                  suggestion.description
+                                }
+                              </small>
+                            </span>
+
+                            <em
+                              data-testid={`candidate-search-suggestion-${suggestion.type}-${testIdPart}-type`}
+                            >
+                              {
+                                suggestion.typeLabel
+                              }
+                            </em>
+                          </button>
+                        );
+                      }
+                    )}
+
+                    {candidateSearchSuggestions.length ===
+                      0 && (
+                      <div
+                        className="candidate-search-empty"
+                        data-testid="candidate-search-no-results"
+                      >
+                        Eşleşen aday nokta veya mahalle bulunamadı.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               <button
                 type="button"
