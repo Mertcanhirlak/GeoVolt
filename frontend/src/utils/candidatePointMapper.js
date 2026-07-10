@@ -1,3 +1,10 @@
+const CANKAYA_BOUNDS = {
+  minLatitude: 39.70,
+  maxLatitude: 40.10,
+  minLongitude: 32.50,
+  maxLongitude: 33.20,
+};
+
 function getFirstValue(source, keys) {
   if (!source || typeof source !== "object") {
     return undefined;
@@ -28,12 +35,18 @@ function toText(value, fallback = "") {
 }
 
 function toNullableNumber(value) {
-  if (value === null || value === undefined || value === "") {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
     return null;
   }
 
   if (typeof value === "number") {
-    return Number.isFinite(value) ? value : null;
+    return Number.isFinite(value)
+      ? value
+      : null;
   }
 
   let normalizedValue = String(value)
@@ -42,15 +55,23 @@ function toNullableNumber(value) {
     .replace(/[₺TLtl]/g, "");
 
   /*
-   * 450.000 gibi Türkçe binlik ayıracı bulunan değerleri düzeltir.
-   * 39.9208 gibi ondalıklı koordinatlara dokunmaz.
+   * 450.000 gibi Türkçe binlik ayıracı bulunan
+   * değerleri düzeltir.
+   *
+   * 39.9208 gibi koordinatlara dokunmaz.
    */
-  if (/^-?\d{1,3}(\.\d{3})+$/.test(normalizedValue)) {
-    normalizedValue = normalizedValue.replace(/\./g, "");
+  if (
+    /^-?\d{1,3}(\.\d{3})+$/.test(
+      normalizedValue
+    )
+  ) {
+    normalizedValue =
+      normalizedValue.replace(/\./g, "");
   }
 
   /*
-   * 450.000,50 veya 82,5 gibi Türkçe sayı biçimlerini destekler.
+   * 450.000,50 veya 82,5 gibi Türkçe sayı
+   * biçimlerini destekler.
    */
   if (normalizedValue.includes(",")) {
     normalizedValue = normalizedValue
@@ -58,9 +79,12 @@ function toNullableNumber(value) {
       .replace(",", ".");
   }
 
-  const numberValue = Number(normalizedValue);
+  const numberValue =
+    Number(normalizedValue);
 
-  return Number.isFinite(numberValue) ? numberValue : null;
+  return Number.isFinite(numberValue)
+    ? numberValue
+    : null;
 }
 
 function toScore(value) {
@@ -70,7 +94,10 @@ function toScore(value) {
     return null;
   }
 
-  return Math.min(100, Math.max(0, Math.round(score)));
+  return Math.min(
+    100,
+    Math.max(0, Math.round(score))
+  );
 }
 
 function toBoolean(value) {
@@ -82,11 +109,131 @@ function toBoolean(value) {
     return value === 1;
   }
 
-  const normalizedValue = String(value ?? "")
+  const normalizedValue = String(
+    value ?? ""
+  )
     .trim()
     .toLocaleLowerCase("tr-TR");
 
-  return ["true", "1", "yes", "evet"].includes(normalizedValue);
+  return [
+    "true",
+    "1",
+    "yes",
+    "evet",
+  ].includes(normalizedValue);
+}
+
+function isValidLatitude(value) {
+  return (
+    Number.isFinite(value) &&
+    value >= -90 &&
+    value <= 90
+  );
+}
+
+function isValidLongitude(value) {
+  return (
+    Number.isFinite(value) &&
+    value >= -180 &&
+    value <= 180
+  );
+}
+
+function isInsideCankaya(
+  latitude,
+  longitude
+) {
+  return (
+    latitude >=
+      CANKAYA_BOUNDS.minLatitude &&
+    latitude <=
+      CANKAYA_BOUNDS.maxLatitude &&
+    longitude >=
+      CANKAYA_BOUNDS.minLongitude &&
+    longitude <=
+      CANKAYA_BOUNDS.maxLongitude
+  );
+}
+
+/**
+ * Backend veya mock veri enlem-boylam alanlarını
+ * ters göndermişse Çankaya sınırlarına göre otomatik
+ * olarak doğru sıraya çevirir.
+ */
+function normalizeCoordinates(
+  rawLatitude,
+  rawLongitude
+) {
+  const latitude =
+    toNullableNumber(rawLatitude);
+
+  const longitude =
+    toNullableNumber(rawLongitude);
+
+  if (
+    latitude === null ||
+    longitude === null
+  ) {
+    return {
+      latitude,
+      longitude,
+    };
+  }
+
+  const directCoordinatesValid =
+    isValidLatitude(latitude) &&
+    isValidLongitude(longitude);
+
+  const swappedCoordinatesValid =
+    isValidLatitude(longitude) &&
+    isValidLongitude(latitude);
+
+  const directInsideCankaya =
+    directCoordinatesValid &&
+    isInsideCankaya(
+      latitude,
+      longitude
+    );
+
+  const swappedInsideCankaya =
+    swappedCoordinatesValid &&
+    isInsideCankaya(
+      longitude,
+      latitude
+    );
+
+  /*
+   * Doğrudan değer Çankaya dışında, ters çevrilmiş
+   * değer Çankaya içindeyse enlem-boylam ters gelmiştir.
+   */
+  if (
+    !directInsideCankaya &&
+    swappedInsideCankaya
+  ) {
+    return {
+      latitude: longitude,
+      longitude: latitude,
+    };
+  }
+
+  /*
+   * Doğrudan koordinat teknik olarak geçersiz ama
+   * ters çevrilmiş biçimi geçerliyse yine düzeltir.
+   */
+  if (
+    !directCoordinatesValid &&
+    swappedCoordinatesValid
+  ) {
+    return {
+      latitude: longitude,
+      longitude: latitude,
+    };
+  }
+
+  return {
+    latitude,
+    longitude,
+  };
 }
 
 function createEstimatedAddress({
@@ -114,24 +261,39 @@ function createEstimatedAddress({
   return addressParts.join(" / ");
 }
 
-function normalizeStatus(rawStatus, candidate) {
-  const normalizedStatus = String(rawStatus ?? "")
+function normalizeStatus(
+  rawStatus,
+  candidate
+) {
+  const normalizedStatus = String(
+    rawStatus ?? ""
+  )
     .trim()
     .toLocaleLowerCase("tr-TR");
 
   if (
     normalizedStatus.includes("hesap") ||
-    normalizedStatus.includes("calculat") ||
-    normalizedStatus.includes("pending") ||
-    normalizedStatus.includes("processing")
+    normalizedStatus.includes(
+      "calculat"
+    ) ||
+    normalizedStatus.includes(
+      "pending"
+    ) ||
+    normalizedStatus.includes(
+      "processing"
+    )
   ) {
     return "calculating";
   }
 
   if (
     normalizedStatus.includes("eksik") ||
-    normalizedStatus.includes("missing") ||
-    normalizedStatus.includes("invalid") ||
+    normalizedStatus.includes(
+      "missing"
+    ) ||
+    normalizedStatus.includes(
+      "invalid"
+    ) ||
     normalizedStatus.includes("error")
   ) {
     return "missing";
@@ -154,11 +316,18 @@ function normalizeStatus(rawStatus, candidate) {
 }
 
 /**
- * Backend, GeoJSON, mock veya snake_case veriyi frontend'in
- * kullandığı ortak aday nokta modeline dönüştürür.
+ * Backend, GeoJSON, mock, PascalCase veya snake_case
+ * veriyi frontend'in kullandığı ortak aday nokta
+ * modeline dönüştürür.
  */
-export function mapCandidatePoint(rawCandidate, index = 0) {
-  if (!rawCandidate || typeof rawCandidate !== "object") {
+export function mapCandidatePoint(
+  rawCandidate,
+  index = 0
+) {
+  if (
+    !rawCandidate ||
+    typeof rawCandidate !== "object"
+  ) {
     return null;
   }
 
@@ -270,10 +439,6 @@ export function mapCandidatePoint(rawCandidate, index = 0) {
     ])
   );
 
-  /*
-   * Backend genel skoru göndermediyse dokümandaki kurala göre
-   * maliyet ve talep skorunun ortalamasını üretir.
-   */
   if (
     generalScore === null &&
     costScore !== null &&
@@ -283,6 +448,46 @@ export function mapCandidatePoint(rawCandidate, index = 0) {
       (costScore + demandScore) / 2
     );
   }
+
+  const rawLatitude = getFirstValue(
+    rawCandidate,
+    [
+      "latitude",
+      "Latitude",
+      "LATITUDE",
+      "lat",
+      "Lat",
+      "enlem",
+      "ENLEM",
+      "y",
+      "Y",
+    ]
+  );
+
+  const rawLongitude = getFirstValue(
+    rawCandidate,
+    [
+      "longitude",
+      "Longitude",
+      "LONGITUDE",
+      "lng",
+      "Lng",
+      "lon",
+      "Lon",
+      "boylam",
+      "BOYLAM",
+      "x",
+      "X",
+    ]
+  );
+
+  const {
+    latitude,
+    longitude,
+  } = normalizeCoordinates(
+    rawLatitude,
+    rawLongitude
+  );
 
   const candidate = {
     id,
@@ -300,13 +505,15 @@ export function mapCandidatePoint(rawCandidate, index = 0) {
       `Aday Nokta ${index + 1}`
     ),
 
-    estimatedAddress: createEstimatedAddress({
-      estimatedAddress: estimatedAddressValue,
-      city,
-      district,
-      region,
-      neighborhood,
-    }),
+    estimatedAddress:
+      createEstimatedAddress({
+        estimatedAddress:
+          estimatedAddressValue,
+        city,
+        district,
+        region,
+        neighborhood,
+      }),
 
     city,
     district,
@@ -344,35 +551,8 @@ export function mapCandidatePoint(rawCandidate, index = 0) {
     demandScore,
     generalScore,
 
-    latitude: toNullableNumber(
-      getFirstValue(rawCandidate, [
-        "latitude",
-        "Latitude",
-        "LATITUDE",
-        "lat",
-        "Lat",
-        "enlem",
-        "ENLEM",
-        "y",
-        "Y",
-      ])
-    ),
-
-    longitude: toNullableNumber(
-      getFirstValue(rawCandidate, [
-        "longitude",
-        "Longitude",
-        "LONGITUDE",
-        "lng",
-        "Lng",
-        "lon",
-        "Lon",
-        "boylam",
-        "BOYLAM",
-        "x",
-        "X",
-      ])
-    ),
+    latitude,
+    longitude,
 
     systemType: toText(
       getFirstValue(rawCandidate, [
@@ -436,14 +616,19 @@ export function mapCandidatePoint(rawCandidate, index = 0) {
   return candidate;
 }
 
-export function mapCandidatePoints(rawCandidates) {
+export function mapCandidatePoints(
+  rawCandidates
+) {
   if (!Array.isArray(rawCandidates)) {
     return [];
   }
 
   return rawCandidates
     .map((candidate, index) =>
-      mapCandidatePoint(candidate, index)
+      mapCandidatePoint(
+        candidate,
+        index
+      )
     )
     .filter(Boolean);
 }

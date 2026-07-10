@@ -1,0 +1,107 @@
+.candidate-points-map {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #dbeafe;
+}
+
+.candidate-points-map-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.candidate-points-map-canvas .ol-viewport {
+  font-family: Arial, sans-serif;
+}
+
+.candidate-map-count {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  z-index: 6;
+  padding: 8px 13px;
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 18px;
+  font-size: 12px;
+  font-weight: 900;
+  box-shadow: 0 5px 16px rgba(15, 23, 42, 0.14);
+}
+
+.candidate-map-legend {
+  position: absolute;
+  bottom: 18px;
+  left: 18px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  color: #334155;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 18px;
+  font-size: 11px;
+  font-weight: 800;
+  box-shadow: 0 5px 16px rgba(15, 23, 42, 0.14);
+}
+
+.candidate-map-legend span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.candidate-map-legend i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border: 1px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.2);
+}
+
+.candidate-score-high {
+  background: #16a34a;
+}
+
+.candidate-score-medium {
+  background: #f59e0b;
+}
+
+.candidate-score-low {
+  background: #dc2626;
+}
+
+.candidate-map-empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 7;
+  width: min(340px, calc(100% - 40px));
+  padding: 18px 22px;
+  color: #475569;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+  transform: translate(-50%, -50%);
+}
+
+@media (max-width: 760px) {
+  .candidate-map-count {
+    top: 12px;
+    left: 12px;
+  }
+
+  .candidate-map-legend {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    justify-content: center;
+  }
+}
