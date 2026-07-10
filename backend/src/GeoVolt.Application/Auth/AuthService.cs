@@ -63,6 +63,20 @@ public sealed class AuthService : IAuthService
             user.Email,
             role,
             user.CompanyId,
-            user.Company?.Name);
+            user.Company?.Name,
+            GetPermissionNames(user));
+    }
+
+    private static IReadOnlyList<string> GetPermissionNames(User user)
+    {
+        return user.UserRoles
+            .Where(userRole => userRole.Role is not null)
+            .SelectMany(userRole => userRole.Role!.RolePermissions)
+            .Select(rolePermission => rolePermission.Permission.Name)
+            .Concat(user.UserPermissions.Select(userPermission => userPermission.Permission.Name))
+            .Where(permissionName => !string.IsNullOrWhiteSpace(permissionName))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(permissionName => permissionName)
+            .ToList();
     }
 }

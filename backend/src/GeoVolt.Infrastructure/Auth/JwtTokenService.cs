@@ -71,7 +71,8 @@ public sealed class JwtTokenService : ITokenService
             user.Email,
             primaryRole,
             user.CompanyId,
-            user.Company?.Name);
+            user.Company?.Name,
+            GetPermissionNames(user));
 
         return new AuthResponse(token, expiresAtUtc, userResponse);
     }

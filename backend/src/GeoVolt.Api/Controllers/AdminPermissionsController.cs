@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace GeoVolt.Api.Controllers;
 
 [ApiController]
-[Authorize(Roles = UserRoles.Admin)]
+[Authorize]
 [Route("api/admin/permissions")]
 public sealed class AdminPermissionsController : ControllerBase
 {
@@ -20,6 +20,7 @@ public sealed class AdminPermissionsController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = PermissionNames.PermissionAssign)]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<PermissionResponse>>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<PermissionResponse>>>> GetPermissions(
         CancellationToken cancellationToken)

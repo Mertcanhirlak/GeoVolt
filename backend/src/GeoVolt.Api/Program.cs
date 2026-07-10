@@ -4,6 +4,7 @@ using GeoVolt.Application.Auth.Options;
 using GeoVolt.Domain.Constants;
 using GeoVolt.Infrastructure;
 using GeoVolt.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.IdentityModel.Tokens;
@@ -75,9 +76,32 @@ builder.Services.AddAuthorization(options =>
         options.AddPolicy(permission.Name, policy =>
         {
             policy.RequireAuthenticatedUser();
-            policy.RequireClaim("permission", permission.Name);
+            policy.RequireAssertion(context =>
+                CanUseManagementApi(context)
+                && context.User.HasClaim("permission", permission.Name));
         });
     }
+
+    options.AddPolicy("user.catalog.read", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireAssertion(context =>
+            CanUseManagementApi(context)
+            && (
+            context.User.HasClaim("permission", PermissionNames.UserRead)
+            || context.User.HasClaim("permission", PermissionNames.UserRoleAssign)));
+    });
+
+    options.AddPolicy("role.catalog.read", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireAssertion(context =>
+            CanUseManagementApi(context)
+            && (
+            context.User.HasClaim("permission", PermissionNames.RoleRead)
+            || context.User.HasClaim("permission", PermissionNames.UserRoleAssign)
+            || context.User.HasClaim("permission", PermissionNames.PermissionAssign)));
+    });
 });
 
 builder.Services.AddEndpointsApiExplorer();
@@ -181,4 +205,9 @@ static async Task SeedDefaultAdminAsync(WebApplication app)
     {
         logger.LogWarning(exception, "Default admin seed skipped. Run database migration and restart the API.");
     }
+}
+
+static bool CanUseManagementApi(AuthorizationHandlerContext context)
+{
+    return !context.User.IsInRole(UserRoles.CompanyUser);
 }

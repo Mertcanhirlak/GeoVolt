@@ -16,15 +16,13 @@ function ProtectedRoute({ children }) {
 }
 
 function AdminRoute({ children }) {
-  const { token, user } = useAuth();
+  const { token, canAccessManagement } = useAuth();
 
   if (!token) {
     return <Navigate to="/login" replace />;
   }
 
-  const role = user?.role || user?.Role;
-
-  if (role !== "SystemAdmin" && role !== "Admin") {
+  if (!canAccessManagement) {
     return <Navigate to="/dashboard" replace />;
   }
 

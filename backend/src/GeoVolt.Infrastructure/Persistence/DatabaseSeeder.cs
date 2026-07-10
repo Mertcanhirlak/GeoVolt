@@ -28,6 +28,7 @@ public sealed class DatabaseSeeder
         await SeedRolesAsync(cancellationToken);
         await SeedPermissionsAsync(cancellationToken);
         await SeedAdminRolePermissionsAsync(cancellationToken);
+        await EnsureCompanyUserHasNoManagementPermissionsAsync(cancellationToken);
         await SeedAdminUserAsync(cancellationToken);
         await BackfillUserRolesAsync(cancellationToken);
     }
@@ -115,6 +116,38 @@ public sealed class DatabaseSeeder
                 PermissionId = permission.Id,
                 CreatedAtUtc = DateTime.UtcNow
             });
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task EnsureCompanyUserHasNoManagementPermissionsAsync(CancellationToken cancellationToken)
+    {
+        var companyUserRole = await _dbContext.Roles
+            .Include(role => role.RolePermissions)
+            .FirstOrDefaultAsync(role => role.Name == UserRoles.CompanyUser, cancellationToken);
+
+        if (companyUserRole is not null && companyUserRole.RolePermissions.Count > 0)
+        {
+            _dbContext.RolePermissions.RemoveRange(companyUserRole.RolePermissions);
+        }
+
+        var companyUsers = await _dbContext.Users
+            .Include(user => user.UserRoles)
+                .ThenInclude(userRole => userRole.Role)
+            .Include(user => user.UserPermissions)
+            .Where(user =>
+                user.Role == UserRoles.CompanyUser
+                || user.UserRoles.Any(userRole =>
+                    userRole.Role != null && userRole.Role.Name == UserRoles.CompanyUser))
+            .ToListAsync(cancellationToken);
+
+        foreach (var user in companyUsers)
+        {
+            if (user.UserPermissions.Count > 0)
+            {
+                _dbContext.UserPermissions.RemoveRange(user.UserPermissions);
+            }
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);

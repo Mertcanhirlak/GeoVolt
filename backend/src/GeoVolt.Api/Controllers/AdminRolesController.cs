@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace GeoVolt.Api.Controllers;
 
 [ApiController]
-[Authorize(Roles = UserRoles.Admin)]
+[Authorize]
 [Route("api/admin/roles")]
 public sealed class AdminRolesController : ControllerBase
 {
@@ -20,6 +20,7 @@ public sealed class AdminRolesController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = "role.catalog.read")]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<RoleResponse>>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<RoleResponse>>>> GetRoles(CancellationToken cancellationToken)
     {
@@ -29,6 +30,7 @@ public sealed class AdminRolesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = PermissionNames.RoleCreate)]
     [ProducesResponseType(typeof(ApiResponse<RoleResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<RoleResponse>), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse<RoleResponse>>> CreateRole(
@@ -41,6 +43,7 @@ public sealed class AdminRolesController : ControllerBase
     }
 
     [HttpPatch("{roleId:int}")]
+    [Authorize(Policy = PermissionNames.RoleUpdate)]
     [ProducesResponseType(typeof(ApiResponse<RoleResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<RoleResponse>), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse<RoleResponse>>> UpdateRole(
@@ -54,6 +57,7 @@ public sealed class AdminRolesController : ControllerBase
     }
 
     [HttpDelete("{roleId:int}")]
+    [Authorize(Policy = PermissionNames.RoleDelete)]
     [ProducesResponseType(typeof(ApiResponse<int>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<int>), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse<int>>> DeleteRole(
@@ -66,6 +70,7 @@ public sealed class AdminRolesController : ControllerBase
     }
 
     [HttpPut("{roleId:int}/permissions")]
+    [Authorize(Policy = PermissionNames.PermissionAssign)]
     [ProducesResponseType(typeof(ApiResponse<RoleResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<RoleResponse>), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse<RoleResponse>>> AssignPermissions(

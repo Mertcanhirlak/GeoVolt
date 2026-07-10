@@ -52,8 +52,21 @@ function normalizeAuthResponse(response) {
 
 export function decodeMockToken(token) {
   try {
-    const payloadBase64 = token.split(".")[1];
-    return JSON.parse(atob(payloadBase64));
+    const payloadBase64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const paddedPayload = payloadBase64.padEnd(payloadBase64.length + ((4 - payloadBase64.length % 4) % 4), "=");
+    const payload = JSON.parse(atob(paddedPayload));
+    const permissions = payload.permission
+      ? Array.isArray(payload.permission) ? payload.permission : [payload.permission]
+      : payload.permissions;
+
+    return {
+      id: Number(payload.id ?? payload.sub ?? payload.nameid),
+      companyId: payload.companyId ? Number(payload.companyId) : null,
+      fullName: payload.fullName ?? payload.name ?? payload.unique_name,
+      email: payload.email,
+      role: Array.isArray(payload.role) ? payload.role[0] : payload.role,
+      permissions: Array.isArray(permissions) ? permissions : []
+    };
   } catch {
     return null;
   }

@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace GeoVolt.Api.Controllers;
 
 [ApiController]
-[Authorize(Roles = UserRoles.Admin)]
+[Authorize]
 [Route("api/admin/users")]
 public sealed class AdminUsersController : ControllerBase
 {
@@ -22,6 +22,7 @@ public sealed class AdminUsersController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = PermissionNames.UserCreate)]
     [ProducesResponseType(typeof(ApiResponse<UserResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<UserResponse>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -36,6 +37,7 @@ public sealed class AdminUsersController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = "user.catalog.read")]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<UserResponse>>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -48,6 +50,7 @@ public sealed class AdminUsersController : ControllerBase
     }
 
     [HttpPatch("{userId:int}/role")]
+    [Authorize(Policy = PermissionNames.UserRoleAssign)]
     [ProducesResponseType(typeof(ApiResponse<UserResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<UserResponse>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -63,6 +66,7 @@ public sealed class AdminUsersController : ControllerBase
     }
 
     [HttpPut("{userId:int}/roles")]
+    [Authorize(Policy = PermissionNames.UserRoleAssign)]
     [ProducesResponseType(typeof(ApiResponse<UserResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<UserResponse>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -78,6 +82,7 @@ public sealed class AdminUsersController : ControllerBase
     }
 
     [HttpGet("{userId:int}/permissions")]
+    [Authorize(Policy = PermissionNames.PermissionAssign)]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<UserPermissionResponse>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<UserPermissionResponse>>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -92,6 +97,7 @@ public sealed class AdminUsersController : ControllerBase
     }
 
     [HttpPut("{userId:int}/permissions")]
+    [Authorize(Policy = PermissionNames.PermissionAssign)]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<UserPermissionResponse>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<UserPermissionResponse>>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -107,6 +113,7 @@ public sealed class AdminUsersController : ControllerBase
     }
 
     [HttpDelete("{userId:int}")]
+    [Authorize(Policy = PermissionNames.UserDelete)]
     [ProducesResponseType(typeof(ApiResponse<int>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<int>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]

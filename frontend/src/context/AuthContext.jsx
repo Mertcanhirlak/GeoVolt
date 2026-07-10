@@ -3,11 +3,34 @@ import { decodeMockToken } from "../services/authService";
 
 const AuthContext = createContext();
 
+const managementPermissions = [
+  "user.read",
+  "user.create",
+  "user.update",
+  "user.delete",
+  "user.role.assign",
+  "role.read",
+  "role.create",
+  "role.update",
+  "role.delete",
+  "permission.assign",
+  "point.read",
+  "point.create",
+  "point.update",
+  "point.delete",
+  "dashboard.admin.view"
+];
+
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(localStorage.getItem("token"));
   const [user, setUser] = useState(() => {
-    const storedUser = localStorage.getItem("user");
+    const storedToken = localStorage.getItem("token");
 
+    if (storedToken) {
+      return decodeMockToken(storedToken);
+    }
+
+    const storedUser = localStorage.getItem("user");
     if (!storedUser) return null;
 
     try {
@@ -19,24 +42,33 @@ export function AuthProvider({ children }) {
   });
 
   useEffect(() => {
-    if (token && !user) {
+    if (token) {
       const decoded = decodeMockToken(token);
-      setUser(decoded);
+
+      if (decoded) {
+        localStorage.setItem("user", JSON.stringify(decoded));
+        setUser(decoded);
+      }
     }
 
     if (!token) {
       setUser(null);
     }
-  }, [token, user]);
+  }, [token]);
 
   const loginUser = (newToken, userData = null) => {
+    const tokenUser = decodeMockToken(newToken);
+    const nextUser = tokenUser ?? userData;
+
     localStorage.setItem("token", newToken);
     setToken(newToken);
 
-    if (userData) {
-      localStorage.setItem("user", JSON.stringify(userData));
-      setUser(userData);
+    if (nextUser) {
+      localStorage.setItem("user", JSON.stringify(nextUser));
+      setUser(nextUser);
     }
+
+    return nextUser;
   };
 
   const logoutUser = () => {
@@ -49,9 +81,13 @@ export function AuthProvider({ children }) {
   const isAuthenticated = !!token;
   const role = user?.role ?? null;
   const companyId = user?.companyId ?? null;
+  const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
 
   const isAdmin = role === "Admin";
   const isCompanyUser = role === "CompanyUser";
+  const hasPermission = (permission) => isAdmin || permissions.includes(permission);
+  const hasAnyPermission = (permissionList) => isAdmin || permissionList.some((permission) => permissions.includes(permission));
+  const canAccessManagement = !isCompanyUser && hasAnyPermission(managementPermissions);
 
   return (
     <AuthContext.Provider
@@ -60,9 +96,13 @@ export function AuthProvider({ children }) {
         user,
         role,
         companyId,
+        permissions,
         isAuthenticated,
         isAdmin,
         isCompanyUser,
+        hasPermission,
+        hasAnyPermission,
+        canAccessManagement,
         loginUser,
         logoutUser,
       }}

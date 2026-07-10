@@ -169,6 +169,11 @@ public sealed class AdminService : IAdminService
             user.CompanyId = company.Id;
         }
 
+        if (nextRole.Name == UserRoles.CompanyUser)
+        {
+            await _adminRepository.ReplaceUserPermissionsAsync(user, Array.Empty<Permission>(), cancellationToken);
+        }
+
         await _adminRepository.ReplaceUserRolesAsync(user, new[] { nextRole }, cancellationToken);
 
         var updatedUser = await _adminRepository.GetUserByIdAsync(user.Id, cancellationToken) ?? user;
@@ -334,6 +339,12 @@ public sealed class AdminService : IAdminService
         }
 
         var permissionIds = request.PermissionIds.Distinct().ToList();
+
+        if (role.Name == UserRoles.CompanyUser && permissionIds.Count > 0)
+        {
+            return ApiResponse<RoleResponse>.Fail("CompanyUser sistem rolune yonetim yetkisi atanamaz.");
+        }
+
         var permissions = await _adminRepository.GetPermissionsByIdsAsync(permissionIds, cancellationToken);
 
         if (permissions.Count != permissionIds.Count)
@@ -377,6 +388,11 @@ public sealed class AdminService : IAdminService
         var currentRoleNames = GetRoleNames(user);
         var nextRoleNames = roles.Select(role => role.Name).ToHashSet(StringComparer.Ordinal);
 
+        if (nextRoleNames.Contains(UserRoles.CompanyUser) && nextRoleNames.Count > 1)
+        {
+            return ApiResponse<UserResponse>.Fail("CompanyUser rolu baska rollerle birlikte atanamaz.");
+        }
+
         if (currentRoleNames.Contains(UserRoles.Admin) && !nextRoleNames.Contains(UserRoles.Admin))
         {
             var adminCount = await _adminRepository.GetAdminUserCountAsync(cancellationToken);
@@ -390,6 +406,11 @@ public sealed class AdminService : IAdminService
         if (nextRoleNames.Contains(UserRoles.Admin))
         {
             user.CompanyId = null;
+        }
+
+        if (nextRoleNames.Contains(UserRoles.CompanyUser))
+        {
+            await _adminRepository.ReplaceUserPermissionsAsync(user, Array.Empty<Permission>(), cancellationToken);
         }
 
         await _adminRepository.ReplaceUserRolesAsync(user, roles, cancellationToken);
@@ -426,6 +447,13 @@ public sealed class AdminService : IAdminService
         }
 
         var permissionIds = request.PermissionIds.Distinct().ToList();
+
+        if (GetRoleNames(user).Contains(UserRoles.CompanyUser) && permissionIds.Count > 0)
+        {
+            return ApiResponse<IReadOnlyList<UserPermissionResponse>>.Fail(
+                "CompanyUser kullanicisina direkt yonetim yetkisi atanamaz.");
+        }
+
         var rolePermissionIds = user.UserRoles
             .SelectMany(userRole => userRole.Role.RolePermissions)
             .Select(rolePermission => rolePermission.PermissionId)
@@ -484,7 +512,8 @@ public sealed class AdminService : IAdminService
             user.Email,
             role,
             user.CompanyId,
-            user.Company?.Name);
+            user.Company?.Name,
+            GetPermissionNames(user));
     }
 
     private static RoleResponse ToRoleResponse(Role role)
@@ -569,6 +598,19 @@ public sealed class AdminService : IAdminService
         }
 
         return roleNames;
+    }
+
+    private static IReadOnlyList<string> GetPermissionNames(User user)
+    {
+        return user.UserRoles
+            .Where(userRole => userRole.Role is not null)
+            .SelectMany(userRole => userRole.Role!.RolePermissions)
+            .Select(rolePermission => rolePermission.Permission.Name)
+            .Concat(user.UserPermissions.Select(userPermission => userPermission.Permission.Name))
+            .Where(permissionName => !string.IsNullOrWhiteSpace(permissionName))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(permissionName => permissionName)
+            .ToList();
     }
 
     private sealed record UserPermissionSource(Permission Permission, string RoleName);
