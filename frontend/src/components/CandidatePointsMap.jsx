@@ -51,7 +51,11 @@ const CANKAYA_BOUNDS = {
   minLongitude: 32.5,
   maxLongitude: 33.18,
 };
-
+/*
+ * Geniş harita görünümünde bölge adları gizlenir.
+ * Yaklaşık zoom 13 ve üzerinde isimler gösterilir.
+ */
+const CANDIDATE_REGION_LABEL_MAX_RESOLUTION = 12;
 const GEOJSON_URLS = {
   poi: "/data/POI.geojson",
   trafo: "/data/TRAFO.geojson",
@@ -68,6 +72,7 @@ const regionColors = [
 ];
 
 const candidateStyleCache = new Map();
+const candidateRegionStyleCache = new Map();
 const poiClusterStyleCache = new Map();
 const trafoClusterStyleCache = new Map();
 
@@ -505,7 +510,10 @@ function parseRegionGeometry(region) {
   return null;
 }
 
-function createRegionStyle(feature) {
+function createRegionStyle(
+  feature,
+  resolution
+) {
   const regionIndex =
     feature.get("regionIndex") ?? 0;
 
@@ -515,7 +523,33 @@ function createRegionStyle(feature) {
   const regionName =
     feature.get("name") ?? "";
 
-  return new Style({
+  /*
+ * Seçili bölgenin adı sol üstteki panelde gösteriliyor.
+ * Diğer bölge adları yalnızca yakın görünümde görünür.
+ */
+const showLabel =
+  !isSelected &&
+  resolution <=
+    CANDIDATE_REGION_LABEL_MAX_RESOLUTION;
+
+  const cacheKey = [
+    regionIndex % regionColors.length,
+    isSelected ? "selected" : "default",
+    showLabel ? "label" : "no-label",
+    regionName,
+  ].join("-");
+
+  if (
+    candidateRegionStyleCache.has(
+      cacheKey
+    )
+  ) {
+    return candidateRegionStyleCache.get(
+      cacheKey
+    );
+  }
+
+  const style = new Style({
     fill: new Fill({
       color: isSelected
         ? "rgba(37, 99, 235, 0.46)"
@@ -530,35 +564,54 @@ function createRegionStyle(feature) {
         ? "#1d4ed8"
         : "rgba(239, 68, 68, 0.92)",
 
-      width: isSelected ? 5 : 3,
+      width: isSelected
+        ? 5
+        : 3,
     }),
 
-    text: new Text({
-      text: regionName,
-      overflow: true,
+    text: showLabel
+      ? new Text({
+          text: regionName,
 
-      font: isSelected
-        ? "bold 14px Arial"
-        : "bold 11px Arial",
+          /*
+           * Yazının polygon dışına taşmasını ve
+           * diğer isimlerle çakışmasını azaltır.
+           */
+          overflow: false,
 
-      fill: new Fill({
-        color: "#0f172a",
-      }),
+          font: isSelected
+            ? "bold 13px Arial"
+            : "bold 10px Arial",
 
-      stroke: new Stroke({
-        color:
-          "rgba(255, 255, 255, 0.98)",
-        width: 4,
-      }),
+          fill: new Fill({
+            color: "#0f172a",
+          }),
 
-      backgroundFill: new Fill({
-        color:
-          "rgba(255, 255, 255, 0.82)",
-      }),
+          /*
+           * Beyaz kutu yoktur.
+           * Yalnızca harflerin çevresinde
+           * okunabilirlik konturu vardır.
+           */
+          stroke: new Stroke({
+            color:
+              "rgba(255, 255, 255, 0.92)",
 
-      padding: [3, 5, 3, 5],
-    }),
+            width: isSelected
+              ? 4
+              : 3,
+          }),
+
+          padding: [0, 0, 0, 0],
+        })
+      : undefined,
   });
+
+  candidateRegionStyleCache.set(
+    cacheKey,
+    style
+  );
+
+  return style;
 }
 
 function createRegionFeatures(regions) {
@@ -1648,14 +1701,24 @@ export default function CandidatePointsMap({
     }
 
     const regionLayer =
-      new VectorLayer({
-        source:
-          regionSourceRef.current,
+  new VectorLayer({
+    source:
+      regionSourceRef.current,
 
-        style: createRegionStyle,
-        visible: false,
-        zIndex: 3,
-      });
+    style: createRegionStyle,
+
+    visible: false,
+
+    /*
+     * Birbirine yakın bölge isimlerinin
+     * üst üste çizilmesini engeller.
+     */
+    declutter: true,
+
+    renderBuffer: 100,
+
+    zIndex: 3,
+  });
 
     const roadLayer =
       new VectorLayer({

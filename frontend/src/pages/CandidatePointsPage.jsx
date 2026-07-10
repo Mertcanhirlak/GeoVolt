@@ -383,12 +383,15 @@ export default function CandidatePointsPage() {
           : [];
 
       setCandidates(safeCandidates);
+
       setFilteredCandidates(
         safeCandidates
       );
+
       setPersonalizedCandidates(
         safeCandidates
       );
+
       setSelectedCandidate(null);
       setMessage("");
     }
@@ -594,6 +597,7 @@ export default function CandidatePointsPage() {
       feedbackMessage
     ) {
       setMessage(feedbackMessage);
+
       setSaveFeedback(
         feedbackMessage
       );
@@ -782,9 +786,30 @@ export default function CandidatePointsPage() {
     );
   }
 
+  function resetCandidateSearch() {
+    setFilteredCandidates(
+      candidates
+    );
+
+    setSelectedCandidate(null);
+    setFocusedRegionId(null);
+
+    setRegionFocusKey(
+      (currentKey) =>
+        currentKey + 1
+    );
+
+    setMessage("");
+  }
+
   function searchCandidates(
     searchValue
   ) {
+    /*
+     * Input değeri yalnızca kullanıcının yazdığı
+     * metinden güncellenir. Bölge eşleşmesi input
+     * değerini değiştirmez.
+     */
     setCandidateSearch(
       searchValue
     );
@@ -795,6 +820,16 @@ export default function CandidatePointsPage() {
       );
 
     if (!normalizedSearch) {
+      resetCandidateSearch();
+      return;
+    }
+
+    /*
+     * Tek harfte otomatik bölge seçimi yapılmaz.
+     * Kullanıcının özgürce yazabilmesi için en az
+     * iki karakter beklenir.
+     */
+    if (normalizedSearch.length < 2) {
       setFilteredCandidates(
         candidates
       );
@@ -890,10 +925,12 @@ export default function CandidatePointsPage() {
         ) ??
         findBestNamedMatch(
           selectableRegions,
+
           matchedNeighborhood.regionName ??
             getNeighborhoodName(
               matchedNeighborhood
             ),
+
           getRegionName
         );
     }
@@ -966,10 +1003,12 @@ export default function CandidatePointsPage() {
     const regionId =
       getRegionId(region);
 
-    setCandidateSearch(
-      regionName
-    );
-
+    /*
+     * Burada setCandidateSearch(regionName)
+     * kullanılmıyor. Böylece haritadan veya
+     * aramadan bölge seçildiğinde input içeriği
+     * otomatik değiştirilmez.
+     */
     setFocusedRegionId(
       regionId
     );
@@ -1030,6 +1069,7 @@ export default function CandidatePointsPage() {
         data-testid="left-menu"
       >
         <button
+          type="button"
           className={
             activeTab === "home"
               ? "menu-button active"
@@ -1048,6 +1088,7 @@ export default function CandidatePointsPage() {
         </button>
 
         <button
+          type="button"
           className={
             activeTab ===
             "candidateMap"
@@ -1065,6 +1106,7 @@ export default function CandidatePointsPage() {
         </button>
 
         <button
+          type="button"
           className={
             activeTab === "saved"
               ? "menu-button active"
@@ -1083,6 +1125,7 @@ export default function CandidatePointsPage() {
         </button>
 
         <button
+          type="button"
           className={
             activeTab ===
             "personalization"
@@ -1125,6 +1168,8 @@ export default function CandidatePointsPage() {
                 data-testid="home-search-input"
                 placeholder="Adres veya mahalle ara"
                 value={stationSearch}
+                autoComplete="off"
+                spellCheck={false}
                 onChange={(event) =>
                   setStationSearch(
                     event.target.value
@@ -1139,6 +1184,7 @@ export default function CandidatePointsPage() {
                     ? "region-toggle active"
                     : "region-toggle"
                 }
+                data-testid="home-region-toggle-button"
                 onClick={() =>
                   setRegionsActive(
                     (
@@ -1181,6 +1227,8 @@ export default function CandidatePointsPage() {
                 data-testid="candidate-search-input"
                 placeholder="Aday nokta, bölge veya mahalle ara"
                 value={candidateSearch}
+                autoComplete="off"
+                spellCheck={false}
                 onChange={(event) =>
                   searchCandidates(
                     event.target.value
