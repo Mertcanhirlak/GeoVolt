@@ -10,21 +10,12 @@ import OlMap from "ol/Map";
 import View from "ol/View";
 import GeoJSON from "ol/format/GeoJSON";
 import Point from "ol/geom/Point";
-
 import TileLayer from "ol/layer/Tile";
 import VectorLayer from "ol/layer/Vector";
-
 import Select from "ol/interaction/Select";
 import { click } from "ol/events/condition";
 import { getCenter } from "ol/extent";
-
-import "ol/ol.css";
-
-import {
-  fromLonLat,
-  toLonLat,
-} from "ol/proj";
-
+import { fromLonLat, toLonLat } from "ol/proj";
 import Cluster from "ol/source/Cluster";
 import OSM from "ol/source/OSM";
 import VectorSource from "ol/source/Vector";
@@ -37,18 +28,15 @@ import {
   Text,
 } from "ol/style";
 
+import "ol/ol.css";
+
 import {
   evaluateManualPin,
   locateRegionPoint,
 } from "../services/manualPinApi";
 
-import {
-  getRegions,
-} from "../services/regionsApi";
-
-import {
-  mapCandidatePoint,
-} from "../utils/candidatePointMapper";
+import { getRegions } from "../services/regionsApi";
+import { mapCandidatePoint } from "../utils/candidatePointMapper";
 
 import "./CandidatePointsMap.css";
 
@@ -86,11 +74,9 @@ const trafoClusterStyleCache = new Map();
 const manualPinStyle = new Style({
   image: new CircleStyle({
     radius: 14,
-
     fill: new Fill({
       color: "#7c3aed",
     }),
-
     stroke: new Stroke({
       color: "#ffffff",
       width: 3,
@@ -99,46 +85,39 @@ const manualPinStyle = new Style({
 
   text: new Text({
     text: "M",
-
     fill: new Fill({
       color: "#ffffff",
     }),
-
     stroke: new Stroke({
       color: "rgba(15, 23, 42, 0.85)",
       width: 2,
     }),
-
     font: "bold 12px Arial",
   }),
 });
 
 const singlePoiStyle = new Style({
   image: new CircleStyle({
-    radius: 3.5,
-
+    radius: 6,
     fill: new Fill({
-      color: "rgba(15, 23, 42, 0.92)",
+      color: "rgba(15, 23, 42, 0.95)",
     }),
-
     stroke: new Stroke({
       color: "#ffffff",
-      width: 1,
+      width: 2,
     }),
   }),
 });
 
 const singleTrafoStyle = new Style({
   image: new CircleStyle({
-    radius: 4,
-
+    radius: 6,
     fill: new Fill({
-      color: "rgba(234, 88, 12, 0.94)",
+      color: "rgba(234, 88, 12, 0.96)",
     }),
-
     stroke: new Stroke({
       color: "#ffffff",
-      width: 1,
+      width: 2,
     }),
   }),
 });
@@ -211,10 +190,7 @@ function extractRegionList(result) {
   return [];
 }
 
-function isInsideCankaya(
-  latitude,
-  longitude
-) {
+function isInsideCankaya(latitude, longitude) {
   return (
     latitude >= CANKAYA_BOUNDS.minLatitude &&
     latitude <= CANKAYA_BOUNDS.maxLatitude &&
@@ -223,16 +199,9 @@ function isInsideCankaya(
   );
 }
 
-function normalizeCandidateForMap(
-  candidate
-) {
-  let latitude = Number(
-    candidate?.latitude
-  );
-
-  let longitude = Number(
-    candidate?.longitude
-  );
+function normalizeCandidateForMap(candidate) {
+  let latitude = Number(candidate?.latitude);
+  let longitude = Number(candidate?.longitude);
 
   if (
     !Number.isFinite(latitude) ||
@@ -242,34 +211,22 @@ function normalizeCandidateForMap(
   }
 
   const directInsideCankaya =
-    isInsideCankaya(
-      latitude,
-      longitude
-    );
+    isInsideCankaya(latitude, longitude);
 
   const swappedInsideCankaya =
-    isInsideCankaya(
-      longitude,
-      latitude
-    );
+    isInsideCankaya(longitude, latitude);
 
   if (
     !directInsideCankaya &&
     swappedInsideCankaya
   ) {
-    const previousLatitude =
-      latitude;
+    const previousLatitude = latitude;
 
     latitude = longitude;
     longitude = previousLatitude;
   }
 
-  if (
-    !isInsideCankaya(
-      latitude,
-      longitude
-    )
-  ) {
+  if (!isInsideCankaya(latitude, longitude)) {
     return null;
   }
 
@@ -280,12 +237,8 @@ function normalizeCandidateForMap(
   };
 }
 
-function getCandidateColor(
-  generalScore
-) {
-  const score = Number(
-    generalScore
-  );
+function getCandidateColor(generalScore) {
+  const score = Number(generalScore);
 
   if (!Number.isFinite(score)) {
     return "#64748b";
@@ -310,9 +263,7 @@ function createCandidateStyle(
     candidate.generalScore === null ||
     candidate.generalScore === undefined
       ? "?"
-      : String(
-          candidate.generalScore
-        );
+      : String(candidate.generalScore);
 
   const color = isSelected
     ? "#2563eb"
@@ -323,26 +274,16 @@ function createCandidateStyle(
   const cacheKey = [
     color,
     scoreText,
-    isSelected
-      ? "selected"
-      : "default",
+    isSelected ? "selected" : "default",
   ].join("-");
 
-  if (
-    candidateStyleCache.has(
-      cacheKey
-    )
-  ) {
-    return candidateStyleCache.get(
-      cacheKey
-    );
+  if (candidateStyleCache.has(cacheKey)) {
+    return candidateStyleCache.get(cacheKey);
   }
 
   const style = new Style({
     image: new CircleStyle({
-      radius: isSelected
-        ? 14
-        : 11,
+      radius: isSelected ? 14 : 11,
 
       fill: new Fill({
         color,
@@ -350,10 +291,7 @@ function createCandidateStyle(
 
       stroke: new Stroke({
         color: "#ffffff",
-
-        width: isSelected
-          ? 3
-          : 2,
+        width: isSelected ? 3 : 2,
       }),
     }),
 
@@ -365,9 +303,7 @@ function createCandidateStyle(
       }),
 
       stroke: new Stroke({
-        color:
-          "rgba(15, 23, 42, 0.78)",
-
+        color: "rgba(15, 23, 42, 0.78)",
         width: 2,
       }),
 
@@ -392,8 +328,7 @@ function createClusterStyle(
   const clusteredFeatures =
     feature.get("features") ?? [];
 
-  const size =
-    clusteredFeatures.length;
+  const size = clusteredFeatures.length;
 
   if (size <= 1) {
     return layerType === "poi"
@@ -410,8 +345,7 @@ function createClusterStyle(
     return cache.get(size);
   }
 
-  const isPoi =
-    layerType === "poi";
+  const isPoi = layerType === "poi";
 
   const radius =
     size > 999
@@ -448,9 +382,7 @@ function createClusterStyle(
       }),
 
       stroke: new Stroke({
-        color:
-          "rgba(0, 0, 0, 0.82)",
-
+        color: "rgba(0, 0, 0, 0.82)",
         width: 2,
       }),
 
@@ -468,9 +400,7 @@ function createCandidateFeature(
   selectedPointId
 ) {
   const normalizedCandidate =
-    normalizeCandidateForMap(
-      candidate
-    );
+    normalizeCandidateForMap(candidate);
 
   if (!normalizedCandidate) {
     return null;
@@ -484,22 +414,15 @@ function createCandidateFeature(
       ])
     ),
 
-    candidate:
-      normalizedCandidate,
-
-    candidateId:
-      normalizedCandidate.id,
-
+    candidate: normalizedCandidate,
+    candidateId: normalizedCandidate.id,
     featureType: "candidate",
   });
 
   feature.setStyle(
     createCandidateStyle(
       normalizedCandidate,
-
-      String(
-        normalizedCandidate.id
-      ) ===
+      String(normalizedCandidate.id) ===
         String(selectedPointId)
     )
   );
@@ -507,9 +430,7 @@ function createCandidateFeature(
   return feature;
 }
 
-function createManualPinFeature(
-  candidate
-) {
+function createManualPinFeature(candidate) {
   if (!candidate) {
     return null;
   }
@@ -538,24 +459,16 @@ function createManualPinFeature(
     ),
 
     candidate,
-
-    candidateId:
-      candidate.id,
-
-    featureType:
-      "manual-pin",
+    candidateId: candidate.id,
+    featureType: "manual-pin",
   });
 
-  feature.setStyle(
-    manualPinStyle
-  );
+  feature.setStyle(manualPinStyle);
 
   return feature;
 }
 
-function parseRegionGeometry(
-  region
-) {
+function parseRegionGeometry(region) {
   const possibleValues = [
     region?.boundaryGeoJson,
     region?.boundaryGeoJSON,
@@ -571,27 +484,18 @@ function parseRegionGeometry(
     region?.GeoJSON,
   ];
 
-  for (
-    const value
-    of possibleValues
-  ) {
+  for (const value of possibleValues) {
     if (!value) {
       continue;
     }
 
-    if (
-      typeof value === "object"
-    ) {
+    if (typeof value === "object") {
       return value;
     }
 
-    if (
-      typeof value === "string"
-    ) {
+    if (typeof value === "string") {
       try {
-        return JSON.parse(
-          value
-        );
+        return JSON.parse(value);
       } catch {
         continue;
       }
@@ -601,18 +505,12 @@ function parseRegionGeometry(
   return null;
 }
 
-function createRegionStyle(
-  feature
-) {
+function createRegionStyle(feature) {
   const regionIndex =
-    feature.get(
-      "regionIndex"
-    ) ?? 0;
+    feature.get("regionIndex") ?? 0;
 
   const isSelected =
-    feature.get(
-      "selected"
-    ) === true;
+    feature.get("selected") === true;
 
   const regionName =
     feature.get("name") ?? "";
@@ -632,14 +530,11 @@ function createRegionStyle(
         ? "#1d4ed8"
         : "rgba(239, 68, 68, 0.92)",
 
-      width: isSelected
-        ? 5
-        : 3,
+      width: isSelected ? 5 : 3,
     }),
 
     text: new Text({
       text: regionName,
-
       overflow: true,
 
       font: isSelected
@@ -653,38 +548,26 @@ function createRegionStyle(
       stroke: new Stroke({
         color:
           "rgba(255, 255, 255, 0.98)",
-
         width: 4,
       }),
 
-      backgroundFill:
-        new Fill({
-          color:
-            "rgba(255, 255, 255, 0.82)",
-        }),
+      backgroundFill: new Fill({
+        color:
+          "rgba(255, 255, 255, 0.82)",
+      }),
 
-      padding: [
-        3,
-        5,
-        3,
-        5,
-      ],
+      padding: [3, 5, 3, 5],
     }),
   });
 }
 
-function createRegionFeatures(
-  regions
-) {
-  const parser =
-    new GeoJSON();
+function createRegionFeatures(regions) {
+  const parser = new GeoJSON();
 
   return regions.flatMap(
     (region, index) => {
       const regionGeometry =
-        parseRegionGeometry(
-          region
-        );
+        parseRegionGeometry(region);
 
       if (!regionGeometry) {
         return [];
@@ -755,8 +638,7 @@ async function loadGeoJsonFeatures(
   url,
   featureType
 ) {
-  const response =
-    await fetch(url);
+  const response = await fetch(url);
 
   if (!response.ok) {
     throw new Error(
@@ -764,32 +646,25 @@ async function loadGeoJsonFeatures(
     );
   }
 
-  const geoJson =
-    await response.json();
-
-  const parser =
-    new GeoJSON();
+  const geoJson = await response.json();
+  const parser = new GeoJSON();
 
   const features =
     parser.readFeatures(
       geoJson,
       {
-        dataProjection:
-          "EPSG:4326",
-
+        dataProjection: "EPSG:4326",
         featureProjection:
           "EPSG:3857",
       }
     );
 
-  features.forEach(
-    (feature) => {
-      feature.set(
-        "featureType",
-        featureType
-      );
-    }
-  );
+  features.forEach((feature) => {
+    feature.set(
+      "featureType",
+      featureType
+    );
+  });
 
   return features;
 }
@@ -798,9 +673,7 @@ function getClusterExtent(
   clusteredFeatures
 ) {
   if (
-    !Array.isArray(
-      clusteredFeatures
-    ) ||
+    !Array.isArray(clusteredFeatures) ||
     clusteredFeatures.length === 0
   ) {
     return null;
@@ -827,33 +700,190 @@ function getClusterExtent(
         return;
       }
 
-      extent[0] =
-        Math.min(
-          extent[0],
-          featureExtent[0]
-        );
+      extent[0] = Math.min(
+        extent[0],
+        featureExtent[0]
+      );
 
-      extent[1] =
-        Math.min(
-          extent[1],
-          featureExtent[1]
-        );
+      extent[1] = Math.min(
+        extent[1],
+        featureExtent[1]
+      );
 
-      extent[2] =
-        Math.max(
-          extent[2],
-          featureExtent[2]
-        );
+      extent[2] = Math.max(
+        extent[2],
+        featureExtent[2]
+      );
 
-      extent[3] =
-        Math.max(
-          extent[3],
-          featureExtent[3]
-        );
+      extent[3] = Math.max(
+        extent[3],
+        featureExtent[3]
+      );
     }
   );
 
   return extent;
+}
+
+function getFeatureProperty(
+  feature,
+  propertyNames
+) {
+  for (const propertyName of propertyNames) {
+    const value =
+      feature.get(propertyName);
+
+    if (
+      value !== null &&
+      value !== undefined &&
+      String(value).trim() !== ""
+    ) {
+      return String(value).trim();
+    }
+  }
+
+  return "";
+}
+
+function createLayerDetail(
+  feature,
+  layerType
+) {
+  return {
+    layerType,
+
+    typeLabel:
+      layerType === "poi"
+        ? "POI"
+        : "Trafo",
+
+    id:
+      getFeatureProperty(
+        feature,
+        ["ID", "id", "Id"]
+      ) || "unknown",
+
+    name:
+      getFeatureProperty(
+        feature,
+        ["NAME", "name", "Name"]
+      ) ||
+      (layerType === "poi"
+        ? "İsimsiz POI"
+        : "İsimsiz Trafo"),
+
+    subCategory:
+      getFeatureProperty(
+        feature,
+        [
+          "SUB_CATEGORY",
+          "subCategory",
+          "SubCategory",
+        ]
+      ),
+
+    category:
+      getFeatureProperty(
+        feature,
+        [
+          "CATEGORY",
+          "category",
+          "Category",
+        ]
+      ),
+
+    phone:
+      getFeatureProperty(
+        feature,
+        ["PHONE", "phone", "Phone"]
+      ),
+
+    fax:
+      getFeatureProperty(
+        feature,
+        ["FAX", "fax", "Fax"]
+      ),
+
+    email:
+      getFeatureProperty(
+        feature,
+        ["EMAIL", "email", "Email"]
+      ),
+
+    web:
+      getFeatureProperty(
+        feature,
+        ["WEB", "web", "Web"]
+      ),
+  };
+}
+
+function createTestIdPart(value) {
+  return String(
+    value ?? "unknown"
+  )
+    .trim()
+    .replace(
+      /[^a-zA-Z0-9_-]/g,
+      "-"
+    );
+}
+
+function createExternalUrl(value) {
+  const text = String(
+    value ?? ""
+  ).trim();
+
+  if (!text) {
+    return "";
+  }
+
+  if (/^https?:\/\//i.test(text)) {
+    return text;
+  }
+
+  return `https://${text}`;
+}
+
+function getPopupPosition(
+  map,
+  coordinate
+) {
+  const pixel =
+    map.getPixelFromCoordinate(
+      coordinate
+    );
+
+  const mapSize =
+    map.getSize() ?? [0, 0];
+
+  const popupWidth = 310;
+  const popupHeight = 340;
+
+  const left = Math.max(
+    12,
+    Math.min(
+      pixel[0] + 16,
+      mapSize[0] -
+        popupWidth -
+        12
+    )
+  );
+
+  const top = Math.max(
+    78,
+    Math.min(
+      pixel[1] - 24,
+      mapSize[1] -
+        popupHeight -
+        12
+    )
+  );
+
+  return {
+    left,
+    top,
+  };
 }
 
 function setSelectedRegionFeature(
@@ -867,11 +897,8 @@ function setSelectedRegionFeature(
         regionId !== null &&
         regionId !== undefined &&
         String(
-          feature.get(
-            "regionId"
-          )
-        ) ===
-          String(regionId);
+          feature.get("regionId")
+        ) === String(regionId);
 
       feature.set(
         "selected",
@@ -893,28 +920,22 @@ function fitMapToRegion(
 
   if (
     !extent ||
-    !Number.isFinite(
-      extent[0]
-    )
+    !Number.isFinite(extent[0])
   ) {
     return;
   }
 
-  map.getView().fit(
-    extent,
-    {
-      padding: [
-        110,
-        390,
-        110,
-        260,
-      ],
+  map.getView().fit(extent, {
+    padding: [
+      110,
+      390,
+      110,
+      260,
+    ],
 
-      maxZoom: 15,
-
-      duration: 450,
-    }
-  );
+    maxZoom: 15,
+    duration: 450,
+  });
 }
 
 function fitMapToAllRegions(
@@ -926,39 +947,28 @@ function fitMapToAllRegions(
 
   if (
     !extent ||
-    !Number.isFinite(
-      extent[0]
-    )
+    !Number.isFinite(extent[0])
   ) {
-    map
-      .getView()
-      .animate({
-        center:
-          CANKAYA_CENTER,
-
-        zoom: 12.2,
-
-        duration: 350,
-      });
+    map.getView().animate({
+      center: CANKAYA_CENTER,
+      zoom: 12.2,
+      duration: 350,
+    });
 
     return;
   }
 
-  map.getView().fit(
-    extent,
-    {
-      padding: [
-        100,
-        350,
-        90,
-        100,
-      ],
+  map.getView().fit(extent, {
+    padding: [
+      100,
+      350,
+      90,
+      100,
+    ],
 
-      maxZoom: 12.5,
-
-      duration: 450,
-    }
-  );
+    maxZoom: 12.5,
+    duration: 450,
+  });
 }
 
 function createManualCandidate(
@@ -1001,16 +1011,13 @@ function createManualCandidate(
           locateResult.regionId,
 
         regionName,
-
-        region:
-          regionName,
+        region: regionName,
 
         neighborhoodId:
           evaluation.neighborhoodId ||
           locateResult.neighborhoodId,
 
         neighborhoodName,
-
         neighborhood:
           neighborhoodName,
 
@@ -1024,7 +1031,6 @@ function createManualCandidate(
           evaluation.longitude,
 
         isManual: true,
-
         status: "missing",
       },
       0
@@ -1032,17 +1038,11 @@ function createManualCandidate(
 
   return {
     ...mappedCandidate,
-
     isManual: true,
-
     costSource:
-      evaluation.costSource ||
-      "",
-
+      evaluation.costSource || "",
     manualMessage:
-      evaluation.message ||
-      "",
-
+      evaluation.message || "",
     status: "missing",
   };
 }
@@ -1065,6 +1065,10 @@ function getLayerButtonText(
     : `${label} kapalı`;
 }
 
+function showDetailValue(value) {
+  return value || "Veri yok";
+}
+
 export default function CandidatePointsMap({
   points = [],
   regions = [],
@@ -1075,63 +1079,48 @@ export default function CandidatePointsMap({
   onPointSelect,
   onRegionSelect,
 }) {
-  const mapElementRef =
-    useRef(null);
+  const mapElementRef = useRef(null);
+  const mapRef = useRef(null);
 
-  const mapRef =
-    useRef(null);
+  const candidateSourceRef = useRef(
+    new VectorSource()
+  );
 
-  const candidateSourceRef =
-    useRef(
-      new VectorSource()
-    );
+  const regionSourceRef = useRef(
+    new VectorSource()
+  );
 
-  const regionSourceRef =
-    useRef(
-      new VectorSource()
-    );
+  const manualPinSourceRef = useRef(
+    new VectorSource()
+  );
 
-  const manualPinSourceRef =
-    useRef(
-      new VectorSource()
-    );
+  const poiSourceRef = useRef(
+    new VectorSource()
+  );
 
-  const poiSourceRef =
-    useRef(
-      new VectorSource()
-    );
+  const trafoSourceRef = useRef(
+    new VectorSource()
+  );
 
-  const trafoSourceRef =
-    useRef(
-      new VectorSource()
-    );
+  const roadSourceRef = useRef(
+    new VectorSource()
+  );
 
-  const roadSourceRef =
-    useRef(
-      new VectorSource()
-    );
+  const poiClusterSourceRef = useRef(
+    new Cluster({
+      distance: 72,
+      minDistance: 32,
+      source: poiSourceRef.current,
+    })
+  );
 
-  const poiClusterSourceRef =
-    useRef(
-      new Cluster({
-        distance: 72,
-        minDistance: 32,
-
-        source:
-          poiSourceRef.current,
-      })
-    );
-
-  const trafoClusterSourceRef =
-    useRef(
-      new Cluster({
-        distance: 78,
-        minDistance: 34,
-
-        source:
-          trafoSourceRef.current,
-      })
-    );
+  const trafoClusterSourceRef = useRef(
+    new Cluster({
+      distance: 78,
+      minDistance: 34,
+      source: trafoSourceRef.current,
+    })
+  );
 
   const regionLayerRef =
     useRef(null);
@@ -1148,19 +1137,20 @@ export default function CandidatePointsMap({
   const regionSelectRef =
     useRef(null);
 
-  const callbackRef =
-    useRef({
-      onPointSelect,
-      onRegionSelect,
-    });
+  const callbackRef = useRef({
+    onPointSelect,
+    onRegionSelect,
+  });
 
-  const interactionRef =
-    useRef({
-      manualPinMode: false,
-      manualPinLoading: false,
-    });
+  const interactionRef = useRef({
+    manualPinMode: false,
+    manualPinLoading: false,
+  });
 
   const manualPinHandlerRef =
+    useRef(null);
+
+  const layerDetailCoordinateRef =
     useRef(null);
 
   const [
@@ -1222,6 +1212,16 @@ export default function CandidatePointsMap({
     road: "loading",
   });
 
+  const [
+    layerDetail,
+    setLayerDetail,
+  ] = useState(null);
+
+  const [
+    layerDetailPosition,
+    setLayerDetailPosition,
+  ] = useState(null);
+
   const resolvedRegions =
     useMemo(() => {
       if (
@@ -1238,9 +1238,7 @@ export default function CandidatePointsMap({
     ]);
 
   const selectedRegionId =
-    getRegionId(
-      selectedRegion
-    );
+    getRegionId(selectedRegion);
 
   const selectedRegionName =
     selectedRegion
@@ -1251,9 +1249,7 @@ export default function CandidatePointsMap({
 
   const safePoints =
     useMemo(() => {
-      if (
-        !Array.isArray(points)
-      ) {
+      if (!Array.isArray(points)) {
         return [];
       }
 
@@ -1263,6 +1259,21 @@ export default function CandidatePointsMap({
         )
         .filter(Boolean);
     }, [points]);
+
+  const layerDetailTestIdBase =
+    layerDetail
+      ? `candidate-${layerDetail.layerType}-detail-${createTestIdPart(
+          layerDetail.id
+        )}`
+      : "";
+
+  function closeLayerDetail() {
+    layerDetailCoordinateRef.current =
+      null;
+
+    setLayerDetail(null);
+    setLayerDetailPosition(null);
+  }
 
   useEffect(() => {
     callbackRef.current = {
@@ -1280,9 +1291,7 @@ export default function CandidatePointsMap({
       manualPinLoading,
     };
 
-    if (
-      mapElementRef.current
-    ) {
+    if (mapElementRef.current) {
       mapElementRef.current.style.cursor =
         manualPinMode
           ? "crosshair"
@@ -1299,7 +1308,6 @@ export default function CandidatePointsMap({
       regions.length > 0
     ) {
       setRegionLoadError("");
-
       return;
     }
 
@@ -1315,9 +1323,7 @@ export default function CandidatePointsMap({
         }
 
         const safeRegions =
-          extractRegionList(
-            result
-          );
+          extractRegionList(result);
 
         setInternalRegions(
           safeRegions
@@ -1364,32 +1370,18 @@ export default function CandidatePointsMap({
       const layerDefinitions = [
         {
           key: "poi",
-
-          url:
-            GEOJSON_URLS.poi,
-
-          sourceRef:
-            poiSourceRef,
+          url: GEOJSON_URLS.poi,
+          sourceRef: poiSourceRef,
         },
-
         {
           key: "trafo",
-
-          url:
-            GEOJSON_URLS.trafo,
-
-          sourceRef:
-            trafoSourceRef,
+          url: GEOJSON_URLS.trafo,
+          sourceRef: trafoSourceRef,
         },
-
         {
           key: "road",
-
-          url:
-            GEOJSON_URLS.road,
-
-          sourceRef:
-            roadSourceRef,
+          url: GEOJSON_URLS.road,
+          sourceRef: roadSourceRef,
         },
       ];
 
@@ -1420,7 +1412,6 @@ export default function CandidatePointsMap({
               setLayerStatus(
                 (currentStatus) => ({
                   ...currentStatus,
-
                   [key]: "ready",
                 })
               );
@@ -1437,7 +1428,6 @@ export default function CandidatePointsMap({
               setLayerStatus(
                 (currentStatus) => ({
                   ...currentStatus,
-
                   [key]: "error",
                 })
               );
@@ -1470,6 +1460,7 @@ export default function CandidatePointsMap({
       return;
     }
 
+    closeLayerDetail();
     setManualPinLoading(true);
 
     setManualPinMessage(
@@ -1486,9 +1477,7 @@ export default function CandidatePointsMap({
           }
         );
 
-      if (
-        !locateResult.isInsideRegion
-      ) {
+      if (!locateResult.isInsideRegion) {
         setManualPinMessage(
           "Seçtiğiniz nokta seçili bölgenin dışında. Bölgenin içine tekrar tıklayın."
         );
@@ -1504,7 +1493,6 @@ export default function CandidatePointsMap({
         await evaluateManualPin({
           regionId:
             selectedRegionId,
-
           latitude,
           longitude,
         });
@@ -1579,6 +1567,8 @@ export default function CandidatePointsMap({
       return;
     }
 
+    closeLayerDetail();
+
     setManualPinMode(
       (currentValue) => {
         const nextValue =
@@ -1603,6 +1593,18 @@ export default function CandidatePointsMap({
 
         if (nextValue) {
           setTrafoVisible(false);
+
+          if (
+            layerDetail?.layerType ===
+            "trafo"
+          ) {
+            closeLayerDetail();
+          }
+        } else if (
+          layerDetail?.layerType ===
+          "poi"
+        ) {
+          closeLayerDetail();
         }
 
         return nextValue;
@@ -1618,6 +1620,18 @@ export default function CandidatePointsMap({
 
         if (nextValue) {
           setPoiVisible(false);
+
+          if (
+            layerDetail?.layerType ===
+            "poi"
+          ) {
+            closeLayerDetail();
+          }
+        } else if (
+          layerDetail?.layerType ===
+          "trafo"
+        ) {
+          closeLayerDetail();
         }
 
         return nextValue;
@@ -1638,11 +1652,8 @@ export default function CandidatePointsMap({
         source:
           regionSourceRef.current,
 
-        style:
-          createRegionStyle,
-
+        style: createRegionStyle,
         visible: false,
-
         zIndex: 3,
       });
 
@@ -1651,11 +1662,8 @@ export default function CandidatePointsMap({
         source:
           roadSourceRef.current,
 
-        style:
-          roadStyle,
-
+        style: roadStyle,
         visible: false,
-
         zIndex: 4,
       });
 
@@ -1671,17 +1679,9 @@ export default function CandidatePointsMap({
           ),
 
         visible: false,
-
-        declutter: true,
-
-        renderBuffer: 80,
-
-        updateWhileAnimating:
-          false,
-
-        updateWhileInteracting:
-          false,
-
+        renderBuffer: 100,
+        updateWhileAnimating: false,
+        updateWhileInteracting: false,
         zIndex: 5,
       });
 
@@ -1697,17 +1697,9 @@ export default function CandidatePointsMap({
           ),
 
         visible: false,
-
-        declutter: true,
-
-        renderBuffer: 80,
-
-        updateWhileAnimating:
-          false,
-
-        updateWhileInteracting:
-          false,
-
+        renderBuffer: 100,
+        updateWhileAnimating: false,
+        updateWhileInteracting: false,
         zIndex: 5,
       });
 
@@ -1727,63 +1719,73 @@ export default function CandidatePointsMap({
         zIndex: 8,
       });
 
-    const map =
-      new OlMap({
-        target:
-          mapElementRef.current,
+    const map = new OlMap({
+      target:
+        mapElementRef.current,
 
-        layers: [
-          new TileLayer({
-            source: new OSM({
-              wrapX: false,
-
-              crossOrigin:
-                "anonymous",
-            }),
-
-            zIndex: 0,
+      layers: [
+        new TileLayer({
+          source: new OSM({
+            wrapX: false,
+            crossOrigin:
+              "anonymous",
           }),
 
-          regionLayer,
-          roadLayer,
-          poiLayer,
-          trafoLayer,
-          candidateLayer,
-          manualPinLayer,
-        ],
-
-        view: new View({
-          center:
-            CANKAYA_CENTER,
-
-          zoom: 12.2,
-          minZoom: 9.5,
-          maxZoom: 19,
+          zIndex: 0,
         }),
 
-        controls: [],
-      });
+        regionLayer,
+        roadLayer,
+        poiLayer,
+        trafoLayer,
+        candidateLayer,
+        manualPinLayer,
+      ],
+
+      view: new View({
+        center: CANKAYA_CENTER,
+        zoom: 12.2,
+        minZoom: 9.5,
+        maxZoom: 19,
+      }),
+
+      controls: [],
+    });
+
+    const updateDetailPosition =
+      () => {
+        const coordinate =
+          layerDetailCoordinateRef.current;
+
+        if (!coordinate) {
+          return;
+        }
+
+        setLayerDetailPosition(
+          getPopupPosition(
+            map,
+            coordinate
+          )
+        );
+      };
+
+    map.on(
+      "moveend",
+      updateDetailPosition
+    );
 
     const regionSelectInteraction =
       new Select({
-        layers: [
-          regionLayer,
-        ],
-
+        layers: [regionLayer],
         style: null,
-
         hitTolerance: 12,
 
-        filter: (
-          feature
-        ) =>
+        filter: (feature) =>
           feature.get(
             "featureType"
           ) === "region",
 
-        condition: (
-          event
-        ) => {
+        condition: (event) => {
           if (
             interactionRef.current
               .manualPinMode ||
@@ -1794,24 +1796,23 @@ export default function CandidatePointsMap({
           }
 
           const upperLayerHit =
-            event.map
-              .hasFeatureAtPixel(
-                event.pixel,
-                {
-                  hitTolerance: 8,
+            event.map.hasFeatureAtPixel(
+              event.pixel,
+              {
+                hitTolerance: 8,
 
-                  layerFilter:
-                    (layer) =>
-                      layer ===
-                        candidateLayer ||
-                      layer ===
-                        manualPinLayer ||
-                      layer ===
-                        poiLayer ||
-                      layer ===
-                        trafoLayer,
-                }
-              );
+                layerFilter:
+                  (layer) =>
+                    layer ===
+                      candidateLayer ||
+                    layer ===
+                      manualPinLayer ||
+                    layer ===
+                      poiLayer ||
+                    layer ===
+                      trafoLayer,
+              }
+            );
 
           return (
             !upperLayerHit &&
@@ -1830,6 +1831,8 @@ export default function CandidatePointsMap({
           return;
         }
 
+        closeLayerDetail();
+
         const region =
           regionFeature.get(
             "region"
@@ -1840,10 +1843,7 @@ export default function CandidatePointsMap({
             "regionId"
           );
 
-        setSelectedRegion(
-          region
-        );
-
+        setSelectedRegion(region);
         setManualPinMode(false);
 
         setManualPinMessage(
@@ -1911,10 +1911,8 @@ export default function CandidatePointsMap({
               layer
             ) => {
               if (
-                layer !==
-                  candidateLayer &&
-                layer !==
-                  manualPinLayer
+                layer !== candidateLayer &&
+                layer !== manualPinLayer
               ) {
                 return undefined;
               }
@@ -1942,6 +1940,8 @@ export default function CandidatePointsMap({
           );
 
         if (candidateFeature) {
+          closeLayerDetail();
+
           const candidate =
             candidateFeature.get(
               "candidate"
@@ -1955,30 +1955,33 @@ export default function CandidatePointsMap({
           return;
         }
 
+        const activeDataLayer =
+          poiLayer.getVisible()
+            ? poiLayer
+            : trafoLayer.getVisible()
+              ? trafoLayer
+              : null;
+
+        if (!activeDataLayer) {
+          closeLayerDetail();
+          return;
+        }
+
         const clusterFeature =
           map.forEachFeatureAtPixel(
             event.pixel,
-
-            (
-              feature,
-              layer
-            ) => {
-              if (
-                layer === poiLayer ||
-                layer === trafoLayer
-              ) {
-                return feature;
-              }
-
-              return undefined;
-            },
-
+            (feature) => feature,
             {
-              hitTolerance: 8,
+              hitTolerance: 16,
+
+              layerFilter:
+                (layer) =>
+                  layer === activeDataLayer,
             }
           );
 
         if (!clusterFeature) {
+          closeLayerDetail();
           return;
         }
 
@@ -1993,41 +1996,147 @@ export default function CandidatePointsMap({
           ) ||
           clusteredFeatures.length === 0
         ) {
+          closeLayerDetail();
           return;
         }
+
+        const layerType =
+          activeDataLayer === poiLayer
+            ? "poi"
+            : "trafo";
 
         if (
           clusteredFeatures.length === 1
         ) {
+          const sourceFeature =
+            clusteredFeatures[0];
+
           const geometry =
-            clusteredFeatures[0]
-              .getGeometry();
+            sourceFeature.getGeometry();
 
           if (!geometry) {
+            closeLayerDetail();
             return;
           }
 
-          map
-            .getView()
-            .animate({
-              center:
-                getCenter(
-                  geometry.getExtent()
-                ),
+          const coordinate =
+            getCenter(
+              geometry.getExtent()
+            );
 
-              zoom: Math.min(
-                (map
-                  .getView()
-                  .getZoom() ?? 12) + 2,
+          layerDetailCoordinateRef.current =
+            coordinate;
 
-                17
-              ),
+          setLayerDetail(
+            createLayerDetail(
+              sourceFeature,
+              layerType
+            )
+          );
 
-              duration: 350,
-            });
+          setLayerDetailPosition(
+            getPopupPosition(
+              map,
+              coordinate
+            )
+          );
 
           return;
         }
+
+        const currentZoom =
+          map.getView().getZoom() ?? 0;
+
+        if (currentZoom >= 17) {
+          const nearestFeature =
+            clusteredFeatures.reduce(
+              (
+                nearest,
+                currentFeature
+              ) => {
+                const currentCoordinate =
+                  currentFeature
+                    .getGeometry()
+                    ?.getCoordinates();
+
+                const nearestCoordinate =
+                  nearest
+                    .getGeometry()
+                    ?.getCoordinates();
+
+                if (
+                  !currentCoordinate ||
+                  !nearestCoordinate
+                ) {
+                  return nearest;
+                }
+
+                const currentDistance =
+                  Math.pow(
+                    currentCoordinate[0] -
+                      event.coordinate[0],
+                    2
+                  ) +
+                  Math.pow(
+                    currentCoordinate[1] -
+                      event.coordinate[1],
+                    2
+                  );
+
+                const nearestDistance =
+                  Math.pow(
+                    nearestCoordinate[0] -
+                      event.coordinate[0],
+                    2
+                  ) +
+                  Math.pow(
+                    nearestCoordinate[1] -
+                      event.coordinate[1],
+                    2
+                  );
+
+                return currentDistance <
+                  nearestDistance
+                  ? currentFeature
+                  : nearest;
+              },
+              clusteredFeatures[0]
+            );
+
+          const nearestGeometry =
+            nearestFeature.getGeometry();
+
+          if (!nearestGeometry) {
+            closeLayerDetail();
+            return;
+          }
+
+          const coordinate =
+            getCenter(
+              nearestGeometry.getExtent()
+            );
+
+          layerDetailCoordinateRef.current =
+            coordinate;
+
+          setLayerDetail(
+            createLayerDetail(
+              nearestFeature,
+              layerType
+            )
+          );
+
+          setLayerDetailPosition(
+            getPopupPosition(
+              map,
+              coordinate
+            )
+          );
+
+          return;
+        }
+
+        closeLayerDetail();
 
         const clusterExtent =
           getClusterExtent(
@@ -2035,23 +2144,20 @@ export default function CandidatePointsMap({
           );
 
         if (clusterExtent) {
-          map
-            .getView()
-            .fit(
-              clusterExtent,
-              {
-                padding: [
-                  90,
-                  90,
-                  90,
-                  90,
-                ],
+          map.getView().fit(
+            clusterExtent,
+            {
+              padding: [
+                90,
+                90,
+                90,
+                90,
+              ],
 
-                maxZoom: 17,
-
-                duration: 350,
-              }
-            );
+              maxZoom: 18,
+              duration: 350,
+            }
+          );
         }
       }
     );
@@ -2063,10 +2169,8 @@ export default function CandidatePointsMap({
           interactionRef.current
             .manualPinMode
         ) {
-          map
-            .getTargetElement()
-            .style.cursor =
-              "crosshair";
+          map.getTargetElement().style.cursor =
+            "crosshair";
 
           return;
         }
@@ -2075,55 +2179,44 @@ export default function CandidatePointsMap({
           map.hasFeatureAtPixel(
             event.pixel,
             {
-              hitTolerance: 6,
+              hitTolerance: 10,
 
               layerFilter:
                 (layer) =>
-                  layer ===
-                    regionLayer ||
+                  layer === regionLayer ||
                   layer ===
                     candidateLayer ||
                   layer ===
                     manualPinLayer ||
-                  layer ===
-                    poiLayer ||
-                  layer ===
-                    trafoLayer,
+                  layer === poiLayer ||
+                  layer === trafoLayer,
             }
           );
 
-        map
-          .getTargetElement()
-          .style.cursor =
-            hasClickableFeature
-              ? "pointer"
-              : "default";
+        map.getTargetElement().style.cursor =
+          hasClickableFeature
+            ? "pointer"
+            : "default";
       }
     );
 
     mapRef.current = map;
-
     regionLayerRef.current =
       regionLayer;
-
     roadLayerRef.current =
       roadLayer;
-
     poiLayerRef.current =
       poiLayer;
-
     trafoLayerRef.current =
       trafoLayer;
-
     regionSelectRef.current =
       regionSelectInteraction;
 
     const resizeObserver =
-      new ResizeObserver(
-        () => {
-          map.updateSize();
-        }
-      );
+      new ResizeObserver(() => {
+        map.updateSize();
+        updateDetailPosition();
+      });
 
     resizeObserver.observe(
       mapElementRef.current
@@ -2132,13 +2225,16 @@ export default function CandidatePointsMap({
     return () => {
       resizeObserver.disconnect();
 
+      map.un(
+        "moveend",
+        updateDetailPosition
+      );
+
       map.removeInteraction(
         regionSelectInteraction
       );
 
-      map.setTarget(
-        undefined
-      );
+      map.setTarget(undefined);
 
       mapRef.current = null;
       regionLayerRef.current = null;
@@ -2160,15 +2256,11 @@ export default function CandidatePointsMap({
         )
         .filter(Boolean);
 
-    candidateSourceRef
-      .current
-      .clear();
+    candidateSourceRef.current.clear();
 
-    candidateSourceRef
-      .current
-      .addFeatures(
-        candidateFeatures
-      );
+    candidateSourceRef.current.addFeatures(
+      candidateFeatures
+    );
   }, [
     safePoints,
     selectedPointId,
@@ -2180,16 +2272,12 @@ export default function CandidatePointsMap({
         manualPinPoint
       );
 
-    manualPinSourceRef
-      .current
-      .clear();
+    manualPinSourceRef.current.clear();
 
     if (manualFeature) {
-      manualPinSourceRef
-        .current
-        .addFeature(
-          manualFeature
-        );
+      manualPinSourceRef.current.addFeature(
+        manualFeature
+      );
     }
   }, [manualPinPoint]);
 
@@ -2199,15 +2287,11 @@ export default function CandidatePointsMap({
         resolvedRegions
       );
 
-    regionSourceRef
-      .current
-      .clear();
+    regionSourceRef.current.clear();
 
-    regionSourceRef
-      .current
-      .addFeatures(
-        regionFeatures
-      );
+    regionSourceRef.current.addFeatures(
+      regionFeatures
+    );
 
     if (
       regionFeatures.length === 0 &&
@@ -2224,40 +2308,31 @@ export default function CandidatePointsMap({
   }, [resolvedRegions]);
 
   useEffect(() => {
-    poiLayerRef.current
-      ?.setVisible(
-        poiVisible
-      );
+    poiLayerRef.current?.setVisible(
+      poiVisible
+    );
   }, [poiVisible]);
 
   useEffect(() => {
-    trafoLayerRef.current
-      ?.setVisible(
-        trafoVisible
-      );
+    trafoLayerRef.current?.setVisible(
+      trafoVisible
+    );
   }, [trafoVisible]);
 
   useEffect(() => {
-    roadLayerRef.current
-      ?.setVisible(
-        roadVisible
-      );
+    roadLayerRef.current?.setVisible(
+      roadVisible
+    );
   }, [roadVisible]);
 
   useEffect(() => {
-    regionLayerRef.current
-      ?.setVisible(
-        Boolean(
-          regionsActive
-        )
-      );
+    regionLayerRef.current?.setVisible(
+      Boolean(regionsActive)
+    );
 
-    regionSelectRef.current
-      ?.setActive(
-        Boolean(
-          regionsActive
-        )
-      );
+    regionSelectRef.current?.setActive(
+      Boolean(regionsActive)
+    );
 
     if (!mapRef.current) {
       return;
@@ -2276,11 +2351,8 @@ export default function CandidatePointsMap({
       mapRef.current
         .getView()
         .animate({
-          center:
-            CANKAYA_CENTER,
-
+          center: CANKAYA_CENTER,
           zoom: 12.2,
-
           duration: 350,
         });
 
@@ -2345,10 +2417,10 @@ export default function CandidatePointsMap({
       return;
     }
 
+    closeLayerDetail();
+
     const region =
-      regionFeature.get(
-        "region"
-      );
+      regionFeature.get("region");
 
     setSelectedRegion(region);
     setManualPinMode(false);
@@ -2400,15 +2472,12 @@ export default function CandidatePointsMap({
     }
 
     const extent =
-      candidateSourceRef
-        .current
+      candidateSourceRef.current
         .getExtent();
 
     if (
       !extent ||
-      !Number.isFinite(
-        extent[0]
-      )
+      !Number.isFinite(extent[0])
     ) {
       return;
     }
@@ -2424,7 +2493,6 @@ export default function CandidatePointsMap({
         ],
 
         maxZoom: 14.5,
-
         duration: 450,
       });
   }, [
@@ -2444,17 +2512,15 @@ export default function CandidatePointsMap({
     const selectedCandidate =
       safePoints.find(
         (candidate) =>
-          String(
-            candidate.id
-          ) ===
-          String(
-            selectedPointId
-          )
+          String(candidate.id) ===
+          String(selectedPointId)
       );
 
     if (!selectedCandidate) {
       return;
     }
+
+    closeLayerDetail();
 
     mapRef.current
       .getView()
@@ -2465,7 +2531,6 @@ export default function CandidatePointsMap({
         ]),
 
         zoom: 16,
-
         duration: 450,
       });
   }, [
@@ -2481,6 +2546,8 @@ export default function CandidatePointsMap({
       return;
     }
 
+    closeLayerDetail();
+
     mapRef.current
       .getView()
       .animate({
@@ -2495,16 +2562,13 @@ export default function CandidatePointsMap({
         ]),
 
         zoom: 16,
-
         duration: 450,
       });
   }, [manualPinPoint]);
 
   const totalPointCount =
     safePoints.length +
-    (manualPinPoint
-      ? 1
-      : 0);
+    (manualPinPoint ? 1 : 0);
 
   return (
     <div
@@ -2516,10 +2580,9 @@ export default function CandidatePointsMap({
       data-testid="candidate-points-openlayers-map"
     >
       <div
-        ref={
-          mapElementRef
-        }
+        ref={mapElementRef}
         className="candidate-points-map-canvas"
+        data-testid="candidate-points-map-canvas"
       />
 
       <div
@@ -2529,14 +2592,22 @@ export default function CandidatePointsMap({
         {totalPointCount} aday nokta
       </div>
 
-      <div className="candidate-left-controls">
-        <div className="candidate-manual-controls">
+      <div
+        className="candidate-left-controls"
+        data-testid="candidate-left-controls"
+      >
+        <div
+          className="candidate-manual-controls"
+          data-testid="candidate-manual-controls"
+        >
           <div className="candidate-selected-region">
             <strong>
               Seçili Bölge
             </strong>
 
-            <span>
+            <span
+              data-testid="candidate-selected-region-name"
+            >
               {selectedRegionName ||
                 "Bölge seçilmedi"}
             </span>
@@ -2575,7 +2646,10 @@ export default function CandidatePointsMap({
             Harita Katmanları
           </strong>
 
-          <small className="candidate-layer-note">
+          <small
+            className="candidate-layer-note"
+            data-testid="candidate-layer-note"
+          >
             POI ve Trafo aynı anda gösterilmez.
           </small>
 
@@ -2587,12 +2661,9 @@ export default function CandidatePointsMap({
                 : "candidate-layer-button"
             }
             disabled={
-              layerStatus.poi !==
-              "ready"
+              layerStatus.poi !== "ready"
             }
-            onClick={
-              togglePoiLayer
-            }
+            onClick={togglePoiLayer}
             data-testid="candidate-poi-layer-toggle"
           >
             <span className="candidate-layer-symbol candidate-poi-symbol" />
@@ -2659,7 +2730,162 @@ export default function CandidatePointsMap({
         </div>
       </div>
 
-      <div className="candidate-map-legend">
+      {layerDetail &&
+        layerDetailPosition && (
+          <aside
+            className="candidate-layer-detail-popup"
+            style={{
+              left:
+                `${layerDetailPosition.left}px`,
+              top:
+                `${layerDetailPosition.top}px`,
+            }}
+            data-layer-type={
+              layerDetail.layerType
+            }
+            data-layer-id={
+              layerDetail.id
+            }
+            data-testid={`${layerDetailTestIdBase}-popup`}
+          >
+            <button
+              type="button"
+              className="candidate-layer-detail-close"
+              onClick={
+                closeLayerDetail
+              }
+              aria-label="Detay penceresini kapat"
+              data-testid={`${layerDetailTestIdBase}-close-button`}
+            >
+              ×
+            </button>
+
+            <div className="candidate-layer-detail-header">
+              <span
+                className={
+                  layerDetail.layerType ===
+                  "poi"
+                    ? "candidate-layer-detail-type poi"
+                    : "candidate-layer-detail-type trafo"
+                }
+                data-testid={`${layerDetailTestIdBase}-type`}
+              >
+                {layerDetail.typeLabel}
+              </span>
+
+              <h3
+                data-testid={`${layerDetailTestIdBase}-name`}
+              >
+                {layerDetail.name}
+              </h3>
+            </div>
+
+            <dl className="candidate-layer-detail-list">
+              <div>
+                <dt>Kategori</dt>
+
+                <dd
+                  data-testid={`${layerDetailTestIdBase}-category`}
+                >
+                  {showDetailValue(
+                    layerDetail.category
+                  )}
+                </dd>
+              </div>
+
+              <div>
+                <dt>Alt Kategori</dt>
+
+                <dd
+                  data-testid={`${layerDetailTestIdBase}-subcategory`}
+                >
+                  {showDetailValue(
+                    layerDetail.subCategory
+                  )}
+                </dd>
+              </div>
+
+              <div>
+                <dt>Kayıt ID</dt>
+
+                <dd
+                  data-testid={`${layerDetailTestIdBase}-id`}
+                >
+                  {layerDetail.id}
+                </dd>
+              </div>
+
+              <div>
+                <dt>Telefon</dt>
+
+                <dd
+                  data-testid={`${layerDetailTestIdBase}-phone`}
+                >
+                  {showDetailValue(
+                    layerDetail.phone
+                  )}
+                </dd>
+              </div>
+
+              <div>
+                <dt>Faks</dt>
+
+                <dd
+                  data-testid={`${layerDetailTestIdBase}-fax`}
+                >
+                  {showDetailValue(
+                    layerDetail.fax
+                  )}
+                </dd>
+              </div>
+
+              <div>
+                <dt>E-posta</dt>
+
+                <dd
+                  data-testid={`${layerDetailTestIdBase}-email`}
+                >
+                  {layerDetail.email ? (
+                    <a
+                      href={`mailto:${layerDetail.email}`}
+                    >
+                      {layerDetail.email}
+                    </a>
+                  ) : (
+                    "Veri yok"
+                  )}
+                </dd>
+              </div>
+
+              <div>
+                <dt>Web</dt>
+
+                <dd
+                  data-testid={`${layerDetailTestIdBase}-web`}
+                >
+                  {layerDetail.web ? (
+                    <a
+                      href={createExternalUrl(
+                        layerDetail.web
+                      )}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {layerDetail.web}
+                    </a>
+                  ) : (
+                    "Veri yok"
+                  )}
+                </dd>
+              </div>
+            </dl>
+          </aside>
+        )}
+
+      <div
+        className="candidate-map-legend"
+        data-testid="candidate-map-legend"
+      >
         <span>
           <i className="candidate-score-high" />
           80–100
