@@ -1,9 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import Feature from "ol/Feature";
 import OlMap from "ol/Map";
@@ -30,13 +25,7 @@ import {
 
 import "ol/ol.css";
 
-import {
-  evaluateManualPin,
-  locateRegionPoint,
-} from "../services/manualPinApi";
-
 import { getRegions } from "../services/regionsApi";
-import { mapCandidatePoint } from "../utils/candidatePointMapper";
 
 import "./CandidatePointsMap.css";
 
@@ -51,11 +40,9 @@ const CANKAYA_BOUNDS = {
   minLongitude: 32.5,
   maxLongitude: 33.18,
 };
-/*
- * Geniş harita görünümünde bölge adları gizlenir.
- * Yaklaşık zoom 13 ve üzerinde isimler gösterilir.
- */
+
 const CANDIDATE_REGION_LABEL_MAX_RESOLUTION = 12;
+
 const GEOJSON_URLS = {
   poi: "/data/POI.geojson",
   trafo: "/data/TRAFO.geojson",
@@ -72,6 +59,7 @@ const regionColors = [
 ];
 
 const candidateStyleCache = new Map();
+const candidateClusterStyleCache = new Map();
 const candidateRegionStyleCache = new Map();
 const poiClusterStyleCache = new Map();
 const trafoClusterStyleCache = new Map();
@@ -79,9 +67,11 @@ const trafoClusterStyleCache = new Map();
 const manualPinStyle = new Style({
   image: new CircleStyle({
     radius: 14,
+
     fill: new Fill({
       color: "#7c3aed",
     }),
+
     stroke: new Stroke({
       color: "#ffffff",
       width: 3,
@@ -90,13 +80,16 @@ const manualPinStyle = new Style({
 
   text: new Text({
     text: "M",
+
     fill: new Fill({
       color: "#ffffff",
     }),
+
     stroke: new Stroke({
       color: "rgba(15, 23, 42, 0.85)",
       width: 2,
     }),
+
     font: "bold 12px Arial",
   }),
 });
@@ -104,9 +97,11 @@ const manualPinStyle = new Style({
 const singlePoiStyle = new Style({
   image: new CircleStyle({
     radius: 6,
+
     fill: new Fill({
       color: "rgba(15, 23, 42, 0.95)",
     }),
+
     stroke: new Stroke({
       color: "#ffffff",
       width: 2,
@@ -117,9 +112,11 @@ const singlePoiStyle = new Style({
 const singleTrafoStyle = new Style({
   image: new CircleStyle({
     radius: 6,
+
     fill: new Fill({
       color: "rgba(234, 88, 12, 0.96)",
     }),
+
     stroke: new Stroke({
       color: "#ffffff",
       width: 2,
@@ -195,18 +192,32 @@ function extractRegionList(result) {
   return [];
 }
 
-function isInsideCankaya(latitude, longitude) {
+function isInsideCankaya(
+  latitude,
+  longitude
+) {
   return (
-    latitude >= CANKAYA_BOUNDS.minLatitude &&
-    latitude <= CANKAYA_BOUNDS.maxLatitude &&
-    longitude >= CANKAYA_BOUNDS.minLongitude &&
-    longitude <= CANKAYA_BOUNDS.maxLongitude
+    latitude >=
+      CANKAYA_BOUNDS.minLatitude &&
+    latitude <=
+      CANKAYA_BOUNDS.maxLatitude &&
+    longitude >=
+      CANKAYA_BOUNDS.minLongitude &&
+    longitude <=
+      CANKAYA_BOUNDS.maxLongitude
   );
 }
 
-function normalizeCandidateForMap(candidate) {
-  let latitude = Number(candidate?.latitude);
-  let longitude = Number(candidate?.longitude);
+function normalizeCandidateForMap(
+  candidate
+) {
+  let latitude = Number(
+    candidate?.latitude
+  );
+
+  let longitude = Number(
+    candidate?.longitude
+  );
 
   if (
     !Number.isFinite(latitude) ||
@@ -216,22 +227,35 @@ function normalizeCandidateForMap(candidate) {
   }
 
   const directInsideCankaya =
-    isInsideCankaya(latitude, longitude);
+    isInsideCankaya(
+      latitude,
+      longitude
+    );
 
   const swappedInsideCankaya =
-    isInsideCankaya(longitude, latitude);
+    isInsideCankaya(
+      longitude,
+      latitude
+    );
 
   if (
     !directInsideCankaya &&
     swappedInsideCankaya
   ) {
-    const previousLatitude = latitude;
+    const previousLatitude =
+      latitude;
 
     latitude = longitude;
-    longitude = previousLatitude;
+    longitude =
+      previousLatitude;
   }
 
-  if (!isInsideCankaya(latitude, longitude)) {
+  if (
+    !isInsideCankaya(
+      latitude,
+      longitude
+    )
+  ) {
     return null;
   }
 
@@ -242,8 +266,11 @@ function normalizeCandidateForMap(candidate) {
   };
 }
 
-function getCandidateColor(generalScore) {
-  const score = Number(generalScore);
+function getCandidateColor(
+  generalScore
+) {
+  const score =
+    Number(generalScore);
 
   if (!Number.isFinite(score)) {
     return "#64748b";
@@ -265,10 +292,14 @@ function createCandidateStyle(
   isSelected
 ) {
   const scoreText =
-    candidate.generalScore === null ||
-    candidate.generalScore === undefined
+    candidate.generalScore ===
+      null ||
+    candidate.generalScore ===
+      undefined
       ? "?"
-      : String(candidate.generalScore);
+      : String(
+          candidate.generalScore
+        );
 
   const color = isSelected
     ? "#2563eb"
@@ -279,16 +310,25 @@ function createCandidateStyle(
   const cacheKey = [
     color,
     scoreText,
-    isSelected ? "selected" : "default",
+    isSelected
+      ? "selected"
+      : "default",
   ].join("-");
 
-  if (candidateStyleCache.has(cacheKey)) {
-    return candidateStyleCache.get(cacheKey);
+  if (
+    candidateStyleCache.has(
+      cacheKey
+    )
+  ) {
+    return candidateStyleCache.get(
+      cacheKey
+    );
   }
 
   const style = new Style({
     image: new CircleStyle({
-      radius: isSelected ? 14 : 11,
+      radius:
+        isSelected ? 14 : 11,
 
       fill: new Fill({
         color,
@@ -296,7 +336,9 @@ function createCandidateStyle(
 
       stroke: new Stroke({
         color: "#ffffff",
-        width: isSelected ? 3 : 2,
+
+        width:
+          isSelected ? 3 : 2,
       }),
     }),
 
@@ -308,7 +350,9 @@ function createCandidateStyle(
       }),
 
       stroke: new Stroke({
-        color: "rgba(15, 23, 42, 0.78)",
+        color:
+          "rgba(15, 23, 42, 0.78)",
+
         width: 2,
       }),
 
@@ -326,6 +370,130 @@ function createCandidateStyle(
   return style;
 }
 
+function createCandidateClusterStyle(
+  feature,
+  selectedPointId
+) {
+  const clusteredFeatures =
+    feature.get("features") ?? [];
+
+  const size =
+    clusteredFeatures.length;
+
+  if (size === 0) {
+    return undefined;
+  }
+
+  if (size === 1) {
+    const candidate =
+      clusteredFeatures[0].get(
+        "candidate"
+      );
+
+    if (!candidate) {
+      return undefined;
+    }
+
+    return createCandidateStyle(
+      candidate,
+      String(candidate.id) ===
+        String(selectedPointId)
+    );
+  }
+
+  const containsSelectedCandidate =
+    selectedPointId !== null &&
+    selectedPointId !== undefined &&
+    clusteredFeatures.some(
+      (candidateFeature) =>
+        String(
+          candidateFeature.get(
+            "candidateId"
+          )
+        ) ===
+        String(selectedPointId)
+    );
+
+  const radius =
+    size > 99
+      ? 22
+      : size > 49
+        ? 20
+        : size > 19
+          ? 18
+          : size > 9
+            ? 16
+            : 14;
+
+  const cacheKey = [
+    size,
+    radius,
+
+    containsSelectedCandidate
+      ? "selected"
+      : "default",
+  ].join("-");
+
+  if (
+    candidateClusterStyleCache.has(
+      cacheKey
+    )
+  ) {
+    return candidateClusterStyleCache.get(
+      cacheKey
+    );
+  }
+
+  const style = new Style({
+    image: new CircleStyle({
+      radius,
+
+      fill: new Fill({
+        color:
+          containsSelectedCandidate
+            ? "rgba(37, 99, 235, 0.96)"
+            : "rgba(15, 118, 110, 0.94)",
+      }),
+
+      stroke: new Stroke({
+        color: "#ffffff",
+
+        width:
+          containsSelectedCandidate
+            ? 4
+            : 3,
+      }),
+    }),
+
+    text: new Text({
+      text: String(size),
+
+      fill: new Fill({
+        color: "#ffffff",
+      }),
+
+      stroke: new Stroke({
+        color:
+          "rgba(15, 23, 42, 0.82)",
+
+        width: 2,
+      }),
+
+      font:
+        containsSelectedCandidate
+          ? "bold 13px Arial"
+          : "bold 12px Arial",
+    }),
+  });
+
+  candidateClusterStyleCache.set(
+    cacheKey,
+    style
+  );
+
+  return style;
+}
+
 function createClusterStyle(
   feature,
   layerType
@@ -333,7 +501,8 @@ function createClusterStyle(
   const clusteredFeatures =
     feature.get("features") ?? [];
 
-  const size = clusteredFeatures.length;
+  const size =
+    clusteredFeatures.length;
 
   if (size <= 1) {
     return layerType === "poi"
@@ -350,7 +519,8 @@ function createClusterStyle(
     return cache.get(size);
   }
 
-  const isPoi = layerType === "poi";
+  const isPoi =
+    layerType === "poi";
 
   const radius =
     size > 999
@@ -387,7 +557,9 @@ function createClusterStyle(
       }),
 
       stroke: new Stroke({
-        color: "rgba(0, 0, 0, 0.82)",
+        color:
+          "rgba(0, 0, 0, 0.82)",
+
         width: 2,
       }),
 
@@ -405,7 +577,9 @@ function createCandidateFeature(
   selectedPointId
 ) {
   const normalizedCandidate =
-    normalizeCandidateForMap(candidate);
+    normalizeCandidateForMap(
+      candidate
+    );
 
   if (!normalizedCandidate) {
     return null;
@@ -419,15 +593,22 @@ function createCandidateFeature(
       ])
     ),
 
-    candidate: normalizedCandidate,
-    candidateId: normalizedCandidate.id,
+    candidate:
+      normalizedCandidate,
+
+    candidateId:
+      normalizedCandidate.id,
+
     featureType: "candidate",
   });
 
   feature.setStyle(
     createCandidateStyle(
       normalizedCandidate,
-      String(normalizedCandidate.id) ===
+
+      String(
+        normalizedCandidate.id
+      ) ===
         String(selectedPointId)
     )
   );
@@ -435,7 +616,9 @@ function createCandidateFeature(
   return feature;
 }
 
-function createManualPinFeature(candidate) {
+function createManualPinFeature(
+  candidate
+) {
   if (!candidate) {
     return null;
   }
@@ -468,12 +651,16 @@ function createManualPinFeature(candidate) {
     featureType: "manual-pin",
   });
 
-  feature.setStyle(manualPinStyle);
+  feature.setStyle(
+    manualPinStyle
+  );
 
   return feature;
 }
 
-function parseRegionGeometry(region) {
+function parseRegionGeometry(
+  region
+) {
   const possibleValues = [
     region?.boundaryGeoJson,
     region?.boundaryGeoJSON,
@@ -489,16 +676,23 @@ function parseRegionGeometry(region) {
     region?.GeoJSON,
   ];
 
-  for (const value of possibleValues) {
+  for (
+    const value
+    of possibleValues
+  ) {
     if (!value) {
       continue;
     }
 
-    if (typeof value === "object") {
+    if (
+      typeof value === "object"
+    ) {
       return value;
     }
 
-    if (typeof value === "string") {
+    if (
+      typeof value === "string"
+    ) {
       try {
         return JSON.parse(value);
       } catch {
@@ -515,27 +709,34 @@ function createRegionStyle(
   resolution
 ) {
   const regionIndex =
-    feature.get("regionIndex") ?? 0;
+    feature.get(
+      "regionIndex"
+    ) ?? 0;
 
   const isSelected =
-    feature.get("selected") === true;
+    feature.get("selected") ===
+    true;
 
   const regionName =
     feature.get("name") ?? "";
 
-  /*
- * Seçili bölgenin adı sol üstteki panelde gösteriliyor.
- * Diğer bölge adları yalnızca yakın görünümde görünür.
- */
-const showLabel =
-  !isSelected &&
-  resolution <=
-    CANDIDATE_REGION_LABEL_MAX_RESOLUTION;
+  const showLabel =
+    !isSelected &&
+    resolution <=
+      CANDIDATE_REGION_LABEL_MAX_RESOLUTION;
 
   const cacheKey = [
-    regionIndex % regionColors.length,
-    isSelected ? "selected" : "default",
-    showLabel ? "label" : "no-label",
+    regionIndex %
+      regionColors.length,
+
+    isSelected
+      ? "selected"
+      : "default",
+
+    showLabel
+      ? "label"
+      : "no-label",
+
     regionName,
   ].join("-");
 
@@ -564,19 +765,13 @@ const showLabel =
         ? "#1d4ed8"
         : "rgba(239, 68, 68, 0.92)",
 
-      width: isSelected
-        ? 5
-        : 3,
+      width:
+        isSelected ? 5 : 3,
     }),
 
     text: showLabel
       ? new Text({
           text: regionName,
-
-          /*
-           * Yazının polygon dışına taşmasını ve
-           * diğer isimlerle çakışmasını azaltır.
-           */
           overflow: false,
 
           font: isSelected
@@ -587,18 +782,14 @@ const showLabel =
             color: "#0f172a",
           }),
 
-          /*
-           * Beyaz kutu yoktur.
-           * Yalnızca harflerin çevresinde
-           * okunabilirlik konturu vardır.
-           */
           stroke: new Stroke({
             color:
               "rgba(255, 255, 255, 0.92)",
 
-            width: isSelected
-              ? 4
-              : 3,
+            width:
+              isSelected
+                ? 4
+                : 3,
           }),
 
           padding: [0, 0, 0, 0],
@@ -614,13 +805,18 @@ const showLabel =
   return style;
 }
 
-function createRegionFeatures(regions) {
-  const parser = new GeoJSON();
+function createRegionFeatures(
+  regions
+) {
+  const parser =
+    new GeoJSON();
 
   return regions.flatMap(
     (region, index) => {
       const regionGeometry =
-        parseRegionGeometry(region);
+        parseRegionGeometry(
+          region
+        );
 
       if (!regionGeometry) {
         return [];
@@ -691,7 +887,8 @@ async function loadGeoJsonFeatures(
   url,
   featureType
 ) {
-  const response = await fetch(url);
+  const response =
+    await fetch(url);
 
   if (!response.ok) {
     throw new Error(
@@ -699,25 +896,32 @@ async function loadGeoJsonFeatures(
     );
   }
 
-  const geoJson = await response.json();
-  const parser = new GeoJSON();
+  const geoJson =
+    await response.json();
+
+  const parser =
+    new GeoJSON();
 
   const features =
     parser.readFeatures(
       geoJson,
       {
-        dataProjection: "EPSG:4326",
+        dataProjection:
+          "EPSG:4326",
+
         featureProjection:
           "EPSG:3857",
       }
     );
 
-  features.forEach((feature) => {
-    feature.set(
-      "featureType",
-      featureType
-    );
-  });
+  features.forEach(
+    (feature) => {
+      feature.set(
+        "featureType",
+        featureType
+      );
+    }
+  );
 
   return features;
 }
@@ -726,7 +930,9 @@ function getClusterExtent(
   clusteredFeatures
 ) {
   if (
-    !Array.isArray(clusteredFeatures) ||
+    !Array.isArray(
+      clusteredFeatures
+    ) ||
     clusteredFeatures.length === 0
   ) {
     return null;
@@ -782,16 +988,23 @@ function getFeatureProperty(
   feature,
   propertyNames
 ) {
-  for (const propertyName of propertyNames) {
+  for (
+    const propertyName
+    of propertyNames
+  ) {
     const value =
-      feature.get(propertyName);
+      feature.get(
+        propertyName
+      );
 
     if (
       value !== null &&
       value !== undefined &&
       String(value).trim() !== ""
     ) {
-      return String(value).trim();
+      return String(
+        value
+      ).trim();
     }
   }
 
@@ -848,25 +1061,41 @@ function createLayerDetail(
     phone:
       getFeatureProperty(
         feature,
-        ["PHONE", "phone", "Phone"]
+        [
+          "PHONE",
+          "phone",
+          "Phone",
+        ]
       ),
 
     fax:
       getFeatureProperty(
         feature,
-        ["FAX", "fax", "Fax"]
+        [
+          "FAX",
+          "fax",
+          "Fax",
+        ]
       ),
 
     email:
       getFeatureProperty(
         feature,
-        ["EMAIL", "email", "Email"]
+        [
+          "EMAIL",
+          "email",
+          "Email",
+        ]
       ),
 
     web:
       getFeatureProperty(
         feature,
-        ["WEB", "web", "Web"]
+        [
+          "WEB",
+          "web",
+          "Web",
+        ]
       ),
   };
 }
@@ -891,7 +1120,11 @@ function createExternalUrl(value) {
     return "";
   }
 
-  if (/^https?:\/\//i.test(text)) {
+  if (
+    /^https?:\/\//i.test(
+      text
+    )
+  ) {
     return text;
   }
 
@@ -915,8 +1148,10 @@ function getPopupPosition(
 
   const left = Math.max(
     12,
+
     Math.min(
       pixel[0] + 16,
+
       mapSize[0] -
         popupWidth -
         12
@@ -925,8 +1160,10 @@ function getPopupPosition(
 
   const top = Math.max(
     78,
+
     Math.min(
       pixel[1] - 24,
+
       mapSize[1] -
         popupHeight -
         12
@@ -950,7 +1187,9 @@ function setSelectedRegionFeature(
         regionId !== null &&
         regionId !== undefined &&
         String(
-          feature.get("regionId")
+          feature.get(
+            "regionId"
+          )
         ) === String(regionId);
 
       feature.set(
@@ -973,22 +1212,27 @@ function fitMapToRegion(
 
   if (
     !extent ||
-    !Number.isFinite(extent[0])
+    !Number.isFinite(
+      extent[0]
+    )
   ) {
     return;
   }
 
-  map.getView().fit(extent, {
-    padding: [
-      110,
-      390,
-      110,
-      260,
-    ],
+  map.getView().fit(
+    extent,
+    {
+      padding: [
+        110,
+        390,
+        110,
+        260,
+      ],
 
-    maxZoom: 15,
-    duration: 450,
-  });
+      maxZoom: 15,
+      duration: 450,
+    }
+  );
 }
 
 function fitMapToAllRegions(
@@ -1000,7 +1244,9 @@ function fitMapToAllRegions(
 
   if (
     !extent ||
-    !Number.isFinite(extent[0])
+    !Number.isFinite(
+      extent[0]
+    )
   ) {
     map.getView().animate({
       center: CANKAYA_CENTER,
@@ -1011,93 +1257,20 @@ function fitMapToAllRegions(
     return;
   }
 
-  map.getView().fit(extent, {
-    padding: [
-      100,
-      350,
-      90,
-      100,
-    ],
+  map.getView().fit(
+    extent,
+    {
+      padding: [
+        100,
+        350,
+        90,
+        100,
+      ],
 
-    maxZoom: 12.5,
-    duration: 450,
-  });
-}
-
-function createManualCandidate(
-  evaluation,
-  locateResult
-) {
-  const regionName =
-    evaluation.regionName ||
-    locateResult.regionName ||
-    "Bölge";
-
-  const neighborhoodName =
-    evaluation.neighborhoodName ||
-    locateResult.neighborhoodName ||
-    null;
-
-  const estimatedAddress = [
-    neighborhoodName,
-    regionName,
-    "Çankaya",
-    "Ankara",
-  ]
-    .filter(Boolean)
-    .join(" / ");
-
-  const mappedCandidate =
-    mapCandidatePoint(
-      {
-        id:
-          `manual-${Date.now()}`,
-
-        name: neighborhoodName
-          ? `Manuel Aday - ${neighborhoodName}`
-          : `Manuel Aday - ${regionName}`,
-
-        estimatedAddress,
-
-        regionId:
-          evaluation.regionId ||
-          locateResult.regionId,
-
-        regionName,
-        region: regionName,
-
-        neighborhoodId:
-          evaluation.neighborhoodId ||
-          locateResult.neighborhoodId,
-
-        neighborhoodName,
-        neighborhood:
-          neighborhoodName,
-
-        estimatedCost:
-          evaluation.estimatedCost,
-
-        latitude:
-          evaluation.latitude,
-
-        longitude:
-          evaluation.longitude,
-
-        isManual: true,
-        status: "missing",
-      },
-      0
-    );
-
-  return {
-    ...mappedCandidate,
-    isManual: true,
-    costSource:
-      evaluation.costSource || "",
-    manualMessage:
-      evaluation.message || "",
-    status: "missing",
-  };
+      maxZoom: 12.5,
+      duration: 450,
+    }
+  );
 }
 
 function getLayerButtonText(
@@ -1129,51 +1302,91 @@ export default function CandidatePointsMap({
   selectedPointId = null,
   focusedRegionId = null,
   regionFocusKey = 0,
+  manualPinCandidate = null,
+  manualPinStatus = "idle",
+  manualPinMessage = "",
+  manualPinError = "",
+  onManualPinRequest,
   onPointSelect,
   onRegionSelect,
 }) {
-  const mapElementRef = useRef(null);
-  const mapRef = useRef(null);
+  const mapElementRef =
+    useRef(null);
 
-  const candidateSourceRef = useRef(
-    new VectorSource()
-  );
+  const mapRef =
+    useRef(null);
 
-  const regionSourceRef = useRef(
-    new VectorSource()
-  );
+  const selectedRegionRef =
+    useRef(null);
 
-  const manualPinSourceRef = useRef(
-    new VectorSource()
-  );
+  const candidateSourceRef =
+    useRef(
+      new VectorSource()
+    );
 
-  const poiSourceRef = useRef(
-    new VectorSource()
-  );
+  const candidateClusterSourceRef =
+    useRef(
+      new Cluster({
+        distance: 58,
+        minDistance: 28,
 
-  const trafoSourceRef = useRef(
-    new VectorSource()
-  );
+        source:
+          candidateSourceRef.current,
+      })
+    );
 
-  const roadSourceRef = useRef(
-    new VectorSource()
-  );
+  const selectedPointIdRef =
+    useRef(selectedPointId);
 
-  const poiClusterSourceRef = useRef(
-    new Cluster({
-      distance: 72,
-      minDistance: 32,
-      source: poiSourceRef.current,
-    })
-  );
+  const candidateLayerRef =
+    useRef(null);
 
-  const trafoClusterSourceRef = useRef(
-    new Cluster({
-      distance: 78,
-      minDistance: 34,
-      source: trafoSourceRef.current,
-    })
-  );
+  const regionSourceRef =
+    useRef(
+      new VectorSource()
+    );
+
+  const manualPinSourceRef =
+    useRef(
+      new VectorSource()
+    );
+
+  const poiSourceRef =
+    useRef(
+      new VectorSource()
+    );
+
+  const trafoSourceRef =
+    useRef(
+      new VectorSource()
+    );
+
+  const roadSourceRef =
+    useRef(
+      new VectorSource()
+    );
+
+  const poiClusterSourceRef =
+    useRef(
+      new Cluster({
+        distance: 72,
+        minDistance: 32,
+
+        source:
+          poiSourceRef.current,
+      })
+    );
+
+  const trafoClusterSourceRef =
+    useRef(
+      new Cluster({
+        distance: 78,
+        minDistance: 34,
+
+        source:
+          trafoSourceRef.current,
+      })
+    );
 
   const regionLayerRef =
     useRef(null);
@@ -1190,18 +1403,18 @@ export default function CandidatePointsMap({
   const regionSelectRef =
     useRef(null);
 
-  const callbackRef = useRef({
-    onPointSelect,
-    onRegionSelect,
-  });
+  const callbackRef =
+    useRef({
+      onManualPinRequest,
+      onPointSelect,
+      onRegionSelect,
+    });
 
-  const interactionRef = useRef({
-    manualPinMode: false,
-    manualPinLoading: false,
-  });
-
-  const manualPinHandlerRef =
-    useRef(null);
+  const interactionRef =
+    useRef({
+      manualPinMode: false,
+      manualPinLoading: false,
+    });
 
   const layerDetailCoordinateRef =
     useRef(null);
@@ -1227,18 +1440,8 @@ export default function CandidatePointsMap({
   ] = useState(false);
 
   const [
-    manualPinLoading,
-    setManualPinLoading,
-  ] = useState(false);
-
-  const [
-    manualPinPoint,
-    setManualPinPoint,
-  ] = useState(null);
-
-  const [
-    manualPinMessage,
-    setManualPinMessage,
+    manualPinHint,
+    setManualPinHint,
   ] = useState("");
 
   const [
@@ -1291,7 +1494,9 @@ export default function CandidatePointsMap({
     ]);
 
   const selectedRegionId =
-    getRegionId(selectedRegion);
+    getRegionId(
+      selectedRegion
+    );
 
   const selectedRegionName =
     selectedRegion
@@ -1302,11 +1507,17 @@ export default function CandidatePointsMap({
 
   const safePoints =
     useMemo(() => {
-      if (!Array.isArray(points)) {
+      if (
+        !Array.isArray(points)
+      ) {
         return [];
       }
 
       return points
+        .filter(
+          (candidate) =>
+            !candidate?.isManual
+        )
         .map(
           normalizeCandidateForMap
         )
@@ -1320,23 +1531,41 @@ export default function CandidatePointsMap({
         )}`
       : "";
 
+  const manualPinLoading =
+    manualPinStatus === "loading";
+
+  const displayedManualPinMessage =
+    manualPinError ||
+    manualPinMessage ||
+    manualPinHint;
+
   function closeLayerDetail() {
     layerDetailCoordinateRef.current =
       null;
 
     setLayerDetail(null);
-    setLayerDetailPosition(null);
+
+    setLayerDetailPosition(
+      null
+    );
   }
 
   useEffect(() => {
     callbackRef.current = {
+      onManualPinRequest,
       onPointSelect,
       onRegionSelect,
     };
   }, [
+    onManualPinRequest,
     onPointSelect,
     onRegionSelect,
   ]);
+
+  useEffect(() => {
+    selectedRegionRef.current =
+      selectedRegion;
+  }, [selectedRegion]);
 
   useEffect(() => {
     interactionRef.current = {
@@ -1344,7 +1573,9 @@ export default function CandidatePointsMap({
       manualPinLoading,
     };
 
-    if (mapElementRef.current) {
+    if (
+      mapElementRef.current
+    ) {
       mapElementRef.current.style.cursor =
         manualPinMode
           ? "crosshair"
@@ -1361,6 +1592,7 @@ export default function CandidatePointsMap({
       regions.length > 0
     ) {
       setRegionLoadError("");
+
       return;
     }
 
@@ -1376,7 +1608,9 @@ export default function CandidatePointsMap({
         }
 
         const safeRegions =
-          extractRegionList(result);
+          extractRegionList(
+            result
+          );
 
         setInternalRegions(
           safeRegions
@@ -1424,17 +1658,25 @@ export default function CandidatePointsMap({
         {
           key: "poi",
           url: GEOJSON_URLS.poi,
-          sourceRef: poiSourceRef,
+
+          sourceRef:
+            poiSourceRef,
         },
+
         {
           key: "trafo",
           url: GEOJSON_URLS.trafo,
-          sourceRef: trafoSourceRef,
+
+          sourceRef:
+            trafoSourceRef,
         },
+
         {
           key: "road",
           url: GEOJSON_URLS.road,
-          sourceRef: roadSourceRef,
+
+          sourceRef:
+            roadSourceRef,
         },
       ];
 
@@ -1463,9 +1705,13 @@ export default function CandidatePointsMap({
               );
 
               setLayerStatus(
-                (currentStatus) => ({
+                (
+                  currentStatus
+                ) => ({
                   ...currentStatus,
-                  [key]: "ready",
+
+                  [key]:
+                    "ready",
                 })
               );
             } catch (error) {
@@ -1479,9 +1725,13 @@ export default function CandidatePointsMap({
               }
 
               setLayerStatus(
-                (currentStatus) => ({
+                (
+                  currentStatus
+                ) => ({
                   ...currentStatus,
-                  [key]: "error",
+
+                  [key]:
+                    "error",
                 })
               );
             }
@@ -1497,111 +1747,9 @@ export default function CandidatePointsMap({
     };
   }, []);
 
-  async function handleManualPinCoordinate({
-    latitude,
-    longitude,
-  }) {
-    if (!selectedRegionId) {
-      setManualPinMessage(
-        "Önce haritadaki renkli bölgelerden birini seçmelisiniz."
-      );
-
-      return;
-    }
-
-    if (manualPinLoading) {
-      return;
-    }
-
-    closeLayerDetail();
-    setManualPinLoading(true);
-
-    setManualPinMessage(
-      "Noktanın bölge ve mahalle kontrolü yapılıyor..."
-    );
-
-    try {
-      const locateResult =
-        await locateRegionPoint(
-          selectedRegionId,
-          {
-            latitude,
-            longitude,
-          }
-        );
-
-      if (!locateResult.isInsideRegion) {
-        setManualPinMessage(
-          "Seçtiğiniz nokta seçili bölgenin dışında. Bölgenin içine tekrar tıklayın."
-        );
-
-        return;
-      }
-
-      setManualPinMessage(
-        "Tahmini maliyet hesaplanıyor..."
-      );
-
-      const evaluation =
-        await evaluateManualPin({
-          regionId:
-            selectedRegionId,
-          latitude,
-          longitude,
-        });
-
-      if (!evaluation.isValid) {
-        setManualPinMessage(
-          evaluation.message ||
-            "Manuel pin değerlendirilemedi."
-        );
-
-        return;
-      }
-
-      const manualCandidate =
-        createManualCandidate(
-          evaluation,
-          locateResult
-        );
-
-      setManualPinPoint(
-        manualCandidate
-      );
-
-      setManualPinMode(false);
-
-      setManualPinMessage(
-        evaluation.message ||
-          "Manuel pin başarıyla değerlendirildi."
-      );
-
-      callbackRef.current
-        .onPointSelect?.(
-          manualCandidate
-        );
-    } catch (error) {
-      console.error(
-        "Manuel pin işlemi başarısız:",
-        error
-      );
-
-      setManualPinMessage(
-        error instanceof Error
-          ? error.message
-          : "Manuel pin işlemi sırasında hata oluştu."
-      );
-    } finally {
-      setManualPinLoading(false);
-    }
-  }
-
-  manualPinHandlerRef.current =
-    handleManualPinCoordinate;
-
   function toggleManualPinMode() {
     if (!regionsActive) {
-      setManualPinMessage(
+      setManualPinHint(
         "Önce Bölgeler aktif seçeneğini açın."
       );
 
@@ -1609,7 +1757,7 @@ export default function CandidatePointsMap({
     }
 
     if (!selectedRegionId) {
-      setManualPinMessage(
+      setManualPinHint(
         "Önce haritadaki renkli bölgelerden birini seçin."
       );
 
@@ -1627,7 +1775,7 @@ export default function CandidatePointsMap({
         const nextValue =
           !currentValue;
 
-        setManualPinMessage(
+        setManualPinHint(
           nextValue
             ? `${selectedRegionName} içinde manuel pin bırakmak için haritaya tıklayın.`
             : "Manuel pin modu kapatıldı."
@@ -1701,24 +1849,18 @@ export default function CandidatePointsMap({
     }
 
     const regionLayer =
-  new VectorLayer({
-    source:
-      regionSourceRef.current,
+      new VectorLayer({
+        source:
+          regionSourceRef.current,
 
-    style: createRegionStyle,
+        style:
+          createRegionStyle,
 
-    visible: false,
-
-    /*
-     * Birbirine yakın bölge isimlerinin
-     * üst üste çizilmesini engeller.
-     */
-    declutter: true,
-
-    renderBuffer: 100,
-
-    zIndex: 3,
-  });
+        visible: false,
+        declutter: true,
+        renderBuffer: 100,
+        zIndex: 3,
+      });
 
     const roadLayer =
       new VectorLayer({
@@ -1743,8 +1885,13 @@ export default function CandidatePointsMap({
 
         visible: false,
         renderBuffer: 100,
-        updateWhileAnimating: false,
-        updateWhileInteracting: false,
+
+        updateWhileAnimating:
+          false,
+
+        updateWhileInteracting:
+          false,
+
         zIndex: 5,
       });
 
@@ -1761,15 +1908,35 @@ export default function CandidatePointsMap({
 
         visible: false,
         renderBuffer: 100,
-        updateWhileAnimating: false,
-        updateWhileInteracting: false,
+
+        updateWhileAnimating:
+          false,
+
+        updateWhileInteracting:
+          false,
+
         zIndex: 5,
       });
 
     const candidateLayer =
       new VectorLayer({
         source:
-          candidateSourceRef.current,
+          candidateClusterSourceRef.current,
+
+        style: (feature) =>
+          createCandidateClusterStyle(
+            feature,
+
+            selectedPointIdRef.current
+          ),
+
+        renderBuffer: 120,
+
+        updateWhileAnimating:
+          false,
+
+        updateWhileInteracting:
+          false,
 
         zIndex: 7,
       });
@@ -1790,6 +1957,7 @@ export default function CandidatePointsMap({
         new TileLayer({
           source: new OSM({
             wrapX: false,
+
             crossOrigin:
               "anonymous",
           }),
@@ -1806,7 +1974,9 @@ export default function CandidatePointsMap({
       ],
 
       view: new View({
-        center: CANKAYA_CENTER,
+        center:
+          CANKAYA_CENTER,
+
         zoom: 12.2,
         minZoom: 9.5,
         maxZoom: 19,
@@ -1839,7 +2009,10 @@ export default function CandidatePointsMap({
 
     const regionSelectInteraction =
       new Select({
-        layers: [regionLayer],
+        layers: [
+          regionLayer,
+        ],
+
         style: null,
         hitTolerance: 12,
 
@@ -1906,10 +2079,13 @@ export default function CandidatePointsMap({
             "regionId"
           );
 
-        setSelectedRegion(region);
+        setSelectedRegion(
+          region
+        );
+
         setManualPinMode(false);
 
-        setManualPinMessage(
+        setManualPinHint(
           `${getRegionName(
             region
           )} bölgesi seçildi. Manuel pin ekleyebilirsiniz.`
@@ -1956,8 +2132,33 @@ export default function CandidatePointsMap({
             event.coordinate
           );
 
-          manualPinHandlerRef
-            .current?.({
+          const currentRegion =
+            selectedRegionRef.current;
+
+          const currentRegionId =
+            getRegionId(
+              currentRegion
+            );
+
+          if (!currentRegionId) {
+            setManualPinHint(
+              "Önce haritadaki renkli bölgelerden birini seçmelisiniz."
+            );
+
+            return;
+          }
+
+          setManualPinHint("");
+          closeLayerDetail();
+
+          callbackRef.current
+            .onManualPinRequest?.({
+              region:
+                currentRegion,
+
+              regionId:
+                currentRegionId,
+
               latitude,
               longitude,
             });
@@ -1965,7 +2166,7 @@ export default function CandidatePointsMap({
           return;
         }
 
-        const candidateFeature =
+        const candidateMapHit =
           map.forEachFeatureAtPixel(
             event.pixel,
 
@@ -1974,48 +2175,189 @@ export default function CandidatePointsMap({
               layer
             ) => {
               if (
-                layer !== candidateLayer &&
-                layer !== manualPinLayer
-              ) {
-                return undefined;
-              }
-
-              const featureType =
+                layer ===
+                  manualPinLayer &&
                 feature.get(
                   "featureType"
-                );
+                ) === "manual-pin"
+              ) {
+                return {
+                  type:
+                    "manual-pin",
+
+                  feature,
+                };
+              }
 
               if (
-                featureType ===
-                  "candidate" ||
-                featureType ===
-                  "manual-pin"
+                layer ===
+                candidateLayer
               ) {
-                return feature;
+                return {
+                  type:
+                    "candidate-cluster",
+
+                  feature,
+                };
               }
 
               return undefined;
             },
 
             {
-              hitTolerance: 8,
+              hitTolerance: 10,
             }
           );
 
-        if (candidateFeature) {
+        if (candidateMapHit) {
           closeLayerDetail();
 
-          const candidate =
-            candidateFeature.get(
-              "candidate"
-            );
+          if (
+            candidateMapHit.type ===
+            "manual-pin"
+          ) {
+            const candidate =
+              candidateMapHit.feature.get(
+                "candidate"
+              );
 
-          callbackRef.current
-            .onPointSelect?.(
-              candidate
-            );
+            callbackRef.current
+              .onPointSelect?.(
+                candidate
+              );
 
-          return;
+            return;
+          }
+
+          const clusteredFeatures =
+            candidateMapHit.feature.get(
+              "features"
+            ) ?? [];
+
+          if (
+            clusteredFeatures.length ===
+            1
+          ) {
+            const candidate =
+              clusteredFeatures[0].get(
+                "candidate"
+              );
+
+            callbackRef.current
+              .onPointSelect?.(
+                candidate
+              );
+
+            return;
+          }
+
+          if (
+            clusteredFeatures.length >
+            1
+          ) {
+            const currentZoom =
+              map
+                .getView()
+                .getZoom() ?? 0;
+
+            if (
+              currentZoom >= 17.5
+            ) {
+              const nearestFeature =
+                clusteredFeatures.reduce(
+                  (
+                    nearest,
+                    currentFeature
+                  ) => {
+                    const currentCoordinate =
+                      currentFeature
+                        .getGeometry()
+                        ?.getCoordinates();
+
+                    const nearestCoordinate =
+                      nearest
+                        .getGeometry()
+                        ?.getCoordinates();
+
+                    if (
+                      !currentCoordinate ||
+                      !nearestCoordinate
+                    ) {
+                      return nearest;
+                    }
+
+                    const currentDistance =
+                      Math.pow(
+                        currentCoordinate[0] -
+                          event.coordinate[0],
+                        2
+                      ) +
+                      Math.pow(
+                        currentCoordinate[1] -
+                          event.coordinate[1],
+                        2
+                      );
+
+                    const nearestDistance =
+                      Math.pow(
+                        nearestCoordinate[0] -
+                          event.coordinate[0],
+                        2
+                      ) +
+                      Math.pow(
+                        nearestCoordinate[1] -
+                          event.coordinate[1],
+                        2
+                      );
+
+                    return currentDistance <
+                      nearestDistance
+                      ? currentFeature
+                      : nearest;
+                  },
+
+                  clusteredFeatures[0]
+                );
+
+              const candidate =
+                nearestFeature.get(
+                  "candidate"
+                );
+
+              callbackRef.current
+                .onPointSelect?.(
+                  candidate
+                );
+
+              return;
+            }
+
+            const clusterExtent =
+              getClusterExtent(
+                clusteredFeatures
+              );
+
+            if (clusterExtent) {
+              map
+                .getView()
+                .fit(
+                  clusterExtent,
+                  {
+                    padding: [
+                      100,
+                      100,
+                      100,
+                      100,
+                    ],
+
+                    maxZoom: 18,
+                    duration: 350,
+                  }
+                );
+            }
+
+            return;
+          }
         }
 
         const activeDataLayer =
@@ -2027,24 +2369,30 @@ export default function CandidatePointsMap({
 
         if (!activeDataLayer) {
           closeLayerDetail();
+
           return;
         }
 
         const clusterFeature =
           map.forEachFeatureAtPixel(
             event.pixel,
-            (feature) => feature,
+
+            (feature) =>
+              feature,
+
             {
               hitTolerance: 16,
 
               layerFilter:
                 (layer) =>
-                  layer === activeDataLayer,
+                  layer ===
+                  activeDataLayer,
             }
           );
 
         if (!clusterFeature) {
           closeLayerDetail();
+
           return;
         }
 
@@ -2057,19 +2405,23 @@ export default function CandidatePointsMap({
           !Array.isArray(
             clusteredFeatures
           ) ||
-          clusteredFeatures.length === 0
+          clusteredFeatures.length ===
+            0
         ) {
           closeLayerDetail();
+
           return;
         }
 
         const layerType =
-          activeDataLayer === poiLayer
+          activeDataLayer ===
+          poiLayer
             ? "poi"
             : "trafo";
 
         if (
-          clusteredFeatures.length === 1
+          clusteredFeatures.length ===
+          1
         ) {
           const sourceFeature =
             clusteredFeatures[0];
@@ -2079,6 +2431,7 @@ export default function CandidatePointsMap({
 
           if (!geometry) {
             closeLayerDetail();
+
             return;
           }
 
@@ -2108,7 +2461,9 @@ export default function CandidatePointsMap({
         }
 
         const currentZoom =
-          map.getView().getZoom() ?? 0;
+          map
+            .getView()
+            .getZoom() ?? 0;
 
         if (currentZoom >= 17) {
           const nearestFeature =
@@ -2163,6 +2518,7 @@ export default function CandidatePointsMap({
                   ? currentFeature
                   : nearest;
               },
+
               clusteredFeatures[0]
             );
 
@@ -2171,6 +2527,7 @@ export default function CandidatePointsMap({
 
           if (!nearestGeometry) {
             closeLayerDetail();
+
             return;
           }
 
@@ -2207,20 +2564,22 @@ export default function CandidatePointsMap({
           );
 
         if (clusterExtent) {
-          map.getView().fit(
-            clusterExtent,
-            {
-              padding: [
-                90,
-                90,
-                90,
-                90,
-              ],
+          map
+            .getView()
+            .fit(
+              clusterExtent,
+              {
+                padding: [
+                  90,
+                  90,
+                  90,
+                  90,
+                ],
 
-              maxZoom: 18,
-              duration: 350,
-            }
-          );
+                maxZoom: 18,
+                duration: 350,
+              }
+            );
         }
       }
     );
@@ -2232,7 +2591,9 @@ export default function CandidatePointsMap({
           interactionRef.current
             .manualPinMode
         ) {
-          map.getTargetElement().style.cursor =
+          map
+            .getTargetElement()
+            .style.cursor =
             "crosshair";
 
           return;
@@ -2246,17 +2607,22 @@ export default function CandidatePointsMap({
 
               layerFilter:
                 (layer) =>
-                  layer === regionLayer ||
+                  layer ===
+                    regionLayer ||
                   layer ===
                     candidateLayer ||
                   layer ===
                     manualPinLayer ||
-                  layer === poiLayer ||
-                  layer === trafoLayer,
+                  layer ===
+                    poiLayer ||
+                  layer ===
+                    trafoLayer,
             }
           );
 
-        map.getTargetElement().style.cursor =
+        map
+          .getTargetElement()
+          .style.cursor =
           hasClickableFeature
             ? "pointer"
             : "default";
@@ -2264,20 +2630,29 @@ export default function CandidatePointsMap({
     );
 
     mapRef.current = map;
+
+    candidateLayerRef.current =
+      candidateLayer;
+
     regionLayerRef.current =
       regionLayer;
+
     roadLayerRef.current =
       roadLayer;
+
     poiLayerRef.current =
       poiLayer;
+
     trafoLayerRef.current =
       trafoLayer;
+
     regionSelectRef.current =
       regionSelectInteraction;
 
     const resizeObserver =
       new ResizeObserver(() => {
         map.updateSize();
+
         updateDetailPosition();
       });
 
@@ -2297,16 +2672,38 @@ export default function CandidatePointsMap({
         regionSelectInteraction
       );
 
-      map.setTarget(undefined);
+      map.setTarget(
+        undefined
+      );
 
       mapRef.current = null;
-      regionLayerRef.current = null;
-      roadLayerRef.current = null;
-      poiLayerRef.current = null;
-      trafoLayerRef.current = null;
-      regionSelectRef.current = null;
+
+      candidateLayerRef.current =
+        null;
+
+      regionLayerRef.current =
+        null;
+
+      roadLayerRef.current =
+        null;
+
+      poiLayerRef.current =
+        null;
+
+      trafoLayerRef.current =
+        null;
+
+      regionSelectRef.current =
+        null;
     };
   }, []);
+
+  useEffect(() => {
+    selectedPointIdRef.current =
+      selectedPointId;
+
+    candidateLayerRef.current?.changed();
+  }, [selectedPointId]);
 
   useEffect(() => {
     const candidateFeatures =
@@ -2332,7 +2729,7 @@ export default function CandidatePointsMap({
   useEffect(() => {
     const manualFeature =
       createManualPinFeature(
-        manualPinPoint
+        manualPinCandidate
       );
 
     manualPinSourceRef.current.clear();
@@ -2342,7 +2739,20 @@ export default function CandidatePointsMap({
         manualFeature
       );
     }
-  }, [manualPinPoint]);
+  }, [manualPinCandidate]);
+
+  useEffect(() => {
+    if (
+      manualPinStatus === "success" &&
+      manualPinCandidate
+    ) {
+      setManualPinMode(false);
+      setManualPinHint("");
+    }
+  }, [
+    manualPinStatus,
+    manualPinCandidate,
+  ]);
 
   useEffect(() => {
     const regionFeatures =
@@ -2404,7 +2814,7 @@ export default function CandidatePointsMap({
     if (!regionsActive) {
       setSelectedRegion(null);
       setManualPinMode(false);
-      setManualPinMessage("");
+      setManualPinHint("");
 
       setSelectedRegionFeature(
         regionSourceRef.current,
@@ -2414,7 +2824,9 @@ export default function CandidatePointsMap({
       mapRef.current
         .getView()
         .animate({
-          center: CANKAYA_CENTER,
+          center:
+            CANKAYA_CENTER,
+
           zoom: 12.2,
           duration: 350,
         });
@@ -2424,6 +2836,7 @@ export default function CandidatePointsMap({
 
     fitMapToAllRegions(
       mapRef.current,
+
       regionSourceRef.current
     );
   }, [
@@ -2446,7 +2859,7 @@ export default function CandidatePointsMap({
     ) {
       setSelectedRegion(null);
       setManualPinMode(false);
-      setManualPinMessage("");
+      setManualPinHint("");
 
       setSelectedRegionFeature(
         regionSourceRef.current,
@@ -2455,6 +2868,7 @@ export default function CandidatePointsMap({
 
       fitMapToAllRegions(
         mapRef.current,
+
         regionSourceRef.current
       );
 
@@ -2483,14 +2897,17 @@ export default function CandidatePointsMap({
     closeLayerDetail();
 
     const region =
-      regionFeature.get("region");
+      regionFeature.get(
+        "region"
+      );
 
     setSelectedRegion(region);
     setManualPinMode(false);
-    setManualPinMessage("");
+    setManualPinHint("");
 
     setSelectedRegionFeature(
       regionSourceRef.current,
+
       focusedRegionId
     );
 
@@ -2517,6 +2934,7 @@ export default function CandidatePointsMap({
   useEffect(() => {
     setSelectedRegionFeature(
       regionSourceRef.current,
+
       selectedRegionId
     );
   }, [
@@ -2540,24 +2958,29 @@ export default function CandidatePointsMap({
 
     if (
       !extent ||
-      !Number.isFinite(extent[0])
+      !Number.isFinite(
+        extent[0]
+      )
     ) {
       return;
     }
 
     mapRef.current
       .getView()
-      .fit(extent, {
-        padding: [
-          100,
-          360,
-          100,
-          100,
-        ],
+      .fit(
+        extent,
+        {
+          padding: [
+            100,
+            360,
+            100,
+            100,
+          ],
 
-        maxZoom: 14.5,
-        duration: 450,
-      });
+          maxZoom: 14.5,
+          duration: 450,
+        }
+      );
   }, [
     safePoints,
     selectedPointId,
@@ -2575,8 +2998,12 @@ export default function CandidatePointsMap({
     const selectedCandidate =
       safePoints.find(
         (candidate) =>
-          String(candidate.id) ===
-          String(selectedPointId)
+          String(
+            candidate.id
+          ) ===
+          String(
+            selectedPointId
+          )
       );
 
     if (!selectedCandidate) {
@@ -2604,7 +3031,7 @@ export default function CandidatePointsMap({
   useEffect(() => {
     if (
       !mapRef.current ||
-      !manualPinPoint
+      !manualPinCandidate
     ) {
       return;
     }
@@ -2616,22 +3043,22 @@ export default function CandidatePointsMap({
       .animate({
         center: fromLonLat([
           Number(
-            manualPinPoint.longitude
+            manualPinCandidate.longitude
           ),
 
           Number(
-            manualPinPoint.latitude
+            manualPinCandidate.latitude
           ),
         ]),
 
         zoom: 16,
         duration: 450,
       });
-  }, [manualPinPoint]);
+  }, [manualPinCandidate]);
 
   const totalPointCount =
     safePoints.length +
-    (manualPinPoint ? 1 : 0);
+    (manualPinCandidate ? 1 : 0);
 
   return (
     <div
@@ -2724,9 +3151,12 @@ export default function CandidatePointsMap({
                 : "candidate-layer-button"
             }
             disabled={
-              layerStatus.poi !== "ready"
+              layerStatus.poi !==
+              "ready"
             }
-            onClick={togglePoiLayer}
+            onClick={
+              togglePoiLayer
+            }
             data-testid="candidate-poi-layer-toggle"
           >
             <span className="candidate-layer-symbol candidate-poi-symbol" />
@@ -2800,6 +3230,7 @@ export default function CandidatePointsMap({
             style={{
               left:
                 `${layerDetailPosition.left}px`,
+
               top:
                 `${layerDetailPosition.top}px`,
             }}
@@ -2833,7 +3264,9 @@ export default function CandidatePointsMap({
                 }
                 data-testid={`${layerDetailTestIdBase}-type`}
               >
-                {layerDetail.typeLabel}
+                {
+                  layerDetail.typeLabel
+                }
               </span>
 
               <h3
@@ -2845,7 +3278,9 @@ export default function CandidatePointsMap({
 
             <dl className="candidate-layer-detail-list">
               <div>
-                <dt>Kategori</dt>
+                <dt>
+                  Kategori
+                </dt>
 
                 <dd
                   data-testid={`${layerDetailTestIdBase}-category`}
@@ -2857,7 +3292,9 @@ export default function CandidatePointsMap({
               </div>
 
               <div>
-                <dt>Alt Kategori</dt>
+                <dt>
+                  Alt Kategori
+                </dt>
 
                 <dd
                   data-testid={`${layerDetailTestIdBase}-subcategory`}
@@ -2869,7 +3306,9 @@ export default function CandidatePointsMap({
               </div>
 
               <div>
-                <dt>Kayıt ID</dt>
+                <dt>
+                  Kayıt ID
+                </dt>
 
                 <dd
                   data-testid={`${layerDetailTestIdBase}-id`}
@@ -2879,7 +3318,9 @@ export default function CandidatePointsMap({
               </div>
 
               <div>
-                <dt>Telefon</dt>
+                <dt>
+                  Telefon
+                </dt>
 
                 <dd
                   data-testid={`${layerDetailTestIdBase}-phone`}
@@ -2891,7 +3332,9 @@ export default function CandidatePointsMap({
               </div>
 
               <div>
-                <dt>Faks</dt>
+                <dt>
+                  Faks
+                </dt>
 
                 <dd
                   data-testid={`${layerDetailTestIdBase}-fax`}
@@ -2903,7 +3346,9 @@ export default function CandidatePointsMap({
               </div>
 
               <div>
-                <dt>E-posta</dt>
+                <dt>
+                  E-posta
+                </dt>
 
                 <dd
                   data-testid={`${layerDetailTestIdBase}-email`}
@@ -2912,7 +3357,9 @@ export default function CandidatePointsMap({
                     <a
                       href={`mailto:${layerDetail.email}`}
                     >
-                      {layerDetail.email}
+                      {
+                        layerDetail.email
+                      }
                     </a>
                   ) : (
                     "Veri yok"
@@ -2921,7 +3368,9 @@ export default function CandidatePointsMap({
               </div>
 
               <div>
-                <dt>Web</dt>
+                <dt>
+                  Web
+                </dt>
 
                 <dd
                   data-testid={`${layerDetailTestIdBase}-web`}
@@ -2934,7 +3383,9 @@ export default function CandidatePointsMap({
                       target="_blank"
                       rel="noreferrer"
                     >
-                      {layerDetail.web}
+                      {
+                        layerDetail.web
+                      }
                     </a>
                   ) : (
                     "Veri yok"
@@ -2980,12 +3431,12 @@ export default function CandidatePointsMap({
           </div>
         )}
 
-      {manualPinMessage && (
+      {displayedManualPinMessage && (
         <div
           className="manual-pin-message"
           data-testid="manual-pin-message"
         >
-          {manualPinMessage}
+          {displayedManualPinMessage}
         </div>
       )}
     </div>

@@ -15,7 +15,9 @@ function normalizeApiBaseUrl(value) {
 }
 
 const API_BASE_URL =
-  normalizeApiBaseUrl(RAW_API_BASE_URL);
+  normalizeApiBaseUrl(
+    RAW_API_BASE_URL
+  );
 
 function getStorageToken(storage) {
   if (!storage) {
@@ -30,10 +32,17 @@ function getStorageToken(storage) {
     "geovolt_token",
   ];
 
-  for (const key of directTokenKeys) {
-    const value = storage.getItem(key);
+  for (
+    const key
+    of directTokenKeys
+  ) {
+    const value =
+      storage.getItem(key);
 
-    if (value && value.trim()) {
+    if (
+      value &&
+      value.trim()
+    ) {
       return value
         .replace(/^"|"$/g, "")
         .trim();
@@ -48,8 +57,12 @@ function getStorageToken(storage) {
     "auth-storage",
   ];
 
-  for (const key of objectKeys) {
-    const value = storage.getItem(key);
+  for (
+    const key
+    of objectKeys
+  ) {
+    const value =
+      storage.getItem(key);
 
     if (!value) {
       continue;
@@ -79,13 +92,20 @@ function getStorageToken(storage) {
 }
 
 function getStoredToken() {
-  if (typeof window === "undefined") {
+  if (
+    typeof window ===
+    "undefined"
+  ) {
     return null;
   }
 
   return (
-    getStorageToken(window.localStorage) ??
-    getStorageToken(window.sessionStorage)
+    getStorageToken(
+      window.localStorage
+    ) ??
+    getStorageToken(
+      window.sessionStorage
+    )
   );
 }
 
@@ -104,11 +124,15 @@ function createUrl(path) {
   return `${API_BASE_URL}${normalizedPath}`;
 }
 
-function unwrapResponseBody(responseBody) {
+function unwrapResponseBody(
+  responseBody
+) {
   if (
     responseBody &&
-    typeof responseBody === "object" &&
-    responseBody.data !== undefined
+    typeof responseBody ===
+      "object" &&
+    responseBody.data !==
+      undefined
   ) {
     return responseBody.data;
   }
@@ -116,9 +140,32 @@ function unwrapResponseBody(responseBody) {
   return responseBody;
 }
 
-async function readResponseBody(response) {
+function toNullableNumber(value) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return null;
+  }
+
+  const numericValue =
+    Number(value);
+
+  return Number.isFinite(
+    numericValue
+  )
+    ? numericValue
+    : null;
+}
+
+async function readResponseBody(
+  response
+) {
   const contentType =
-    response.headers.get("content-type") ?? "";
+    response.headers.get(
+      "content-type"
+    ) ?? "";
 
   if (
     contentType.includes(
@@ -133,7 +180,8 @@ async function readResponseBody(response) {
   }
 
   try {
-    const text = await response.text();
+    const text =
+      await response.text();
 
     return text || null;
   } catch {
@@ -151,56 +199,77 @@ async function requestJson(
     new AbortController();
 
   const timeoutId =
-    globalThis.setTimeout(() => {
-      abortController.abort();
-    }, REQUEST_TIMEOUT_MS);
+    globalThis.setTimeout(
+      () => {
+        abortController.abort();
+      },
+      REQUEST_TIMEOUT_MS
+    );
 
-  const token = getStoredToken();
+  const token =
+    getStoredToken();
 
   try {
-    const response = await fetch(url, {
-      ...options,
+    const response =
+      await fetch(url, {
+        ...options,
 
-      mode: "cors",
+        mode: "cors",
 
-      headers: {
-        Accept: "application/json",
-        "Content-Type":
-          "application/json",
+        headers: {
+          Accept:
+            "application/json",
 
-        ...(token
-          ? {
-              Authorization:
-                `Bearer ${token}`,
-            }
-          : {}),
+          "Content-Type":
+            "application/json",
 
-        ...options.headers,
-      },
+          ...(token
+            ? {
+                Authorization:
+                  `Bearer ${token}`,
+              }
+            : {}),
 
-      signal: abortController.signal,
-    });
+          ...options.headers,
+        },
+
+        signal:
+          abortController.signal,
+      });
 
     const responseBody =
-      await readResponseBody(response);
+      await readResponseBody(
+        response
+      );
 
     if (!response.ok) {
-      if (response.status === 401) {
+      if (
+        response.status ===
+        401
+      ) {
         throw new Error(
           "Oturum doğrulanamadı. Lütfen çıkış yapıp tekrar giriş yapın."
         );
       }
 
-      if (response.status === 403) {
+      if (
+        response.status ===
+        403
+      ) {
         throw new Error(
           "Bu işlem için yetkiniz bulunmuyor."
         );
       }
 
-      if (response.status === 404) {
+      if (
+        response.status ===
+        404
+      ) {
         const serverMessage =
-          typeof responseBody === "object"
+          typeof responseBody ===
+          "object"
             ? responseBody?.message ??
+              responseBody?.Message ??
               responseBody?.title
             : null;
 
@@ -211,8 +280,10 @@ async function requestJson(
       }
 
       const serverMessage =
-        typeof responseBody === "object"
+        typeof responseBody ===
+        "object"
           ? responseBody?.message ??
+            responseBody?.Message ??
             responseBody?.title
           : null;
 
@@ -226,13 +297,19 @@ async function requestJson(
       responseBody
     );
   } catch (error) {
-    if (error?.name === "AbortError") {
+    if (
+      error?.name ===
+      "AbortError"
+    ) {
       throw new Error(
         "Manuel pin isteği zaman aşımına uğradı."
       );
     }
 
-    if (error instanceof TypeError) {
+    if (
+      error instanceof
+      TypeError
+    ) {
       throw new Error(
         `Backend bağlantısı kurulamadı. Backend ve CORS ayarlarını kontrol edin. Adres: ${url}`
       );
@@ -260,10 +337,11 @@ function normalizeLocateResponse(
       response?.RegionName ??
       "",
 
-    isInsideRegion: Boolean(
-      response?.isInsideRegion ??
-        response?.IsInsideRegion
-    ),
+    isInsideRegion:
+      Boolean(
+        response?.isInsideRegion ??
+          response?.IsInsideRegion
+      ),
 
     neighborhoodId:
       response?.neighborhoodId ??
@@ -275,15 +353,17 @@ function normalizeLocateResponse(
       response?.NeighborhoodName ??
       null,
 
-    latitude: Number(
-      response?.latitude ??
-        response?.Latitude
-    ),
+    latitude:
+      toNullableNumber(
+        response?.latitude ??
+          response?.Latitude
+      ),
 
-    longitude: Number(
-      response?.longitude ??
-        response?.Longitude
-    ),
+    longitude:
+      toNullableNumber(
+        response?.longitude ??
+          response?.Longitude
+      ),
   };
 }
 
@@ -291,10 +371,11 @@ function normalizeEvaluateResponse(
   response
 ) {
   return {
-    isValid: Boolean(
-      response?.isValid ??
-        response?.IsValid
-    ),
+    isValid:
+      Boolean(
+        response?.isValid ??
+          response?.IsValid
+      ),
 
     regionId:
       response?.regionId ??
@@ -316,20 +397,56 @@ function normalizeEvaluateResponse(
       response?.NeighborhoodName ??
       null,
 
-    latitude: Number(
-      response?.latitude ??
-        response?.Latitude
-    ),
+    latitude:
+      toNullableNumber(
+        response?.latitude ??
+          response?.Latitude
+      ),
 
-    longitude: Number(
-      response?.longitude ??
-        response?.Longitude
-    ),
+    longitude:
+      toNullableNumber(
+        response?.longitude ??
+          response?.Longitude
+      ),
 
     estimatedCost:
-      response?.estimatedCost ??
-      response?.EstimatedCost ??
-      null,
+      toNullableNumber(
+        response?.estimatedCost ??
+          response?.EstimatedCost
+      ),
+
+    costScore:
+      toNullableNumber(
+        response?.costScore ??
+          response?.CostScore
+      ),
+
+    demandScore:
+      toNullableNumber(
+        response?.demandScore ??
+          response?.DemandScore
+      ),
+
+    generalScore:
+      toNullableNumber(
+        response?.generalScore ??
+          response?.GeneralScore
+      ),
+
+    systemType:
+      response?.systemType ??
+      response?.SystemType ??
+      "",
+
+    placeType:
+      response?.placeType ??
+      response?.PlaceType ??
+      "",
+
+    status:
+      response?.status ??
+      response?.Status ??
+      "",
 
     costSource:
       response?.costSource ??
@@ -343,12 +460,58 @@ function normalizeEvaluateResponse(
   };
 }
 
-export async function locateRegionPoint(
-  regionId,
-  {
-    latitude,
-    longitude,
+function validateCoordinate(
+  latitude,
+  longitude
+) {
+  const numericLatitude =
+    Number(latitude);
+
+  const numericLongitude =
+    Number(longitude);
+
+  if (
+    !Number.isFinite(
+      numericLatitude
+    ) ||
+    !Number.isFinite(
+      numericLongitude
+    )
+  ) {
+    throw new Error(
+      "Manuel pin koordinatları geçersiz."
+    );
   }
+
+  if (
+    numericLatitude < -90 ||
+    numericLatitude > 90
+  ) {
+    throw new Error(
+      "Enlem değeri -90 ile 90 arasında olmalıdır."
+    );
+  }
+
+  if (
+    numericLongitude < -180 ||
+    numericLongitude > 180
+  ) {
+    throw new Error(
+      "Boylam değeri -180 ile 180 arasında olmalıdır."
+    );
+  }
+
+  return {
+    latitude:
+      numericLatitude,
+
+    longitude:
+      numericLongitude,
+  };
+}
+
+function validateRegionId(
+  regionId
 ) {
   const numericRegionId =
     Number(regionId);
@@ -364,6 +527,27 @@ export async function locateRegionPoint(
     );
   }
 
+  return numericRegionId;
+}
+
+export async function locateRegionPoint(
+  regionId,
+  {
+    latitude,
+    longitude,
+  }
+) {
+  const numericRegionId =
+    validateRegionId(
+      regionId
+    );
+
+  const coordinates =
+    validateCoordinate(
+      latitude,
+      longitude
+    );
+
   const response =
     await requestJson(
       `/api/regions/${numericRegionId}/locate-point`,
@@ -372,10 +556,10 @@ export async function locateRegionPoint(
 
         body: JSON.stringify({
           latitude:
-            Number(latitude),
+            coordinates.latitude,
 
           longitude:
-            Number(longitude),
+            coordinates.longitude,
         }),
       }
     );
@@ -391,18 +575,15 @@ export async function evaluateManualPin({
   longitude,
 }) {
   const numericRegionId =
-    Number(regionId);
-
-  if (
-    !Number.isInteger(
-      numericRegionId
-    ) ||
-    numericRegionId <= 0
-  ) {
-    throw new Error(
-      "Manuel pin için geçerli bir bölge seçilmelidir."
+    validateRegionId(
+      regionId
     );
-  }
+
+  const coordinates =
+    validateCoordinate(
+      latitude,
+      longitude
+    );
 
   const response =
     await requestJson(
@@ -415,10 +596,10 @@ export async function evaluateManualPin({
             numericRegionId,
 
           latitude:
-            Number(latitude),
+            coordinates.latitude,
 
           longitude:
-            Number(longitude),
+            coordinates.longitude,
         }),
       }
     );

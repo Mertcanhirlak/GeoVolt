@@ -19,8 +19,7 @@ const CANDIDATE_POINTS_API_ENABLED =
       "false"
   )
     .trim()
-    .toLocaleLowerCase("tr-TR") ===
-  "true";
+    .toLocaleLowerCase("tr-TR") === "true";
 
 const CANDIDATE_POINTS_ENDPOINT =
   "/api/candidate-points";
@@ -107,7 +106,8 @@ function createApiUrl(
   path,
   queryParameters = {}
 ) {
-  const query = new URLSearchParams();
+  const query =
+    new URLSearchParams();
 
   Object.entries(
     queryParameters
@@ -219,6 +219,24 @@ function extractCandidateList(
   return null;
 }
 
+function extractResponseMessage(
+  responseBody
+) {
+  if (
+    !responseBody ||
+    typeof responseBody !== "object"
+  ) {
+    return "";
+  }
+
+  return String(
+    responseBody.message ??
+      responseBody.Message ??
+      responseBody.title ??
+      ""
+  ).trim();
+}
+
 async function readResponseBody(
   response
 ) {
@@ -297,6 +315,7 @@ async function requestJson(
         typeof responseBody ===
         "object"
           ? responseBody?.message ??
+            responseBody?.Message ??
             responseBody?.title
           : null;
 
@@ -387,11 +406,12 @@ function createCandidateQuery(
 }
 
 /**
- * Gerçek aday backend'i hazır olana kadar aday API'si
- * .env üzerinden kapalı tutulur.
+ * Gerçek aday backend'i hazır olana kadar
+ * aday API'si .env üzerinden kapalı tutulur.
  *
- * Böylece MockCandidatePointRepository tarafından döndürülen
- * sahte adaylar haritada gösterilmez.
+ * Böylece MockCandidatePointRepository
+ * tarafından döndürülen sahte adaylar
+ * gerçek sonuç gibi haritada gösterilmez.
  */
 export async function getCandidatePoints(
   filters = {}
@@ -403,6 +423,10 @@ export async function getCandidatePoints(
       data: [],
       source: "disabled",
       error: null,
+
+      message:
+        "Gerçek aday backend'i henüz aktif değil. Demo adaylar gösterilmiyor.",
+
       isRealData: false,
     };
   }
@@ -445,6 +469,13 @@ export async function getCandidatePoints(
       data: candidates,
       source: "api",
       error: null,
+
+      message:
+        extractResponseMessage(
+          responseBody
+        ) ||
+        `${candidates.length} aday nokta getirildi.`,
+
       isRealData: true,
     };
   } catch (error) {
@@ -462,9 +493,150 @@ export async function getCandidatePoints(
           ? error.message
           : "Gerçek aday nokta verisi alınamadı.",
 
+      message: "",
       isRealData: false,
     };
   }
+}
+
+export async function scanCandidatePointsByRegion(
+  regionId,
+  minGeneralScore = 80,
+  additionalFilters = {}
+) {
+  const numericRegionId =
+    Number(regionId);
+
+  const numericMinimumScore =
+    Number(minGeneralScore);
+
+  if (
+    !Number.isInteger(
+      numericRegionId
+    ) ||
+    numericRegionId <= 0
+  ) {
+    return {
+      data: [],
+      source: "validation",
+
+      error:
+        "Bölgeyi taramak için geçerli bir bölge seçmelisiniz.",
+
+      message: "",
+      isRealData: false,
+      regionId: null,
+
+      minGeneralScore:
+        numericMinimumScore,
+    };
+  }
+
+  if (
+    !Number.isFinite(
+      numericMinimumScore
+    ) ||
+    numericMinimumScore < 0 ||
+    numericMinimumScore > 100
+  ) {
+    return {
+      data: [],
+      source: "validation",
+
+      error:
+        "Minimum genel skor 0 ile 100 arasında olmalıdır.",
+
+      message: "",
+      isRealData: false,
+
+      regionId:
+        numericRegionId,
+
+      minGeneralScore: null,
+    };
+  }
+
+  if (
+    !CANDIDATE_POINTS_API_ENABLED
+  ) {
+    return {
+      data: [],
+      source: "disabled",
+      error: null,
+
+      message:
+        "Gerçek aday backend'i henüz aktif değil. Demo sonuç gerçek tarama sonucu gibi gösterilmiyor.",
+
+      isRealData: false,
+
+      regionId:
+        numericRegionId,
+
+      minGeneralScore:
+        numericMinimumScore,
+    };
+  }
+
+  const result =
+    await getCandidatePoints({
+      ...additionalFilters,
+
+      regionId:
+        numericRegionId,
+
+      minGeneralScore:
+        numericMinimumScore,
+    });
+
+  if (!result.isRealData) {
+    return {
+      ...result,
+
+      regionId:
+        numericRegionId,
+
+      minGeneralScore:
+        numericMinimumScore,
+    };
+  }
+
+  /*
+   * Backend filtresine ek güvenlik:
+   * API hatalı biçimde düşük skorlu
+   * kayıt döndürürse frontend göstermez.
+   */
+  const verifiedCandidates =
+    result.data.filter(
+      (candidate) => {
+        const score =
+          Number(
+            candidate?.generalScore
+          );
+
+        return (
+          Number.isFinite(score) &&
+          score >=
+            numericMinimumScore
+        );
+      }
+    );
+
+  return {
+    ...result,
+
+    data:
+      verifiedCandidates,
+
+    message:
+      result.message ||
+      `${verifiedCandidates.length} bölgesel aday nokta getirildi.`,
+
+    regionId:
+      numericRegionId,
+
+    minGeneralScore:
+      numericMinimumScore,
+  };
 }
 
 export async function getCandidatePointById(
