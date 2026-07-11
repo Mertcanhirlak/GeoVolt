@@ -65,7 +65,9 @@ public static class DependencyInjection
 
         services.AddDbContext<GeoVoltDbContext>(options =>
         {
-            options.UseNpgsql(connectionString);
+            options.UseNpgsql(
+                connectionString,
+                npgsqlOptions => npgsqlOptions.UseNetTopologySuite());
         });
 
         services.AddScoped<IAdminRepository, AdminRepository>();
