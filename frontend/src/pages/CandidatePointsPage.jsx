@@ -1,9 +1,4 @@
-﻿import React, {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+﻿import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   Home,
@@ -37,6 +32,7 @@ import SavedCandidates from "../components/SavedCandidates";
 import PersonalizationForm from "../components/PersonalizationForm";
 import ExistingStationsMap from "../components/ExistingStationsMap";
 import CandidatePointsMap from "../components/CandidatePointsMap";
+import AlternativeCandidatesModal from "../components/AlternativeCandidatesModal";
 import PoiSummary from "../components/PoiSummary";
 import TrafoSummary from "../components/TrafoSummary";
 import RoadSummary from "../components/RoadSummary";
@@ -418,6 +414,11 @@ export default function CandidatePointsPage() {
   ] = useState(null);
 
   const [
+    alternativeModalOpen,
+    setAlternativeModalOpen,
+  ] = useState(false);
+
+  const [
     manualPinCandidate,
     setManualPinCandidate,
   ] = useState(null);
@@ -577,6 +578,11 @@ export default function CandidatePointsPage() {
   const [
     regionFocusKey,
     setRegionFocusKey,
+  ] = useState(0);
+
+  const [
+    candidateFocusKey,
+    setCandidateFocusKey,
   ] = useState(0);
 
   const [
@@ -775,42 +781,40 @@ export default function CandidatePointsPage() {
     let isMounted = true;
 
     async function loadCandidatePoints() {
-      setMessage(
-        "Hesaplanıyor..."
-      );
+  setMessage("Hesaplanıyor...");
 
-      const result =
-        await getCandidatePoints();
+  const result =
+    await getCandidatePoints();
 
-      if (!isMounted) {
-        return;
-      }
+  if (!isMounted) {
+    return;
+  }
 
-      const safeCandidates =
-        Array.isArray(
-          result.data
-        )
-          ? result.data
-          : [];
+  const safeCandidates =
+    Array.isArray(result.data)
+      ? result.data
+      : [];
 
-      setCandidates(
-        safeCandidates
-      );
+  /*
+   * Bütün adaylar arama, alternatifler ve
+   * kişiselleştirme için bellekte tutulur.
+   */
+  setCandidates(safeCandidates);
 
-      setFilteredCandidates(
-        safeCandidates
-      );
+  /*
+   * Aday haritası ilk açıldığında hiçbir marker,
+   * cluster sayısı veya soru işareti gösterilmez.
+   */
+  setFilteredCandidates([]);
 
-      setPersonalizedCandidates(
-        safeCandidates
-      );
+  setPersonalizedCandidates(
+    safeCandidates
+  );
 
-      setSelectedCandidate(
-        null
-      );
+  setSelectedCandidate(null);
 
-      setMessage("");
-    }
+  setMessage("");
+}
 
     async function loadRegions() {
       const result =
@@ -854,6 +858,14 @@ export default function CandidatePointsPage() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!selectedCandidate) {
+      setAlternativeModalOpen(
+        false
+      );
+    }
+  }, [selectedCandidate]);
 
   function validateFilters() {
     const values =
@@ -1107,6 +1119,40 @@ export default function CandidatePointsPage() {
 
     showFeedback(
       "Aday nokta lokal olarak kaydedildi."
+    );
+  }
+
+  function openAlternativeCandidates() {
+    if (!selectedCandidate) {
+      setMessage(
+        "Alternatifleri görmek için önce bir aday nokta seçin."
+      );
+
+      return;
+    }
+
+    setAlternativeModalOpen(
+      true
+    );
+  }
+
+  function closeAlternativeCandidates() {
+    setAlternativeModalOpen(
+      false
+    );
+  }
+
+  function selectAlternativeCandidate(
+    candidate
+  ) {
+    closeAlternativeCandidates();
+
+    showCandidateOnMap(
+      candidate
+    );
+
+    setMessage(
+      `${candidate.name || "Alternatif aday"} haritada gösteriliyor.`
     );
   }
 
@@ -1447,13 +1493,55 @@ export default function CandidatePointsPage() {
     }
   }
 
+  function handleMapPointSelect(
+    candidate
+  ) {
+    if (!candidate) {
+      return;
+    }
+
+    setSelectedCandidate(
+      candidate
+    );
+
+    setCandidateFocusKey(
+      (currentKey) =>
+        currentKey + 1
+    );
+  }
+
   function showCandidateOnMap(
     candidate
   ) {
+    if (!candidate) {
+      setMessage(
+        "Haritada gösterilecek aday nokta bulunamadı."
+      );
+
+      return;
+    }
+
     resetRegionScanState({
       clearSelectedRegion: true,
       restoreCandidateList: false,
     });
+
+    setAlternativeModalOpen(
+      false
+    );
+
+    setRegionsActive(
+      false
+    );
+
+    setFocusedRegionId(
+      null
+    );
+
+    setRegionFocusKey(
+      (currentKey) =>
+        currentKey + 1
+    );
 
     setFilteredCandidates([
       candidate,
@@ -1463,11 +1551,7 @@ export default function CandidatePointsPage() {
       candidate
     );
 
-    setFocusedRegionId(
-      null
-    );
-
-    setRegionFocusKey(
+    setCandidateFocusKey(
       (currentKey) =>
         currentKey + 1
     );
@@ -1484,66 +1568,120 @@ export default function CandidatePointsPage() {
 
     setActiveTab(
       "candidateMap"
+    );
+
+    setMessage(
+      `${candidate.name || "Aday nokta"} haritada gösteriliyor.`
     );
   }
 
   function openCandidateMap() {
-    resetRegionScanState({
-      clearSelectedRegion: true,
-      restoreCandidateList: false,
-    });
+  /*
+   * Aday haritası her açıldığında temiz başlangıç
+   * durumuna döner.
+   */
+  setRegionsActive(false);
 
-    setFilteredCandidates(
-      candidates
-    );
+  resetRegionScanState({
+    clearSelectedRegion: true,
+    restoreCandidateList: false,
+  });
 
-    setSelectedCandidate(
-      null
-    );
+  /*
+   * Harita ilk açıldığında aday markerları
+   * gösterilmez.
+   */
+  setFilteredCandidates([]);
 
-    setFocusedRegionId(
-      null
-    );
+  /*
+   * Önceki manuel pin haritada bırakılmaz.
+   */
+  setManualPinCandidate(null);
 
-    setRegionFocusKey(
-      (currentKey) =>
-        currentKey + 1
-    );
+  setManualPinStatus("idle");
 
-    setCandidateSearch("");
+  setManualPinMessage("");
 
-    setCandidateSearchOpen(
-      false
-    );
+  setManualPinError("");
 
-    setActiveSearchSuggestionIndex(
-      -1
-    );
+  setSelectedCandidate(null);
 
-    setMessage("");
+  setAlternativeModalOpen(false);
 
-    setActiveTab(
-      "candidateMap"
-    );
-  }
+  setFocusedRegionId(null);
+
+  setRegionFocusKey(
+    (currentKey) =>
+      currentKey + 1
+  );
+
+  setCandidateSearch("");
+
+  setCandidateSearchOpen(false);
+
+  setActiveSearchSuggestionIndex(-1);
+
+  setMessage("");
+
+  setActiveTab("candidateMap");
+}
 
   function resetCandidateSearch() {
-    resetRegionScanState({
-      clearSelectedRegion: true,
-      restoreCandidateList: false,
-    });
+  resetRegionScanState({
+    clearSelectedRegion: true,
+    restoreCandidateList: false,
+  });
 
-    setFilteredCandidates(
-      candidates
-    );
+  /*
+   * Arama temizlendiğinde bütün adayları yeniden
+   * göstermek yerine harita boş hâle getirilir.
+   */
+  setFilteredCandidates([]);
 
-    setSelectedCandidate(
-      null
-    );
+  setSelectedCandidate(null);
 
-    setFocusedRegionId(
-      null
-    );
+  setFocusedRegionId(null);
+
+  setRegionFocusKey(
+    (currentKey) =>
+      currentKey + 1
+  );
+
+  setMessage("");
+}
+  function handleCandidateSearchChange(
+  searchValue
+) {
+  setCandidateSearch(searchValue);
+
+  setActiveSearchSuggestionIndex(-1);
+
+  const normalizedSearch =
+    normalizeSearchText(searchValue);
+
+  /*
+   * Arama kutusu boşsa haritada aday gösterilmez.
+   */
+  if (!normalizedSearch) {
+    setCandidateSearchOpen(false);
+
+    resetCandidateSearch();
+
+    return;
+  }
+
+  /*
+   * İki karakterden kısa aramalarda bütün adayların
+   * marker olarak görünmesi engellenir.
+   */
+  if (normalizedSearch.length < 2) {
+    setCandidateSearchOpen(false);
+
+    setFilteredCandidates([]);
+
+    setSelectedCandidate(null);
+
+    setFocusedRegionId(null);
 
     setRegionFocusKey(
       (currentKey) =>
@@ -1551,96 +1689,35 @@ export default function CandidatePointsPage() {
     );
 
     setMessage("");
+
+    return;
   }
 
-  function handleCandidateSearchChange(
-    searchValue
-  ) {
-    setCandidateSearch(
-      searchValue
+  setCandidateSearchOpen(true);
+
+  setSelectedCandidate(null);
+
+  setFocusedRegionId(null);
+
+  setMessage("");
+
+  const candidateMatches =
+    candidates.filter(
+      (candidate) =>
+        candidateMatchesSearch(
+          candidate,
+          normalizedSearch
+        )
     );
 
-    setActiveSearchSuggestionIndex(
-      -1
-    );
-
-    const normalizedSearch =
-      normalizeSearchText(
-        searchValue
-      );
-
-    if (
-      !normalizedSearch
-    ) {
-      setCandidateSearchOpen(
-        false
-      );
-
-      resetCandidateSearch();
-
-      return;
-    }
-
-    if (
-      normalizedSearch.length <
-      2
-    ) {
-      setCandidateSearchOpen(
-        false
-      );
-
-      setFilteredCandidates(
-        candidates
-      );
-
-      setSelectedCandidate(
-        null
-      );
-
-      setFocusedRegionId(
-        null
-      );
-
-      setRegionFocusKey(
-        (currentKey) =>
-          currentKey + 1
-      );
-
-      setMessage("");
-
-      return;
-    }
-
-    setCandidateSearchOpen(
-      true
-    );
-
-    setSelectedCandidate(
-      null
-    );
-
-    setFocusedRegionId(
-      null
-    );
-
-    setMessage("");
-
-    const candidateMatches =
-      candidates.filter(
-        (candidate) =>
-          candidateMatchesSearch(
-            candidate,
-            normalizedSearch
-          )
-      );
-
-    setFilteredCandidates(
-      candidateMatches.length >
-        0
-        ? candidateMatches
-        : candidates
-    );
-  }
+  /*
+   * Eşleşme yoksa bütün adaylar yerine boş liste
+   * gösterilir.
+   */
+  setFilteredCandidates(
+    candidateMatches
+  );
+}
 
   function clearCandidateSearch() {
     setCandidateSearch("");
@@ -1657,119 +1734,111 @@ export default function CandidatePointsPage() {
   }
 
   function selectCandidateSearchSuggestion(
-    suggestion
+  suggestion
+) {
+  if (!suggestion) {
+    return;
+  }
+
+  setCandidateSearch(
+    suggestion.label
+  );
+
+  setCandidateSearchOpen(false);
+
+  setActiveSearchSuggestionIndex(-1);
+
+  if (
+    suggestion.type ===
+    "candidate"
   ) {
-    if (!suggestion) {
-      return;
-    }
-
-    setCandidateSearch(
-      suggestion.label
-    );
-
-    setCandidateSearchOpen(
-      false
-    );
-
-    setActiveSearchSuggestionIndex(
-      -1
-    );
-
-    if (
-      suggestion.type ===
-      "candidate"
-    ) {
-      const candidate =
-        suggestion.value;
-
-      resetRegionScanState({
-        clearSelectedRegion: true,
-        restoreCandidateList: false,
-      });
-
-      setFilteredCandidates([
-        candidate,
-      ]);
-
-      setSelectedCandidate(
-        candidate
-      );
-
-      setFocusedRegionId(
-        null
-      );
-
-      setRegionFocusKey(
-        (currentKey) =>
-          currentKey + 1
-      );
-
-      setMessage(
-        `${candidate.name} aday noktası seçildi.`
-      );
-
-      return;
-    }
-
-    const region =
+    const candidate =
       suggestion.value;
 
-    const regionId =
-      getRegionId(region);
+    resetRegionScanState({
+      clearSelectedRegion: true,
+      restoreCandidateList: false,
+    });
 
-    const regionName =
-      getRegionName(region);
+    /*
+     * Aday araması yapıldığında bölge poligonları
+     * kapatılır ve yalnızca seçilen aday gösterilir.
+     */
+    setRegionsActive(false);
 
-    setRegionsActive(
-      true
+    setFilteredCandidates([
+      candidate,
+    ]);
+
+    setSelectedCandidate(
+      candidate
     );
 
-    setFocusedRegionId(
-      regionId
+    setCandidateFocusKey(
+      (currentKey) =>
+        currentKey + 1
     );
+
+    setFocusedRegionId(null);
 
     setRegionFocusKey(
       (currentKey) =>
         currentKey + 1
     );
 
-    scanRequestIdRef.current +=
-      1;
-
-    setSelectedScanRegion(
-      region
-    );
-
-    setFilteredCandidates(
-      []
-    );
-
-    setScannedCandidates(
-      []
-    );
-
-    setSelectedCandidate(
-      null
-    );
-
-    setScanStatus(
-      "idle"
-    );
-
-    setScanMessage(
-      `${regionName} seçildi. Gerçek adayları getirmek için Bölgeyi Tara butonuna basın.`
-    );
-
-    setScanError("");
-
-    setScanResultCount(
-      0
-    );
-
     setMessage(
-      `${regionName} mahallesi seçildi.`
+      `${candidate.name} aday noktası seçildi.`
     );
+
+    return;
   }
+
+  const region =
+    suggestion.value;
+
+  const regionId =
+    getRegionId(region);
+
+  const regionName =
+    getRegionName(region);
+
+  setRegionsActive(true);
+
+  setFocusedRegionId(regionId);
+
+  setRegionFocusKey(
+    (currentKey) =>
+      currentKey + 1
+  );
+
+  scanRequestIdRef.current += 1;
+
+  setSelectedScanRegion(region);
+
+  /*
+   * Mahalle aramasıyla bölge açıldığında tarama
+   * yapılana kadar aday markerı gösterilmez.
+   */
+  setFilteredCandidates([]);
+
+  setScannedCandidates([]);
+
+  setSelectedCandidate(null);
+
+  setScanStatus("idle");
+
+  setScanMessage(
+    `${regionName} seçildi. Gerçek adayları getirmek için Bölgeyi Tara butonuna basın.`
+  );
+
+  setScanError("");
+
+  setScanResultCount(0);
+
+  setMessage(
+    `${regionName} mahallesi seçildi.`
+  );
+}
 
   function handleCandidateSearchKeyDown(
     event
@@ -2556,67 +2625,68 @@ export default function CandidatePointsPage() {
   }
 
   function toggleCandidateRegions() {
-    const nextValue =
-      !regionsActive;
+  const nextValue =
+    !regionsActive;
 
-    setRegionsActive(
-      nextValue
-    );
+  setRegionsActive(nextValue);
 
-    if (
-      !nextValue
-    ) {
-      manualPinRequestIdRef.current +=
-        1;
+  manualPinRequestIdRef.current += 1;
 
-      setManualPinStatus(
-        "idle"
-      );
+  setManualPinStatus("idle");
 
-      setManualPinMessage("");
+  setManualPinMessage("");
 
-      setManualPinError("");
+  setManualPinError("");
 
-      setFocusedRegionId(
-        null
-      );
+  setManualPinCandidate(null);
 
-      setSelectedCandidate(
-        null
-      );
+  setFocusedRegionId(null);
 
-      resetRegionScanState({
-        clearSelectedRegion: true,
-        restoreCandidateList: true,
-      });
+  setSelectedCandidate(null);
 
-      setCandidateSearchOpen(
-        false
-      );
+  setAlternativeModalOpen(false);
 
-      setActiveSearchSuggestionIndex(
-        -1
-      );
+  setCandidateSearchOpen(false);
 
-      setRegionFocusKey(
-        (currentKey) =>
-          currentKey + 1
-      );
+  setActiveSearchSuggestionIndex(-1);
 
-      return;
-    }
+  setRegionFocusKey(
+    (currentKey) =>
+      currentKey + 1
+  );
 
-    if (
-      normalizeSearchText(
-        candidateSearch
-      ).length >= 2
-    ) {
-      setCandidateSearchOpen(
-        true
-      );
-    }
+  /*
+   * Bölgeler kapatıldığında önceki tarama adayları
+   * ve bütün markerlar temizlenir.
+   */
+  if (!nextValue) {
+    resetRegionScanState({
+      clearSelectedRegion: true,
+      restoreCandidateList: false,
+    });
+
+    setFilteredCandidates([]);
+
+    setMessage("");
+
+    return;
   }
 
+  /*
+   * Bölgeler açıldığında da Bölgeyi Tara işleminden
+   * önce hiçbir aday gösterilmez.
+   */
+  resetRegionScanState({
+    clearSelectedRegion: true,
+    restoreCandidateList: false,
+  });
+
+  setFilteredCandidates([]);
+
+  setMessage(
+    "Haritadaki bir bölgeyi seçip Bölgeyi Tara butonuna basın."
+  );
+}
   return (
     <div
       className="candidate-page"
@@ -3175,6 +3245,9 @@ export default function CandidatePointsPage() {
                   selectedCandidate?.id ??
                   null
                 }
+                candidateFocusKey={
+                  candidateFocusKey
+                }
                 focusedRegionId={
                   focusedRegionId
                 }
@@ -3197,7 +3270,7 @@ export default function CandidatePointsPage() {
                   handleManualPinRequest
                 }
                 onPointSelect={
-                  setSelectedCandidate
+                  handleMapPointSelect
                 }
                 onRegionSelect={
                   handleCandidateRegionSelect
@@ -3429,7 +3502,7 @@ export default function CandidatePointsPage() {
                             }
                             data-testid={`candidate-scan-result-card-${candidate.id}`}
                             onClick={() =>
-                              setSelectedCandidate(
+                              handleMapPointSelect(
                                 candidate
                               )
                             }
@@ -3564,6 +3637,18 @@ export default function CandidatePointsPage() {
                       Veri Eksik
                     </div>
                   )}
+
+                  <button
+                    type="button"
+                    className="popup-alternatives-button"
+                    data-testid={`popup-alternatives-button-${selectedCandidate.id}`}
+                    onClick={
+                      openAlternativeCandidates
+                    }
+                    title="Benzer alternatif adayları göster"
+                  >
+                    Alternatifleri Gör
+                  </button>
 
                   <button
                     type="button"
@@ -4005,6 +4090,27 @@ export default function CandidatePointsPage() {
           </section>
         )}
       </main>
+
+      <AlternativeCandidatesModal
+        isOpen={
+          alternativeModalOpen
+        }
+        selectedCandidate={
+          selectedCandidate
+        }
+        candidates={
+          candidates
+        }
+        onClose={
+          closeAlternativeCandidates
+        }
+        onCandidateSelect={
+          selectAlternativeCandidate
+        }
+        onSaveCandidate={
+          saveCandidate
+        }
+      />
     </div>
   );
 }

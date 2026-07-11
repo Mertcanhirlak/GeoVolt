@@ -881,14 +881,15 @@ export async function deleteSavedCandidatePoint(
           0
         );
 
-  removeFromLocalStorage(
-    candidate
-  );
-
   if (candidate.isManual) {
+    removeFromLocalStorage(
+      candidate
+    );
+
     return {
       success: true,
       source: "local-storage",
+      error: null,
     };
   }
 
@@ -904,9 +905,14 @@ export async function deleteSavedCandidatePoint(
     ) ||
     numericCandidateId <= 0
   ) {
+    removeFromLocalStorage(
+      candidate
+    );
+
     return {
       success: true,
       source: "local-storage",
+      error: null,
     };
   }
 
@@ -920,6 +926,10 @@ export async function deleteSavedCandidatePoint(
       }
     );
 
+    /*
+     * Backend kaydı zaten yoksa 404 sonucunu da
+     * başarılı silme olarak kabul ediyoruz.
+     */
     if (
       !response.ok &&
       response.status !== 404
@@ -929,9 +939,14 @@ export async function deleteSavedCandidatePoint(
       );
     }
 
+    removeFromLocalStorage(
+      candidate
+    );
+
     return {
       success: true,
       source: "api-and-local-storage",
+      error: null,
     };
   } catch (error) {
     console.warn(
@@ -939,9 +954,19 @@ export async function deleteSavedCandidatePoint(
       error
     );
 
+    /*
+     * Backend silme işlemi başarısızsa kayıt
+     * ekrandan başarılı şekilde silinmiş gibi
+     * gösterilmez.
+     */
     return {
-      success: true,
-      source: "local-storage",
+      success: false,
+      source: "api",
+
+      error:
+        error instanceof Error
+          ? error.message
+          : "Kayıt backend üzerinden silinemedi.",
     };
   }
 }

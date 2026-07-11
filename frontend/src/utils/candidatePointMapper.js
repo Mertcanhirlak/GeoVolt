@@ -1,8 +1,8 @@
 const CANKAYA_BOUNDS = {
-  minLatitude: 39.70,
-  maxLatitude: 40.10,
-  minLongitude: 32.50,
-  maxLongitude: 33.20,
+  minLatitude: 39.7,
+  maxLatitude: 40.1,
+  minLongitude: 32.5,
+  maxLongitude: 33.2,
 };
 
 function getFirstValue(source, keys) {
@@ -203,8 +203,9 @@ function normalizeCoordinates(
     );
 
   /*
-   * Doğrudan değer Çankaya dışında, ters çevrilmiş
-   * değer Çankaya içindeyse enlem-boylam ters gelmiştir.
+   * Doğrudan değer Çankaya dışında,
+   * ters çevrilmiş değer Çankaya içindeyse
+   * enlem-boylam ters gelmiştir.
    */
   if (
     !directInsideCankaya &&
@@ -217,7 +218,7 @@ function normalizeCoordinates(
   }
 
   /*
-   * Doğrudan koordinat teknik olarak geçersiz ama
+   * Doğrudan koordinat teknik olarak geçersiz,
    * ters çevrilmiş biçimi geçerliyse yine düzeltir.
    */
   if (
@@ -426,7 +427,14 @@ export function mapCandidatePoint(
     ])
   );
 
-  let generalScore = toScore(
+  /*
+   * Backend generalScore göndermediğinde frontend
+   * kendi kendine skor üretmez.
+   *
+   * Gerçek skor yoksa null kalır ve ekranda
+   * "Veri Eksik" olarak gösterilir.
+   */
+  const generalScore = toScore(
     getFirstValue(rawCandidate, [
       "generalScore",
       "GeneralScore",
@@ -438,16 +446,6 @@ export function mapCandidatePoint(
       "GENEL_SKOR",
     ])
   );
-
-  if (
-    generalScore === null &&
-    costScore !== null &&
-    demandScore !== null
-  ) {
-    generalScore = Math.round(
-      (costScore + demandScore) / 2
-    );
-  }
 
   const rawLatitude = getFirstValue(
     rawCandidate,
