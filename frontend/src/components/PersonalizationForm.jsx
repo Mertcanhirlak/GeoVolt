@@ -22,6 +22,18 @@ function normalizeTextKey(value) {
     .replace(/[^a-z0-9]/g, "");
 }
 
+function normalizeRelationKey(value) {
+  return normalizeTextKey(value)
+    .replace(
+      /(mahallesi|mahalle|mah|mh)$/g,
+      ""
+    )
+    .replace(
+      /(ilcesi|ilce|semt|bolgesi|bolge)$/g,
+      ""
+    );
+}
+
 function getRegionId(region) {
   return (
     region?.id ??
@@ -102,20 +114,22 @@ function candidateMatchesRegion(
     candidate?.regionId !== null &&
     candidate?.regionId !== undefined &&
     selectedRegionId !== null &&
-    selectedRegionId !== undefined
-  ) {
-    return (
-      String(candidate.regionId) ===
+    selectedRegionId !== undefined &&
+    String(candidate.regionId) ===
       String(selectedRegionId)
-    );
+  ) {
+    return true;
   }
 
+  const candidateRegionName =
+    candidate?.region ??
+    candidate?.regionName;
+
   return (
-    normalizeTextKey(
-      candidate?.region ??
-        candidate?.regionName
+    normalizeRelationKey(
+      candidateRegionName
     ) ===
-    normalizeTextKey(
+    normalizeRelationKey(
       getRegionName(selectedRegion)
     )
   );
@@ -132,6 +146,9 @@ function neighborhoodMatchesRegion(
   const selectedRegionId =
     getRegionId(selectedRegion);
 
+  const selectedRegionName =
+    getRegionName(selectedRegion);
+
   const neighborhoodRegionId =
     getNeighborhoodRegionId(
       neighborhood
@@ -141,12 +158,11 @@ function neighborhoodMatchesRegion(
     neighborhoodRegionId !== null &&
     neighborhoodRegionId !== undefined &&
     selectedRegionId !== null &&
-    selectedRegionId !== undefined
-  ) {
-    return (
-      String(neighborhoodRegionId) ===
+    selectedRegionId !== undefined &&
+    String(neighborhoodRegionId) ===
       String(selectedRegionId)
-    );
+  ) {
+    return true;
   }
 
   const neighborhoodRegionName =
@@ -154,16 +170,28 @@ function neighborhoodMatchesRegion(
       neighborhood
     );
 
-  if (!neighborhoodRegionName) {
-    return false;
-  }
-
-  return (
-    normalizeTextKey(
+  if (
+    neighborhoodRegionName &&
+    normalizeRelationKey(
       neighborhoodRegionName
     ) ===
-    normalizeTextKey(
-      getRegionName(selectedRegion)
+      normalizeRelationKey(
+        selectedRegionName
+      )
+  ) {
+    return true;
+  }
+
+  /*
+   * Haritadaki seçili polygon doğrudan mahalleyi
+   * temsil ediyorsa mahalle adı ile bölge adını eşleştirir.
+   */
+  return (
+    normalizeRelationKey(
+      getNeighborhoodName(neighborhood)
+    ) ===
+    normalizeRelationKey(
+      selectedRegionName
     )
   );
 }
@@ -186,24 +214,23 @@ function candidateMatchesNeighborhood(
     candidate?.neighborhoodId !==
       undefined &&
     selectedNeighborhoodId !== null &&
-    selectedNeighborhoodId !== undefined
-  ) {
-    return (
-      String(
-        candidate.neighborhoodId
-      ) ===
+    selectedNeighborhoodId !== undefined &&
+    String(
+      candidate.neighborhoodId
+    ) ===
       String(
         selectedNeighborhoodId
       )
-    );
+  ) {
+    return true;
   }
 
   return (
-    normalizeTextKey(
+    normalizeRelationKey(
       candidate?.neighborhood ??
         candidate?.neighborhoodName
     ) ===
-    normalizeTextKey(
+    normalizeRelationKey(
       getNeighborhoodName(
         selectedNeighborhood
       )
@@ -240,12 +267,12 @@ function mergeNeighborhoodOptions(
 
         const id =
           rawId ??
-          `neighborhood-${normalizeTextKey(
+          `neighborhood-${normalizeRelationKey(
             name
           )}-${index}`;
 
         const key =
-          normalizeTextKey(name);
+          normalizeRelationKey(name);
 
         if (
           !neighborhoodMap.has(
@@ -339,13 +366,10 @@ export default function PersonalizationForm({
       const regionMap =
         new Map();
 
-      regionMap.set(
-        "0",
-        {
-          id: 0,
-          name: "Tümü",
-        }
-      );
+      regionMap.set("0", {
+        id: 0,
+        name: "Tümü",
+      });
 
       regions.forEach(
         (region) => {
@@ -487,6 +511,10 @@ export default function PersonalizationForm({
       ];
     }, [candidates]);
 
+  /*
+   * Parent componentten mahalle verisi geliyorsa yalnızca
+   * gerçek bölge ilişkisi bulunan kayıtlar kullanılır.
+   */
   const providedNeighborhoods =
     useMemo(() => {
       if (
@@ -512,92 +540,21 @@ export default function PersonalizationForm({
       selectedRegion,
     ]);
 
-  const candidateNeighborhoods =
-    useMemo(() => {
-      if (
-        !selectedRegion ||
-        Number(
-          getRegionId(
-            selectedRegion
-          )
-        ) === 0
-      ) {
-        return [];
-      }
-
-      return candidates
-        .filter((candidate) =>
-          candidateMatchesRegion(
-            candidate,
-            selectedRegion
-          )
-        )
-        .map(
-          (
-            candidate,
-            index
-          ) => {
-            const name =
-              normalizeText(
-                candidate.neighborhood ??
-                  candidate.neighborhoodName
-              );
-
-            if (
-              !name ||
-              name ===
-                "Mahalle bilgisi yok"
-            ) {
-              return null;
-            }
-
-            return {
-              id:
-                candidate.neighborhoodId ??
-                `candidate-neighborhood-${index}-${normalizeTextKey(
-                  name
-                )}`,
-
-              name,
-
-              regionId:
-                candidate.regionId ??
-                getRegionId(
-                  selectedRegion
-                ),
-
-              regionName:
-                candidate.region ??
-                candidate.regionName ??
-                getRegionName(
-                  selectedRegion
-                ),
-
-              source:
-                "candidate",
-            };
-          }
-        )
-        .filter(Boolean);
-    }, [
-      candidates,
-      selectedRegion,
-    ]);
-
+  /*
+   * Aday noktaların içinden mahalle türetilmez.
+   * Dropdown yalnızca doğrulanmış GeoJSON veya parent
+   * componentten gelen gerçek mahalle kayıtlarını gösterir.
+   */
   const neighborhoodOptions =
     useMemo(
       () =>
-        mergeNeighborhoodOptions(
-          [
-            loadedNeighborhoods,
-            providedNeighborhoods,
-            candidateNeighborhoods,
-          ]
-        ),
+        mergeNeighborhoodOptions([
+          loadedNeighborhoods,
+          providedNeighborhoods,
+        ]),
       [
         loadedNeighborhoods,
         providedNeighborhoods,
-        candidateNeighborhoods,
       ]
     );
 
@@ -670,72 +627,99 @@ export default function PersonalizationForm({
       );
 
       setNeighborhoodMessage(
-        "Seçilen bölgenin mahalleleri yükleniyor..."
+        "Seçilen bölgenin gerçek mahalleleri yükleniyor..."
       );
 
-      const result =
-        await getNeighborhoods(
-          selectedRegionId,
-          getRegionName(
-            selectedRegion
+      try {
+        const result =
+          await getNeighborhoods(
+            selectedRegionId,
+            getRegionName(
+              selectedRegion
+            )
+          );
+
+        if (
+          !isMounted ||
+          neighborhoodRequestIdRef.current !==
+            requestId
+        ) {
+          return;
+        }
+
+        const safeNeighborhoods =
+          Array.isArray(
+            result?.data
           )
+            ? result.data
+            : [];
+
+        setLoadedNeighborhoods(
+          safeNeighborhoods
         );
 
-      if (
-        !isMounted ||
-        neighborhoodRequestIdRef.current !==
-          requestId
-      ) {
-        return;
-      }
+        if (
+          safeNeighborhoods.length >
+          0
+        ) {
+          setNeighborhoodStatus(
+            "ready"
+          );
 
-      const safeNeighborhoods =
-        Array.isArray(
-          result.data
-        )
-          ? result.data
-          : [];
+          setNeighborhoodMessage(
+            result.message ||
+              `${safeNeighborhoods.length} gerçek mahalle eşleşmesi bulundu.`
+          );
 
-      setLoadedNeighborhoods(
-        safeNeighborhoods
-      );
+          return;
+        }
 
-      if (
-        safeNeighborhoods.length >
-        0
-      ) {
+        if (result?.error) {
+          setNeighborhoodStatus(
+            "error"
+          );
+
+          setNeighborhoodMessage(
+            result.error
+          );
+
+          return;
+        }
+
         setNeighborhoodStatus(
-          "ready"
+          "empty"
         );
 
         setNeighborhoodMessage(
-          result.message ||
-            `${safeNeighborhoods.length} mahalle getirildi.`
+          result?.message ||
+            "Seçilen bölge için doğrulanmış mahalle eşleşmesi bulunamadı."
+        );
+      } catch (error) {
+        if (
+          !isMounted ||
+          neighborhoodRequestIdRef.current !==
+            requestId
+        ) {
+          return;
+        }
+
+        console.error(
+          "Mahalleler yüklenemedi:",
+          error
         );
 
-        return;
-      }
+        setLoadedNeighborhoods(
+          []
+        );
 
-      if (result.error) {
         setNeighborhoodStatus(
           "error"
         );
 
         setNeighborhoodMessage(
-          result.error
+          "Mahalle verileri yüklenirken beklenmeyen bir hata oluştu."
         );
-
-        return;
       }
-
-      setNeighborhoodStatus(
-        "empty"
-      );
-
-      setNeighborhoodMessage(
-        result.message ||
-          "Seçilen bölge için doğrulanmış mahalle eşlemesi bulunamadı."
-      );
     }
 
     loadNeighborhoods();
@@ -749,11 +733,11 @@ export default function PersonalizationForm({
   ]);
 
   /*
-   * Seçilen bölgeye yalnızca tek mahalle bağlıysa
-   * mahalleyi otomatik seçer.
+   * Bölge değiştiğinde önceki bölgeden kalan geçersiz
+   * mahalle seçimini temizler.
    *
-   * Kızılırmak gibi mahalle seviyesindeki polygonlarda
-   * dropdown artık "Tümü" değerinde kalmaz.
+   * Yalnızca tek gerçek mahalle eşleşmesi bulunursa
+   * bu mahalle otomatik seçilir.
    */
   useEffect(() => {
     const selectedRegionId =
@@ -770,54 +754,47 @@ export default function PersonalizationForm({
       return;
     }
 
+    const selectedNeighborhoodExists =
+      neighborhoodOptions.some(
+        (neighborhood) =>
+          String(
+            neighborhood.id
+          ) ===
+          String(
+            form.neighborhoodId
+          )
+      );
+
     if (
-      neighborhoodOptions.length ===
-      0
+      form.neighborhoodId !==
+        "0" &&
+      !selectedNeighborhoodExists
     ) {
-      if (
-        form.neighborhoodId !==
-        "0"
-      ) {
-        const updatedForm = {
-          ...form,
+      const updatedForm = {
+        ...form,
+        neighborhoodId: "0",
+        neighborhood: "Tümü",
+      };
 
-          neighborhoodId:
-            "0",
+      setForm(updatedForm);
 
-          neighborhood:
-            "Tümü",
-        };
-
-        setForm(updatedForm);
-
-        notifySelectionChange(
-          updatedForm
-        );
-      }
+      notifySelectionChange(
+        updatedForm
+      );
 
       return;
     }
 
     if (
       neighborhoodOptions.length !==
-      1
+        1 ||
+      form.neighborhoodId !== "0"
     ) {
       return;
     }
 
     const onlyNeighborhood =
       neighborhoodOptions[0];
-
-    if (
-      String(
-        form.neighborhoodId
-      ) ===
-      String(
-        onlyNeighborhood.id
-      )
-    ) {
-      return;
-    }
 
     const updatedForm = {
       ...form,
@@ -892,7 +869,7 @@ export default function PersonalizationForm({
 
       setNeighborhoodMessage(
         Number(value) > 0
-          ? "Seçilen bölgenin mahalleleri yükleniyor..."
+          ? "Seçilen bölgenin gerçek mahalleleri yükleniyor..."
           : "Mahalle seçmek için önce bir bölge seçin."
       );
 

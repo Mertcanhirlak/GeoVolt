@@ -7,8 +7,7 @@ const API_BASE_URL = RAW_API_BASE_URL
   .replace(/\/+$/, "")
   .replace(/\/api$/i, "");
 
-const LOCAL_MAHALLE_URL =
-  "/data/MAHALLE.geojson";
+const LOCAL_MAHALLE_URL = "/data/MAHALLE.geojson";
 
 const REQUEST_TIMEOUT_MS = 15000;
 
@@ -17,6 +16,198 @@ const allRegionOption = {
   name: "Tümü",
   boundaryGeoJson: "",
 };
+
+let localNeighborhoodPromise = null;
+
+const REGION_ID_FIELDS = [
+  "regionId",
+  "RegionId",
+  "REGION_ID",
+  "region_id",
+  "parentRegionId",
+  "ParentRegionId",
+  "PARENT_REGION_ID",
+  "parent_region_id",
+  "semtId",
+  "SemtId",
+  "SEMT_ID",
+  "semt_id",
+  "districtId",
+  "DistrictId",
+  "DISTRICT_ID",
+  "district_id",
+  "ilceId",
+  "IlceId",
+  "ILCE_ID",
+  "ilce_id",
+  "bolgeId",
+  "BolgeId",
+  "BOLGE_ID",
+  "bolge_id",
+];
+
+const REGION_NAME_FIELDS = [
+  "regionName",
+  "RegionName",
+  "REGION_NAME",
+  "region_name",
+  "parentRegionName",
+  "ParentRegionName",
+  "PARENT_REGION_NAME",
+  "parent_region_name",
+  "semt",
+  "Semt",
+  "SEMT",
+  "semtAdi",
+  "SemtAdi",
+  "SEMT_ADI",
+  "semt_adi",
+  "district",
+  "District",
+  "DISTRICT",
+  "districtName",
+  "DistrictName",
+  "DISTRICT_NAME",
+  "district_name",
+  "ilce",
+  "Ilce",
+  "ILCE",
+  "ilçe",
+  "İlçe",
+  "İLÇE",
+  "ilceAdi",
+  "IlceAdi",
+  "ILCE_ADI",
+  "ilce_adi",
+  "bolge",
+  "Bolge",
+  "BOLGE",
+  "bölge",
+  "Bölge",
+  "BÖLGE",
+  "bolgeAdi",
+  "BolgeAdi",
+  "BOLGE_ADI",
+  "bolge_adi",
+];
+
+const NEIGHBORHOOD_ID_FIELDS = [
+  "id",
+  "Id",
+  "ID",
+  "neighborhoodId",
+  "NeighborhoodId",
+  "NEIGHBORHOOD_ID",
+  "neighborhood_id",
+  "mahalleId",
+  "MahalleId",
+  "MAHALLE_ID",
+  "mahalle_id",
+  "objectId",
+  "ObjectId",
+  "OBJECTID",
+  "object_id",
+  "gid",
+  "GID",
+  "fid",
+  "FID",
+];
+
+const NEIGHBORHOOD_NAME_FIELDS = [
+  "name",
+  "Name",
+  "NAME",
+  "neighborhood",
+  "Neighborhood",
+  "NEIGHBORHOOD",
+  "neighborhoodName",
+  "NeighborhoodName",
+  "NEIGHBORHOOD_NAME",
+  "neighborhood_name",
+  "mahalle",
+  "Mahalle",
+  "MAHALLE",
+  "mahalleAdi",
+  "MahalleAdi",
+  "MAHALLE_ADI",
+  "mahalle_adi",
+  "mahAdi",
+  "MahAdi",
+  "MAH_ADI",
+  "mah_adi",
+  "mahName",
+  "MahName",
+  "MAH_NAME",
+  "mah_name",
+  "adm4_tr",
+  "ADM4_TR",
+];
+
+function normalizeText(value) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  return String(value).trim();
+}
+
+function normalizeTextKey(value) {
+  return normalizeText(value)
+    .toLocaleLowerCase("tr-TR")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ı/g, "i")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function normalizeRelationKey(value) {
+  return normalizeTextKey(value)
+    .replace(/(mahallesi|mahalle|mah|mh)$/g, "")
+    .replace(/(ilcesi|ilce|semt|bolgesi|bolge)$/g, "");
+}
+
+function normalizePropertyKey(value) {
+  return normalizeTextKey(value);
+}
+
+function hasValue(value) {
+  return (
+    value !== null &&
+    value !== undefined &&
+    value !== ""
+  );
+}
+
+function getProperty(source, propertyNames) {
+  if (!source || typeof source !== "object") {
+    return null;
+  }
+
+  for (const propertyName of propertyNames) {
+    if (hasValue(source[propertyName])) {
+      return source[propertyName];
+    }
+  }
+
+  const normalizedPropertyNames = new Set(
+    propertyNames.map((propertyName) =>
+      normalizePropertyKey(propertyName)
+    )
+  );
+
+  for (const [key, value] of Object.entries(source)) {
+    if (
+      hasValue(value) &&
+      normalizedPropertyNames.has(
+        normalizePropertyKey(key)
+      )
+    ) {
+      return value;
+    }
+  }
+
+  return null;
+}
 
 function getStorageToken(storage) {
   if (!storage) {
@@ -32,13 +223,9 @@ function getStorageToken(storage) {
   ];
 
   for (const key of directKeys) {
-    const value =
-      storage.getItem(key);
+    const value = storage.getItem(key);
 
-    if (
-      value &&
-      value.trim()
-    ) {
+    if (value && value.trim()) {
       return value
         .replace(/^"|"$/g, "")
         .trim();
@@ -54,16 +241,14 @@ function getStorageToken(storage) {
   ];
 
   for (const key of objectKeys) {
-    const value =
-      storage.getItem(key);
+    const value = storage.getItem(key);
 
     if (!value) {
       continue;
     }
 
     try {
-      const parsedValue =
-        JSON.parse(value);
+      const parsedValue = JSON.parse(value);
 
       const token =
         parsedValue?.token ??
@@ -77,7 +262,7 @@ function getStorageToken(storage) {
         return String(token).trim();
       }
     } catch {
-      // JSON olmayan kayıtlar atlanır.
+      // JSON olmayan storage kayıtları atlanır.
     }
   }
 
@@ -85,59 +270,50 @@ function getStorageToken(storage) {
 }
 
 function getStoredToken() {
-  if (
-    typeof window ===
-    "undefined"
-  ) {
+  if (typeof window === "undefined") {
     return null;
   }
 
   return (
-    getStorageToken(
-      window.localStorage
-    ) ??
-    getStorageToken(
-      window.sessionStorage
-    )
+    getStorageToken(window.localStorage) ??
+    getStorageToken(window.sessionStorage)
   );
 }
 
-function createHeaders() {
-  const token =
-    getStoredToken();
+function createHeaders(includeAuthorization = true) {
+  const token = includeAuthorization
+    ? getStoredToken()
+    : null;
 
   return {
     Accept: "application/json",
 
     ...(token
       ? {
-          Authorization:
-            `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         }
       : {}),
   };
 }
 
-async function requestJson(url) {
-  const abortController =
-    new AbortController();
+async function requestJson(
+  url,
+  {
+    includeAuthorization = true,
+  } = {}
+) {
+  const abortController = new AbortController();
 
-  const timeoutId =
-    globalThis.setTimeout(() => {
-      abortController.abort();
-    }, REQUEST_TIMEOUT_MS);
+  const timeoutId = globalThis.setTimeout(() => {
+    abortController.abort();
+  }, REQUEST_TIMEOUT_MS);
 
   try {
-    const response =
-      await fetch(url, {
-        mode: "cors",
-
-        headers:
-          createHeaders(),
-
-        signal:
-          abortController.signal,
-      });
+    const response = await fetch(url, {
+      mode: "cors",
+      headers: createHeaders(includeAuthorization),
+      signal: abortController.signal,
+    });
 
     if (!response.ok) {
       throw new Error(
@@ -147,28 +323,21 @@ async function requestJson(url) {
 
     return await response.json();
   } catch (error) {
-    if (
-      error?.name ===
-      "AbortError"
-    ) {
+    if (error?.name === "AbortError") {
       throw new Error(
         `İstek zaman aşımına uğradı: ${url}`
       );
     }
 
-    if (
-      error instanceof TypeError
-    ) {
+    if (error instanceof TypeError) {
       throw new Error(
-        `Backend bağlantısı kurulamadı: ${url}`
+        `Bağlantı kurulamadı: ${url}`
       );
     }
 
     throw error;
   } finally {
-    globalThis.clearTimeout(
-      timeoutId
-    );
+    globalThis.clearTimeout(timeoutId);
   }
 }
 
@@ -188,19 +357,15 @@ function extractArray(result) {
     result?.data?.items,
     result?.data?.regions,
     result?.data?.neighborhoods,
+    result?.data?.features,
     result?.result?.items,
+    result?.result?.regions,
     result?.result?.neighborhoods,
+    result?.result?.features,
   ];
 
-  for (
-    const possibleArray
-    of possibleArrays
-  ) {
-    if (
-      Array.isArray(
-        possibleArray
-      )
-    ) {
+  for (const possibleArray of possibleArrays) {
+    if (Array.isArray(possibleArray)) {
       return possibleArray;
     }
   }
@@ -215,22 +380,16 @@ function extractObject(result) {
 
   if (
     result.data &&
-    typeof result.data ===
-      "object" &&
-    !Array.isArray(
-      result.data
-    )
+    typeof result.data === "object" &&
+    !Array.isArray(result.data)
   ) {
     return result.data;
   }
 
   if (
     result.result &&
-    typeof result.result ===
-      "object" &&
-    !Array.isArray(
-      result.result
-    )
+    typeof result.result === "object" &&
+    !Array.isArray(result.result)
   ) {
     return result.result;
   }
@@ -238,61 +397,7 @@ function extractObject(result) {
   return result;
 }
 
-function getProperty(
-  source,
-  propertyNames
-) {
-  for (
-    const propertyName
-    of propertyNames
-  ) {
-    if (
-      source?.[propertyName] !==
-        undefined &&
-      source?.[propertyName] !==
-        null &&
-      source?.[propertyName] !==
-        ""
-    ) {
-      return source[
-        propertyName
-      ];
-    }
-  }
-
-  return null;
-}
-
-function normalizeText(value) {
-  if (
-    value === null ||
-    value === undefined
-  ) {
-    return "";
-  }
-
-  return String(value).trim();
-}
-
-function normalizeTextKey(value) {
-  return normalizeText(value)
-    .toLocaleLowerCase("tr-TR")
-    .normalize("NFD")
-    .replace(
-      /[\u0300-\u036f]/g,
-      ""
-    )
-    .replace(/ı/g, "i")
-    .replace(
-      /[^a-z0-9]/g,
-      ""
-    );
-}
-
-function parseNumericId(
-  value,
-  fallbackId
-) {
+function parseNumericId(value, fallbackId = null) {
   if (
     typeof value === "number" &&
     Number.isFinite(value)
@@ -300,59 +405,40 @@ function parseNumericId(
     return Math.trunc(value);
   }
 
-  const normalizedValue =
-    String(value ?? "")
-      .trim()
-      .replace(",", ".");
+  const normalizedValue = String(value ?? "")
+    .trim()
+    .replace(",", ".");
 
-  const numberValue =
-    Number(normalizedValue);
-
-  if (
-    Number.isFinite(
-      numberValue
-    )
-  ) {
-    return Math.trunc(
-      numberValue
-    );
+  if (!normalizedValue) {
+    return fallbackId;
   }
 
-  return fallbackId;
+  const numericValue = Number(normalizedValue);
+
+  if (!Number.isFinite(numericValue)) {
+    return fallbackId;
+  }
+
+  return Math.trunc(numericValue);
 }
 
-function parseNullableNumericId(
-  value
-) {
-  const parsedValue =
-    parseNumericId(
-      value,
-      null
-    );
+function parsePositiveNumericId(value) {
+  const parsedValue = parseNumericId(value);
 
-  return (
-    Number.isInteger(
-      parsedValue
-    ) &&
+  return Number.isInteger(parsedValue) &&
     parsedValue > 0
-  )
     ? parsedValue
     : null;
 }
 
 function isUsableName(value) {
-  const text =
-    normalizeText(value);
+  const text = normalizeText(value);
 
   if (!text) {
     return false;
   }
 
-  if (/^\d+$/.test(text)) {
-    return false;
-  }
-
-  return true;
+  return !/^\d+$/.test(text);
 }
 
 function getBoundaryGeoJson(item) {
@@ -362,308 +448,186 @@ function getBoundaryGeoJson(item) {
     item?.boundaryGeoJSON ??
     item?.BoundaryGeoJSON ??
     item?.geoJson ??
-    item?.geoJSON ??
     item?.GeoJson ??
+    item?.geoJSON ??
     item?.GeoJSON;
 
-  if (
-    typeof directBoundary ===
-    "string"
-  ) {
+  if (typeof directBoundary === "string") {
     return directBoundary;
   }
 
   if (
     directBoundary &&
-    typeof directBoundary ===
-      "object"
+    typeof directBoundary === "object"
   ) {
-    return JSON.stringify(
-      directBoundary
-    );
+    return JSON.stringify(directBoundary);
   }
 
-  if (item?.geometry) {
-    return JSON.stringify(
-      item.geometry
-    );
+  if (
+    item?.geometry &&
+    typeof item.geometry === "object"
+  ) {
+    return JSON.stringify(item.geometry);
   }
 
   return "";
 }
 
-function normalizeRegion(
-  region,
-  index
-) {
-  const properties =
-    region?.properties ??
-    region;
+function formatNeighborhoodName(value) {
+  const name = normalizeText(value);
 
-  const rawId =
-    getProperty(
-      properties,
-      [
-        "id",
-        "Id",
-        "ID",
-        "regionId",
-        "RegionId",
-        "REGION_ID",
-        "objectId",
-        "OBJECTID",
-        "gid",
-        "GID",
-      ]
+  if (!name) {
+    return "";
+  }
+
+  const normalizedName = name.toLocaleLowerCase(
+    "tr-TR"
+  );
+
+  const alreadyContainsSuffix =
+    /(?:mahallesi|mahalle|mah\.?|mh\.?)$/i.test(
+      normalizedName
     );
 
-  const name =
-    normalizeText(
-      getProperty(
-        properties,
-        [
-          "name",
-          "Name",
-          "NAME",
-          "regionName",
-          "RegionName",
-          "REGION_NAME",
-          "semt",
-          "SEMT",
-          "bolge",
-          "BOLGE",
-          "mahalle",
-          "MAHALLE",
-        ]
-      )
-    );
+  return alreadyContainsSuffix
+    ? name
+    : `${name} Mahallesi`;
+}
+
+function normalizeRegion(region, index) {
+  const properties = region?.properties ?? region;
+
+  const rawId = getProperty(properties, [
+    "id",
+    "Id",
+    "ID",
+    "regionId",
+    "RegionId",
+    "REGION_ID",
+    "region_id",
+    "objectId",
+    "ObjectId",
+    "OBJECTID",
+    "gid",
+    "GID",
+  ]);
+
+  const name = normalizeText(
+    getProperty(properties, [
+      "name",
+      "Name",
+      "NAME",
+      "regionName",
+      "RegionName",
+      "REGION_NAME",
+      "region_name",
+      "semt",
+      "Semt",
+      "SEMT",
+      "semtAdi",
+      "SemtAdi",
+      "SEMT_ADI",
+      "bolge",
+      "Bolge",
+      "BOLGE",
+      "bolgeAdi",
+      "BolgeAdi",
+      "BOLGE_ADI",
+      "districtName",
+      "DistrictName",
+      "DISTRICT_NAME",
+      "ilceAdi",
+      "IlceAdi",
+      "ILCE_ADI",
+    ])
+  );
 
   if (!isUsableName(name)) {
     return null;
   }
 
   return {
-    id: parseNumericId(
-      rawId,
-      index + 1
-    ),
-
+    id: parseNumericId(rawId, index + 1),
     name,
-
-    boundaryGeoJson:
-      getBoundaryGeoJson(
-        region
-      ),
+    boundaryGeoJson: getBoundaryGeoJson(region),
   };
 }
 
 function normalizeNeighborhood(
   neighborhood,
-  index,
-  scope = {}
+  index
 ) {
   const properties =
-    neighborhood?.properties ??
-    neighborhood;
+    neighborhood?.properties ?? neighborhood;
 
-  const rawId =
+  const rawId = getProperty(
+    properties,
+    NEIGHBORHOOD_ID_FIELDS
+  );
+
+  const rawName = normalizeText(
     getProperty(
       properties,
-      [
-        "id",
-        "Id",
-        "ID",
-        "neighborhoodId",
-        "NeighborhoodId",
-        "NEIGHBORHOOD_ID",
-        "mahalleId",
-        "MahalleId",
-        "MAHALLE_ID",
-        "objectId",
-        "OBJECTID",
-        "gid",
-        "GID",
-      ]
-    );
-
-  const id =
-    parseNumericId(
-      rawId,
-      index + 1
-    );
-
-  const rawName =
-    normalizeText(
-      getProperty(
-        properties,
-        [
-          "name",
-          "Name",
-          "NAME",
-          "neighborhoodName",
-          "NeighborhoodName",
-          "NEIGHBORHOOD_NAME",
-          "mahalle",
-          "Mahalle",
-          "MAHALLE",
-        ]
-      )
-    );
-
-  if (
-    !isUsableName(
-      rawName
+      NEIGHBORHOOD_NAME_FIELDS
     )
-  ) {
+  );
+
+  if (!isUsableName(rawName)) {
     return null;
   }
 
-  const explicitRegionId =
-    parseNullableNumericId(
-      getProperty(
-        properties,
-        [
-          "regionId",
-          "RegionId",
-          "REGION_ID",
-          "parentRegionId",
-          "ParentRegionId",
-          "PARENT_REGION_ID",
-          "semtId",
-          "SemtId",
-          "SEMT_ID",
-          "districtId",
-          "DistrictId",
-          "DISTRICT_ID",
-          "ilceId",
-          "IlceId",
-          "ILCE_ID",
-        ]
-      )
-    );
+  const regionId = parsePositiveNumericId(
+    getProperty(properties, REGION_ID_FIELDS)
+  );
 
-  const explicitRegionName =
-    normalizeText(
-      getProperty(
-        properties,
-        [
-          "regionName",
-          "RegionName",
-          "REGION_NAME",
-          "parentRegionName",
-          "ParentRegionName",
-          "PARENT_REGION_NAME",
-          "semt",
-          "Semt",
-          "SEMT",
-          "districtName",
-          "DistrictName",
-          "DISTRICT_NAME",
-          "ilce",
-          "Ilce",
-          "ILCE",
-        ]
-      )
-    );
-
-  const scopedRegionId =
-    parseNullableNumericId(
-      scope.regionId
-    );
-
-  const scopedRegionName =
-    normalizeText(
-      scope.regionName
-    );
-
-  const regionId =
-    explicitRegionId ??
-    scopedRegionId ??
-    null;
-
-  const regionName =
-    explicitRegionName ||
-    scopedRegionName ||
-    "";
-
-  const name =
-    rawName
-      .toLocaleLowerCase(
-        "tr-TR"
-      )
-      .includes("mahalle")
-      ? rawName
-      : `${rawName} Mahallesi`;
+  const regionName = normalizeText(
+    getProperty(properties, REGION_NAME_FIELDS)
+  );
 
   return {
-    id,
-    name,
+    id: parseNumericId(rawId, index + 1),
+    name: formatNeighborhoodName(rawName),
+    rawName,
     regionId,
     regionName,
-
-    hasRegionRelation:
-      Boolean(
-        regionId ||
-        regionName
-      ),
-
+    hasRegionRelation: Boolean(
+      regionId || regionName
+    ),
     boundaryGeoJson:
-      getBoundaryGeoJson(
-        neighborhood
-      ),
+      getBoundaryGeoJson(neighborhood),
   };
 }
 
-function normalizeRegions(
-  regionArray
-) {
-  const regionMap =
-    new Map();
+function normalizeRegions(regionArray) {
+  const regionMap = new Map();
 
-  regionArray.forEach(
-    (region, index) => {
-      const normalizedRegion =
-        normalizeRegion(
-          region,
-          index
-        );
+  regionArray.forEach((region, index) => {
+    const normalizedRegion = normalizeRegion(
+      region,
+      index
+    );
 
-      if (!normalizedRegion) {
-        return;
-      }
-
-      if (
-        normalizedRegion.id ===
-        0
-      ) {
-        return;
-      }
-
-      const regionKey =
-        String(
-          normalizedRegion.id
-        );
-
-      if (
-        !regionMap.has(
-          regionKey
-        )
-      ) {
-        regionMap.set(
-          regionKey,
-          normalizedRegion
-        );
-      }
+    if (
+      !normalizedRegion ||
+      normalizedRegion.id === 0
+    ) {
+      return;
     }
-  );
 
-  return Array.from(
-    regionMap.values()
-  ).sort(
-    (
-      firstRegion,
-      secondRegion
-    ) =>
+    const regionKey = `${normalizedRegion.id}-${normalizeRelationKey(
+      normalizedRegion.name
+    )}`;
+
+    if (!regionMap.has(regionKey)) {
+      regionMap.set(
+        regionKey,
+        normalizedRegion
+      );
+    }
+  });
+
+  return Array.from(regionMap.values()).sort(
+    (firstRegion, secondRegion) =>
       firstRegion.name.localeCompare(
         secondRegion.name,
         "tr-TR"
@@ -672,40 +636,30 @@ function normalizeRegions(
 }
 
 function normalizeNeighborhoods(
-  neighborhoodArray,
-  scope = {}
+  neighborhoodArray
 ) {
-  const neighborhoodMap =
-    new Map();
+  const neighborhoodMap = new Map();
 
   neighborhoodArray.forEach(
-    (
-      neighborhood,
-      index
-    ) => {
+    (neighborhood, index) => {
       const normalizedNeighborhood =
         normalizeNeighborhood(
           neighborhood,
-          index,
-          scope
+          index
         );
 
-      if (
-        !normalizedNeighborhood
-      ) {
+      if (!normalizedNeighborhood) {
         return;
       }
 
       const neighborhoodKey =
-        `${normalizedNeighborhood.id}-${normalizeTextKey(
+        `${normalizedNeighborhood.id}-${normalizeRelationKey(
           normalizedNeighborhood.name
+        )}-${normalizeRelationKey(
+          normalizedNeighborhood.regionName
         )}`;
 
-      if (
-        !neighborhoodMap.has(
-          neighborhoodKey
-        )
-      ) {
+      if (!neighborhoodMap.has(neighborhoodKey)) {
         neighborhoodMap.set(
           neighborhoodKey,
           normalizedNeighborhood
@@ -728,45 +682,108 @@ function normalizeNeighborhoods(
   );
 }
 
+function deriveRegionsFromNeighborhoods(
+  neighborhoods
+) {
+  const regionMap = new Map();
+
+  neighborhoods.forEach(
+    (neighborhood, index) => {
+      if (neighborhood.regionName) {
+        const regionName =
+          normalizeText(neighborhood.regionName);
+
+        const regionId =
+          neighborhood.regionId ??
+          index + 1;
+
+        const key = `${regionId}-${normalizeRelationKey(
+          regionName
+        )}`;
+
+        if (!regionMap.has(key)) {
+          regionMap.set(key, {
+            id: regionId,
+            name: regionName,
+            boundaryGeoJson: "",
+          });
+        }
+
+        return;
+      }
+
+      const key = `${neighborhood.id}-${normalizeRelationKey(
+        neighborhood.name
+      )}`;
+
+      if (!regionMap.has(key)) {
+        regionMap.set(key, {
+          id: neighborhood.id,
+          name: neighborhood.rawName,
+          boundaryGeoJson:
+            neighborhood.boundaryGeoJson,
+        });
+      }
+    }
+  );
+
+  return Array.from(regionMap.values()).sort(
+    (firstRegion, secondRegion) =>
+      firstRegion.name.localeCompare(
+        secondRegion.name,
+        "tr-TR"
+      )
+  );
+}
+
 function neighborhoodMatchesRegion(
   neighborhood,
   regionId,
   regionName = ""
 ) {
   const numericRegionId =
-    parseNullableNumericId(
-      regionId
-    );
+    parsePositiveNumericId(regionId);
 
   const normalizedRegionName =
-    normalizeTextKey(
-      regionName
-    );
+    normalizeRelationKey(regionName);
 
   if (
     numericRegionId &&
-    neighborhood.regionId
+    neighborhood.regionId &&
+    String(neighborhood.regionId) ===
+      String(numericRegionId)
   ) {
-    return (
-      String(
-        neighborhood.regionId
-      ) ===
-      String(
-        numericRegionId
-      )
-    );
+    return true;
   }
 
   if (
     normalizedRegionName &&
-    neighborhood.regionName
+    neighborhood.regionName &&
+    normalizeRelationKey(
+      neighborhood.regionName
+    ) === normalizedRegionName
   ) {
-    return (
-      normalizeTextKey(
-        neighborhood.regionName
-      ) ===
-      normalizedRegionName
-    );
+    return true;
+  }
+
+  /*
+   * Haritada seçilen polygon doğrudan bir mahalle polygonuysa,
+   * seçilen bölge adı ile mahalle adının eşleşmesine izin verir.
+   *
+   * Örnek:
+   * Bölge: Yakupabdal
+   * Mahalle: Yakupabdal Mahallesi
+   */
+  if (
+    normalizedRegionName &&
+    (
+      normalizeRelationKey(neighborhood.name) ===
+        normalizedRegionName ||
+      normalizeRelationKey(neighborhood.rawName) ===
+        normalizedRegionName
+    )
+  ) {
+    return true;
   }
 
   return false;
@@ -777,61 +794,16 @@ function filterNeighborhoodsByRegion(
   regionId,
   regionName = ""
 ) {
-  return neighborhoods.filter(
-    (neighborhood) =>
-      neighborhoodMatchesRegion(
-        neighborhood,
-        regionId,
-        regionName
-      )
-  );
-}
-
-function normalizeScopedNeighborhoods(
-  neighborhoodArray,
-  regionId,
-  regionName
-) {
-  const normalizedNeighborhoods =
-    normalizeNeighborhoods(
-      neighborhoodArray
-    );
-
-  const hasExplicitRelations =
-    normalizedNeighborhoods.some(
-      (neighborhood) =>
-        neighborhood.hasRegionRelation
-    );
-
-  if (
-    hasExplicitRelations
-  ) {
-    return filterNeighborhoodsByRegion(
-      normalizedNeighborhoods,
+  return neighborhoods.filter((neighborhood) =>
+    neighborhoodMatchesRegion(
+      neighborhood,
       regionId,
       regionName
-    );
-  }
-
-  /*
-   * Endpoint doğrudan:
-   * /api/regions/{id}/neighborhoods
-   * veya ?regionId=... şeklinde çağrıldıysa,
-   * cevabın seçilen bölgeye ait olduğu kabul edilir.
-   */
-  return normalizeNeighborhoods(
-    neighborhoodArray,
-    {
-      regionId,
-      regionName,
-    }
+    )
   );
 }
 
-function normalizeSummary(
-  summary,
-  regionId
-) {
+function normalizeSummary(summary, regionId) {
   if (!summary) {
     return null;
   }
@@ -873,40 +845,34 @@ function normalizeSummary(
       summary.powerKw ??
       null,
 
-    companyDistribution:
-      Array.isArray(
-        summary.companyDistribution
-      )
-        ? summary.companyDistribution.map(
-            (
-              company,
-              index
-            ) => ({
-              companyName:
-                company.companyName ??
-                company.CompanyName ??
-                company.name ??
-                `Firma ${index + 1}`,
+    companyDistribution: Array.isArray(
+      summary.companyDistribution
+    )
+      ? summary.companyDistribution.map(
+          (company, index) => ({
+            companyName:
+              company.companyName ??
+              company.CompanyName ??
+              company.name ??
+              `Firma ${index + 1}`,
 
-              stationCount:
-                company.stationCount ??
-                company.StationCount ??
-                company.count ??
-                0,
-            })
-          )
-        : [],
+            stationCount:
+              company.stationCount ??
+              company.StationCount ??
+              company.count ??
+              0,
+          })
+        )
+      : [],
   };
 }
 
 async function getRegionsFromApi() {
-  const result =
-    await requestJson(
-      `${API_BASE_URL}/api/regions`
-    );
+  const result = await requestJson(
+    `${API_BASE_URL}/api/regions`
+  );
 
-  const regionArray =
-    extractArray(result);
+  const regionArray = extractArray(result);
 
   if (!regionArray) {
     throw new Error(
@@ -914,124 +880,46 @@ async function getRegionsFromApi() {
     );
   }
 
-  return normalizeRegions(
-    regionArray
-  );
+  return normalizeRegions(regionArray);
+}
+
+async function loadLocalNeighborhoods() {
+  if (!localNeighborhoodPromise) {
+    localNeighborhoodPromise = requestJson(
+      LOCAL_MAHALLE_URL,
+      {
+        includeAuthorization: false,
+      }
+    )
+      .then((result) => {
+        const neighborhoodArray =
+          extractArray(result);
+
+        if (!neighborhoodArray) {
+          throw new Error(
+            "MAHALLE.geojson içinde geçerli feature listesi bulunamadı."
+          );
+        }
+
+        return normalizeNeighborhoods(
+          neighborhoodArray
+        );
+      })
+      .catch((error) => {
+        localNeighborhoodPromise = null;
+        throw error;
+      });
+  }
+
+  return localNeighborhoodPromise;
 }
 
 async function getRegionsFromLocalGeoJson() {
-  const result =
-    await requestJson(
-      LOCAL_MAHALLE_URL
-    );
+  const localNeighborhoods =
+    await loadLocalNeighborhoods();
 
-  const regionArray =
-    extractArray(result);
-
-  if (!regionArray) {
-    throw new Error(
-      "MAHALLE.geojson cevabı geçerli değil."
-    );
-  }
-
-  return normalizeRegions(
-    regionArray
-  );
-}
-
-async function getAllNeighborhoodsFromApi() {
-  const result =
-    await requestJson(
-      `${API_BASE_URL}/api/neighborhoods`
-    );
-
-  const neighborhoodArray =
-    extractArray(result);
-
-  if (!neighborhoodArray) {
-    throw new Error(
-      "Neighborhood API cevabı geçerli değil."
-    );
-  }
-
-  return normalizeNeighborhoods(
-    neighborhoodArray
-  );
-}
-
-async function getNeighborhoodsFromRegionEndpoint(
-  regionId,
-  regionName
-) {
-  const result =
-    await requestJson(
-      `${API_BASE_URL}/api/regions/${regionId}/neighborhoods`
-    );
-
-  const neighborhoodArray =
-    extractArray(result);
-
-  if (!neighborhoodArray) {
-    throw new Error(
-      "Bölgesel mahalle API cevabı geçerli değil."
-    );
-  }
-
-  return normalizeScopedNeighborhoods(
-    neighborhoodArray,
-    regionId,
-    regionName
-  );
-}
-
-async function getNeighborhoodsFromQueryEndpoint(
-  regionId,
-  regionName
-) {
-  const query =
-    new URLSearchParams({
-      regionId:
-        String(regionId),
-    });
-
-  const result =
-    await requestJson(
-      `${API_BASE_URL}/api/neighborhoods?${query.toString()}`
-    );
-
-  const neighborhoodArray =
-    extractArray(result);
-
-  if (!neighborhoodArray) {
-    throw new Error(
-      "Filtreli mahalle API cevabı geçerli değil."
-    );
-  }
-
-  return normalizeScopedNeighborhoods(
-    neighborhoodArray,
-    regionId,
-    regionName
-  );
-}
-
-async function getNeighborhoodsFromLocalGeoJson() {
-  const result =
-    await requestJson(
-      LOCAL_MAHALLE_URL
-    );
-
-  const neighborhoodArray =
-    extractArray(result);
-
-  if (!neighborhoodArray) {
-    throw new Error(
-      "MAHALLE.geojson cevabı geçerli değil."
-    );
-  }
-
-  return normalizeNeighborhoods(
-    neighborhoodArray
+  return deriveRegionsFromNeighborhoods(
+    localNeighborhoods
   );
 }
 
@@ -1045,13 +933,12 @@ export async function getRegions() {
         allRegionOption,
         ...apiRegions,
       ],
-
       source: "api",
       error: null,
     };
   } catch (apiError) {
     console.warn(
-      "Bölgeler API'den alınamadı:",
+      "Bölgeler API'den alınamadı. Yerel GeoJSON kullanılacak:",
       apiError
     );
 
@@ -1064,10 +951,7 @@ export async function getRegions() {
           allRegionOption,
           ...localRegions,
         ],
-
-        source:
-          "local-geojson",
-
+        source: "local-geojson",
         error: null,
       };
     } catch (localError) {
@@ -1077,12 +961,8 @@ export async function getRegions() {
       );
 
       return {
-        data: [
-          allRegionOption,
-        ],
-
+        data: [allRegionOption],
         source: "none",
-
         error:
           "Bölge verileri alınamadı.",
       };
@@ -1094,248 +974,73 @@ export async function getNeighborhoods(
   regionId = null,
   regionName = ""
 ) {
-  const hasRegionFilter =
-    regionId !== null &&
-    regionId !== undefined &&
-    regionId !== "";
-
   const numericRegionId =
-    parseNullableNumericId(
-      regionId
-    );
+    parsePositiveNumericId(regionId);
 
-  if (
-    hasRegionFilter &&
-    !numericRegionId
-  ) {
+  const safeRegionName =
+    normalizeText(regionName);
+
+  if (!numericRegionId && !safeRegionName) {
     return {
       data: [],
       source: "validation",
-
       error:
-        "Mahalleleri getirmek için geçerli bir bölge seçilmelidir.",
-
+        "Mahalleleri getirmek için önce bir bölge seçilmelidir.",
       message: "",
     };
   }
 
-  /*
-   * Bölge seçildiyse önce gerçek bölgesel endpointler denenir.
-   */
-  if (numericRegionId) {
-    try {
-      const neighborhoods =
-        await getNeighborhoodsFromRegionEndpoint(
-          numericRegionId,
-          regionName
-        );
+  try {
+    const localNeighborhoods =
+      await loadLocalNeighborhoods();
 
+    const filteredNeighborhoods =
+      filterNeighborhoodsByRegion(
+        localNeighborhoods,
+        numericRegionId,
+        safeRegionName
+      );
+
+    if (filteredNeighborhoods.length > 0) {
       return {
-        data:
-          neighborhoods,
-
-        source:
-          "region-api",
-
+        data: filteredNeighborhoods,
+        source: "local-geojson-filtered",
         error: null,
-
         message:
-          neighborhoods.length > 0
-            ? `${neighborhoods.length} mahalle getirildi.`
-            : "Seçilen bölge için mahalle bulunamadı.",
+          `${filteredNeighborhoods.length} gerçek mahalle eşleşmesi bulundu.`,
       };
-    } catch (regionEndpointError) {
-      console.warn(
-        "Bölgesel mahalle endpointi kullanılamadı:",
-        regionEndpointError
-      );
-    }
-
-    try {
-      const neighborhoods =
-        await getNeighborhoodsFromQueryEndpoint(
-          numericRegionId,
-          regionName
-        );
-
-      return {
-        data:
-          neighborhoods,
-
-        source:
-          "query-api",
-
-        error: null,
-
-        message:
-          neighborhoods.length > 0
-            ? `${neighborhoods.length} mahalle getirildi.`
-            : "Seçilen bölge için mahalle bulunamadı.",
-      };
-    } catch (queryEndpointError) {
-      console.warn(
-        "Region ID query parametreli mahalle endpointi kullanılamadı:",
-        queryEndpointError
-      );
-    }
-
-    /*
-     * Global endpointten gelen kayıtlar yalnızca
-     * gerçek regionId veya regionName ilişkisi varsa filtrelenir.
-     */
-    try {
-      const allNeighborhoods =
-        await getAllNeighborhoodsFromApi();
-
-      const filteredNeighborhoods =
-        filterNeighborhoodsByRegion(
-          allNeighborhoods,
-          numericRegionId,
-          regionName
-        );
-
-      if (
-        filteredNeighborhoods.length >
-        0
-      ) {
-        return {
-          data:
-            filteredNeighborhoods,
-
-          source:
-            "api-filtered",
-
-          error: null,
-
-          message:
-            `${filteredNeighborhoods.length} mahalle getirildi.`,
-        };
-      }
-    } catch (globalApiError) {
-      console.warn(
-        "Global mahalle endpointi kullanılamadı:",
-        globalApiError
-      );
-    }
-
-    /*
-     * Yerel GeoJSON'da açık bir parent bölge ilişkisi
-     * yoksa sahte eşleştirme yapılmaz.
-     */
-    try {
-      const localNeighborhoods =
-        await getNeighborhoodsFromLocalGeoJson();
-
-      const filteredLocalNeighborhoods =
-        filterNeighborhoodsByRegion(
-          localNeighborhoods,
-          numericRegionId,
-          regionName
-        );
-
-      if (
-        filteredLocalNeighborhoods.length >
-        0
-      ) {
-        return {
-          data:
-            filteredLocalNeighborhoods,
-
-          source:
-            "local-geojson-filtered",
-
-          error: null,
-
-          message:
-            `${filteredLocalNeighborhoods.length} yerel mahalle eşleşmesi bulundu.`,
-        };
-      }
-    } catch (localError) {
-      console.warn(
-        "Yerel mahalle verisi kullanılamadı:",
-        localError
-      );
     }
 
     return {
       data: [],
-      source: "none",
+      source: "local-geojson-filtered",
       error: null,
-
       message:
-        "Seçilen bölge için doğrulanmış mahalle eşlemesi bulunamadı.",
+        "Seçilen bölge için MAHALLE.geojson içinde doğrulanmış mahalle eşleşmesi bulunamadı.",
     };
-  }
-
-  /*
-   * Region ID verilmediyse bütün mahalleler getirilir.
-   * Bu kullanım mevcut sayfa yapısıyla uyumluluk içindir.
-   */
-  try {
-    const apiNeighborhoods =
-      await getAllNeighborhoodsFromApi();
-
-    return {
-      data:
-        apiNeighborhoods,
-
-      source: "api",
-      error: null,
-
-      message:
-        `${apiNeighborhoods.length} mahalle getirildi.`,
-    };
-  } catch (apiError) {
-    console.warn(
-      "Mahalleler API'den alınamadı:",
-      apiError
+  } catch (error) {
+    console.error(
+      "Yerel mahalle verileri alınamadı:",
+      error
     );
 
-    try {
-      const localNeighborhoods =
-        await getNeighborhoodsFromLocalGeoJson();
-
-      return {
-        data:
-          localNeighborhoods,
-
-        source:
-          "local-geojson",
-
-        error: null,
-
-        message:
-          `${localNeighborhoods.length} yerel mahalle kaydı getirildi.`,
-      };
-    } catch (localError) {
-      console.error(
-        "Yerel mahalle verileri alınamadı:",
-        localError
-      );
-
-      return {
-        data: [],
-        source: "none",
-
-        error:
-          "Mahalle verileri alınamadı.",
-
-        message: "",
-      };
-    }
+    return {
+      data: [],
+      source: "none",
+      error:
+        "MAHALLE.geojson dosyasından mahalle verileri alınamadı.",
+      message: "",
+    };
   }
 }
 
 export async function getRegionSummary(
   regionId
 ) {
-  const numericRegionId =
-    Number(regionId);
+  const numericRegionId = Number(regionId);
 
   if (
-    !Number.isInteger(
-      numericRegionId
-    ) ||
+    !Number.isInteger(numericRegionId) ||
     numericRegionId <= 0
   ) {
     return {
@@ -1345,24 +1050,26 @@ export async function getRegionSummary(
   }
 
   try {
-    const result =
-      await requestJson(
-        `${API_BASE_URL}/api/regions/${numericRegionId}/summary`
-      );
+    const result = await requestJson(
+      `${API_BASE_URL}/api/regions/${numericRegionId}/summary`
+    );
 
     const summaryObject =
       extractObject(result);
 
     return {
-      data:
-        normalizeSummary(
-          summaryObject,
-          numericRegionId
-        ),
-
+      data: normalizeSummary(
+        summaryObject,
+        numericRegionId
+      ),
       source: "api",
     };
-  } catch {
+  } catch (error) {
+    console.warn(
+      "Bölge özeti alınamadı:",
+      error
+    );
+
     return {
       data: null,
       source: "none",
