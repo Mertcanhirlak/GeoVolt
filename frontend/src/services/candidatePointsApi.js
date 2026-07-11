@@ -5,7 +5,7 @@ import {
 
 const RAW_API_BASE_URL = String(
   import.meta.env.VITE_API_BASE_URL ??
-    "http://localhost:5000"
+    "http://localhost:5000",
 ).trim();
 
 const API_BASE_URL = RAW_API_BASE_URL
@@ -16,10 +16,11 @@ const CANDIDATE_POINTS_API_ENABLED =
   String(
     import.meta.env
       .VITE_ENABLE_CANDIDATE_POINTS_API ??
-      "false"
+      "false",
   )
     .trim()
-    .toLocaleLowerCase("tr-TR") === "true";
+    .toLocaleLowerCase("tr-TR") ===
+  "true";
 
 const CANDIDATE_POINTS_ENDPOINT =
   "/api/candidate-points";
@@ -74,7 +75,8 @@ function getStorageToken(storage) {
         parsedValue?.authToken ??
         parsedValue?.jwtToken ??
         parsedValue?.state?.token ??
-        parsedValue?.state?.accessToken;
+        parsedValue?.state
+          ?.accessToken;
 
       if (token) {
         return String(token).trim();
@@ -94,35 +96,31 @@ function getStoredToken() {
 
   return (
     getStorageToken(
-      window.localStorage
+      window.localStorage,
     ) ??
     getStorageToken(
-      window.sessionStorage
+      window.sessionStorage,
     )
   );
 }
 
 function createApiUrl(
   path,
-  queryParameters = {}
+  queryParameters = {},
 ) {
-  const query =
-    new URLSearchParams();
+  const query = new URLSearchParams();
 
-  Object.entries(
-    queryParameters
-  ).forEach(([key, value]) => {
-    if (
-      value !== undefined &&
-      value !== null &&
-      value !== ""
-    ) {
-      query.set(
-        key,
-        String(value)
-      );
-    }
-  });
+  Object.entries(queryParameters).forEach(
+    ([key, value]) => {
+      if (
+        value !== undefined &&
+        value !== null &&
+        value !== ""
+      ) {
+        query.set(key, String(value));
+      }
+    },
+  );
 
   const normalizedPath =
     path.startsWith("/")
@@ -132,8 +130,7 @@ function createApiUrl(
   const queryString =
     query.toString();
 
-  const url =
-    `${API_BASE_URL}${normalizedPath}`;
+  const url = `${API_BASE_URL}${normalizedPath}`;
 
   return queryString
     ? `${url}?${queryString}`
@@ -141,7 +138,7 @@ function createApiUrl(
 }
 
 function extractCandidateList(
-  responseBody
+  responseBody,
 ) {
   if (Array.isArray(responseBody)) {
     return responseBody;
@@ -169,9 +166,7 @@ function extractCandidateList(
     of directCandidates
   ) {
     if (
-      Array.isArray(
-        candidateValue
-      )
+      Array.isArray(candidateValue)
     ) {
       return candidateValue;
     }
@@ -207,9 +202,7 @@ function extractCandidateList(
       of nestedCandidates
     ) {
       if (
-        Array.isArray(
-          candidateValue
-        )
+        Array.isArray(candidateValue)
       ) {
         return candidateValue;
       }
@@ -220,7 +213,7 @@ function extractCandidateList(
 }
 
 function extractResponseMessage(
-  responseBody
+  responseBody,
 ) {
   if (
     !responseBody ||
@@ -233,21 +226,21 @@ function extractResponseMessage(
     responseBody.message ??
       responseBody.Message ??
       responseBody.title ??
-      ""
+      "",
   ).trim();
 }
 
 async function readResponseBody(
-  response
+  response,
 ) {
   const contentType =
     response.headers.get(
-      "content-type"
+      "content-type",
     ) ?? "";
 
   if (
     contentType.includes(
-      "application/json"
+      "application/json",
     )
   ) {
     try {
@@ -266,7 +259,7 @@ async function readResponseBody(
 
 async function requestJson(
   url,
-  options = {}
+  options = {},
 ) {
   const abortController =
     new AbortController();
@@ -279,35 +272,31 @@ async function requestJson(
   const token = getStoredToken();
 
   try {
-    const response = await fetch(
-      url,
-      {
-        ...options,
+    const response = await fetch(url, {
+      ...options,
 
-        mode: "cors",
+      mode: "cors",
 
-        headers: {
-          Accept:
-            "application/json",
+      headers: {
+        Accept: "application/json",
 
-          ...(token
-            ? {
-                Authorization:
-                  `Bearer ${token}`,
-              }
-            : {}),
+        ...(token
+          ? {
+              Authorization:
+                `Bearer ${token}`,
+            }
+          : {}),
 
-          ...options.headers,
-        },
+        ...options.headers,
+      },
 
-        signal:
-          abortController.signal,
-      }
-    );
+      signal:
+        abortController.signal,
+    });
 
     const responseBody =
       await readResponseBody(
-        response
+        response,
       );
 
     if (!response.ok) {
@@ -321,39 +310,36 @@ async function requestJson(
 
       throw new Error(
         serverMessage ||
-          `Aday nokta isteği başarısız oldu. HTTP ${response.status}`
+          `Aday nokta isteği başarısız oldu. HTTP ${response.status}`,
       );
     }
 
     return responseBody;
   } catch (error) {
     if (
-      error?.name ===
-      "AbortError"
+      error?.name === "AbortError"
     ) {
       throw new Error(
-        "Aday nokta isteği zaman aşımına uğradı."
+        "Aday nokta isteği zaman aşımına uğradı.",
       );
     }
 
-    if (
-      error instanceof TypeError
-    ) {
+    if (error instanceof TypeError) {
       throw new Error(
-        `Aday nokta backend bağlantısı kurulamadı. Adres: ${url}`
+        `Aday nokta backend bağlantısı kurulamadı. Adres: ${url}`,
       );
     }
 
     throw error;
   } finally {
     globalThis.clearTimeout(
-      timeoutId
+      timeoutId,
     );
   }
 }
 
 function createCandidateQuery(
-  filters = {}
+  filters = {},
 ) {
   return {
     regionId:
@@ -405,16 +391,8 @@ function createCandidateQuery(
   };
 }
 
-/**
- * Gerçek aday backend'i hazır olana kadar
- * aday API'si .env üzerinden kapalı tutulur.
- *
- * Böylece MockCandidatePointRepository
- * tarafından döndürülen sahte adaylar
- * gerçek sonuç gibi haritada gösterilmez.
- */
 export async function getCandidatePoints(
-  filters = {}
+  filters = {},
 ) {
   if (
     !CANDIDATE_POINTS_API_ENABLED
@@ -432,13 +410,11 @@ export async function getCandidatePoints(
   }
 
   const query =
-    createCandidateQuery(
-      filters
-    );
+    createCandidateQuery(filters);
 
   const url = createApiUrl(
     CANDIDATE_POINTS_ENDPOINT,
-    query
+    query,
   );
 
   try {
@@ -447,22 +423,22 @@ export async function getCandidatePoints(
 
     const rawCandidates =
       extractCandidateList(
-        responseBody
+        responseBody,
       );
 
     if (
       !Array.isArray(
-        rawCandidates
+        rawCandidates,
       )
     ) {
       throw new Error(
-        "Aday nokta API cevabında geçerli bir liste bulunamadı."
+        "Aday nokta API cevabında geçerli bir liste bulunamadı.",
       );
     }
 
     const candidates =
       mapCandidatePoints(
-        rawCandidates
+        rawCandidates,
       );
 
     return {
@@ -472,7 +448,7 @@ export async function getCandidatePoints(
 
       message:
         extractResponseMessage(
-          responseBody
+          responseBody,
         ) ||
         `${candidates.length} aday nokta getirildi.`,
 
@@ -481,7 +457,7 @@ export async function getCandidatePoints(
   } catch (error) {
     console.warn(
       "Gerçek aday nokta verisi alınamadı:",
-      error
+      error,
     );
 
     return {
@@ -502,7 +478,7 @@ export async function getCandidatePoints(
 export async function scanCandidatePointsByRegion(
   regionId,
   minGeneralScore = 80,
-  additionalFilters = {}
+  additionalFilters = {},
 ) {
   const numericRegionId =
     Number(regionId);
@@ -512,7 +488,7 @@ export async function scanCandidatePointsByRegion(
 
   if (
     !Number.isInteger(
-      numericRegionId
+      numericRegionId,
     ) ||
     numericRegionId <= 0
   ) {
@@ -534,7 +510,7 @@ export async function scanCandidatePointsByRegion(
 
   if (
     !Number.isFinite(
-      numericMinimumScore
+      numericMinimumScore,
     ) ||
     numericMinimumScore < 0 ||
     numericMinimumScore > 100
@@ -600,25 +576,19 @@ export async function scanCandidatePointsByRegion(
     };
   }
 
-  /*
-   * Backend filtresine ek güvenlik:
-   * API hatalı biçimde düşük skorlu
-   * kayıt döndürürse frontend göstermez.
-   */
   const verifiedCandidates =
     result.data.filter(
       (candidate) => {
-        const score =
-          Number(
-            candidate?.generalScore
-          );
+        const score = Number(
+          candidate?.generalScore,
+        );
 
         return (
           Number.isFinite(score) &&
           score >=
             numericMinimumScore
         );
-      }
+      },
     );
 
   return {
@@ -640,7 +610,7 @@ export async function scanCandidatePointsByRegion(
 }
 
 export async function getCandidatePointById(
-  candidatePointId
+  candidatePointId,
 ) {
   const result =
     await getCandidatePoints();
@@ -649,18 +619,19 @@ export async function getCandidatePointById(
     result.data.find(
       (item) =>
         String(item.id) ===
-        String(candidatePointId)
+        String(candidatePointId),
     );
 
   return {
     ...result,
-    data: candidate ?? null,
+    data:
+      candidate ?? null,
   };
 }
 
 export async function getCandidatePointsByRegion(
   regionId,
-  additionalFilters = {}
+  additionalFilters = {},
 ) {
   return getCandidatePoints({
     ...additionalFilters,
@@ -669,9 +640,9 @@ export async function getCandidatePointsByRegion(
 }
 
 export function normalizeCandidatePoint(
-  candidatePoint
+  candidatePoint,
 ) {
   return mapCandidatePoint(
-    candidatePoint
+    candidatePoint,
   );
 }
