@@ -83,6 +83,7 @@ public static class DependencyInjection
         services.AddScoped<IChargingStationRepository, ChargingStationRepository>();
         services.AddScoped<INeighborhoodRepository, NeighborhoodRepository>();
         services.AddScoped<IDataImportValidationService, GeoJsonDataImportValidationService>();
+        services.AddScoped<IDataImportStagingService, GeoJsonDataImportStagingService>();
 
         return services;
     }

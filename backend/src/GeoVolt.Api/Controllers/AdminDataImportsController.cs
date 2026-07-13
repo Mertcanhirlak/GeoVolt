@@ -13,10 +13,14 @@ namespace GeoVolt.Api.Controllers;
 public sealed class AdminDataImportsController : ControllerBase
 {
     private readonly IDataImportValidationService _validationService;
+    private readonly IDataImportStagingService _stagingService;
 
-    public AdminDataImportsController(IDataImportValidationService validationService)
+    public AdminDataImportsController(
+        IDataImportValidationService validationService,
+        IDataImportStagingService stagingService)
     {
         _validationService = validationService;
+        _stagingService = stagingService;
     }
 
     [HttpPost("validate")]
@@ -48,5 +52,40 @@ public sealed class AdminDataImportsController : ControllerBase
             : new ApiResponse<DatasetValidationResult>(false, result, "GeoJSON dosyasında doğrulama hataları bulundu.");
 
         return result.IsValid ? Ok(response) : BadRequest(response);
+    }
+
+    [HttpPost("stage")]
+    [Authorize(Policy = PermissionNames.DataImportExecute)]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(DataImportLimits.MaximumMultipartRequestSizeBytes)]
+    [ProducesResponseType(typeof(ApiResponse<DatasetStagingResult>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<DatasetStagingResult>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<DatasetStagingResult>), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<ApiResponse<DatasetStagingResult>>> Stage(
+        IFormFile file,
+        CancellationToken cancellationToken)
+    {
+        if (file.Length == 0)
+        {
+            return BadRequest(ApiResponse<DatasetStagingResult>.Fail("Aktarılacak dosya boş."));
+        }
+
+        if (!string.Equals(Path.GetExtension(file.FileName), ".geojson", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(ApiResponse<DatasetStagingResult>.Fail("Yalnızca .geojson dosyaları aktarılabilir."));
+        }
+
+        await using var stream = file.OpenReadStream();
+        var result = await _stagingService.StageGeoJsonAsync(stream, file.FileName, cancellationToken);
+        var response = new ApiResponse<DatasetStagingResult>(result.Success, result, result.Message);
+
+        if (result.IsDuplicate)
+        {
+            return Conflict(response);
+        }
+
+        return result.Success ? Ok(response) : BadRequest(response);
     }
 }

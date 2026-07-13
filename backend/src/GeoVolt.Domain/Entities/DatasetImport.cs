@@ -23,4 +23,6 @@ public sealed class DatasetImport
     public string Status { get; set; } = string.Empty;
 
     public string? ErrorMessage { get; set; }
+
+    public ICollection<StagedGeoJsonFeature> StagedFeatures { get; set; } = [];
 }

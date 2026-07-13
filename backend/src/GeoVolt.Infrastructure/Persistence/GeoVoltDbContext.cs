@@ -47,6 +47,8 @@ public sealed class GeoVoltDbContext : DbContext
 
     public DbSet<DatasetImport> DatasetImports => Set<DatasetImport>();
 
+    public DbSet<StagedGeoJsonFeature> StagedGeoJsonFeatures => Set<StagedGeoJsonFeature>();
+
     public DbSet<ScoringProfile> ScoringProfiles => Set<ScoringProfile>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -69,6 +71,7 @@ public sealed class GeoVoltDbContext : DbContext
         modelBuilder.ApplyConfiguration(new RoadConfiguration());
         modelBuilder.ApplyConfiguration(new SavedCandidatePointConfiguration());
         modelBuilder.ApplyConfiguration(new ScoringProfileConfiguration());
+        modelBuilder.ApplyConfiguration(new StagedGeoJsonFeatureConfiguration());
         modelBuilder.ApplyConfiguration(new UserConfiguration());
         modelBuilder.ApplyConfiguration(new UserPermissionConfiguration());
         modelBuilder.ApplyConfiguration(new UserRoleConfiguration());
