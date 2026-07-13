@@ -16,17 +16,17 @@ public sealed class ManualPinService : IManualPinService
         _regionService = regionService;
     }
 
-    public async Task<ManualPinEvaluateResponseDto?> EvaluateAsync(
-        ManualPinEvaluateRequestDto request,
-        CancellationToken cancellationToken = default)
+    public async Task<ManualPinEvaluateResponseDto> EvaluateAsync(
+     ManualPinEvaluateRequestDto request,
+     CancellationToken cancellationToken = default)
     {
         // Mevcut locate-point mantığını kullanır.
         var location = await _regionService.LocatePointAsync(
             request.RegionId,
             new RegionPointRequestDto
             {
-                Latitude = request.Latitude,
-                Longitude = request.Longitude
+                Latitude = request.Latitude!.Value,
+                Longitude = request.Longitude!.Value
             },
             cancellationToken);
 
