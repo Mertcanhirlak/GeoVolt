@@ -2719,7 +2719,18 @@ export default function CandidatePointsPage() {
         </div>
       )}
 
-      <main className="page-content">
+      <main
+        className="page-content"
+        style={
+          activeTab === "personalization"
+            ? {
+                height: "100vh",
+                overflowY: "auto",
+                overflowX: "hidden",
+              }
+            : undefined
+        }
+      >
         {activeTab === "home" && (
           <section
             className="map-screen"
