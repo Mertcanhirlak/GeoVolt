@@ -17,6 +17,7 @@ public static class PermissionNames
     public const string RoleDelete = "role.delete";
     public const string PermissionAssign = "permission.assign";
     public const string DashboardAdminView = "dashboard.admin.view";
+    public const string DataImportValidate = "data.import.validate";
 
     public static readonly IReadOnlyList<PermissionSeed> All = new[]
     {
@@ -34,7 +35,8 @@ public static class PermissionNames
         new PermissionSeed(RoleUpdate, "Rol güncelleme", "Rol"),
         new PermissionSeed(RoleDelete, "Rol silme", "Rol"),
         new PermissionSeed(PermissionAssign, "Yetki atama", "Yetki"),
-        new PermissionSeed(DashboardAdminView, "Genel istatistikleri görüntüleme", "Genel")
+        new PermissionSeed(DashboardAdminView, "Genel istatistikleri görüntüleme", "Genel"),
+        new PermissionSeed(DataImportValidate, "CBS veri dosyalarını doğrulama", "Veri Aktarımı")
     };
 }
 

@@ -3,6 +3,7 @@ using GeoVolt.Application.Auth.Abstractions;
 using GeoVolt.Application.Auth.Options;
 using GeoVolt.Application.CandidatePoints.Abstractions;
 using GeoVolt.Application.ChargingStations.Abstractions;
+using GeoVolt.Application.DataImports.Abstractions;
 using GeoVolt.Application.Neighborhoods.Abstractions;
 using GeoVolt.Application.Regions.Abstractions;
 using GeoVolt.Application.SavedCandidatePoints.Abstractions;
@@ -10,6 +11,7 @@ using GeoVolt.Infrastructure.Admin;
 using GeoVolt.Infrastructure.Auth;
 using GeoVolt.Infrastructure.CandidatePoints;
 using GeoVolt.Infrastructure.ChargingStations;
+using GeoVolt.Infrastructure.DataImports;
 using GeoVolt.Infrastructure.Neighborhoods;
 using GeoVolt.Infrastructure.Options;
 using GeoVolt.Infrastructure.Persistence;
@@ -80,6 +82,7 @@ public static class DependencyInjection
         services.AddScoped<ISavedCandidatePointRepository, SavedCandidatePointRepository>();
         services.AddScoped<IChargingStationRepository, ChargingStationRepository>();
         services.AddScoped<INeighborhoodRepository, NeighborhoodRepository>();
+        services.AddScoped<IDataImportValidationService, GeoJsonDataImportValidationService>();
 
         return services;
     }
