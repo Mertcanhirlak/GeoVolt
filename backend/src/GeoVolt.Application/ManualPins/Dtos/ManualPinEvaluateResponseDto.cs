@@ -23,10 +23,10 @@ public sealed class ManualPinEvaluateResponseDto
     // Pinin boylam bilgisi
     public double Longitude { get; set; }
 
-    // Geçici veya gerçek tahmini kurulum maliyeti
+    // Tahmini kurulum maliyeti; veri bulunmuyorsa null döner.
     public decimal? EstimatedCost { get; set; }
 
-    // Maliyet bilgisinin hangi kaynaktan üretildiğini belirtir
+    // Maliyet bilgisinin kaynağı; veri yoksa "not_available" döner.
     public string CostSource { get; set; } = string.Empty;
 
     // Değerlendirme sonucuna ait açıklama
