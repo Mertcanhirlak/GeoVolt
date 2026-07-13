@@ -29,4 +29,30 @@ public interface IAdminRepository
     Task<bool> DeleteUserAsync(User user, CancellationToken cancellationToken);
 
     Task<bool> DeleteCompanyAsync(Company company, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<Role>> GetRolesAsync(CancellationToken cancellationToken);
+
+    Task<Role?> GetRoleByIdAsync(int roleId, CancellationToken cancellationToken);
+
+    Task<Role?> GetRoleByNameAsync(string roleName, CancellationToken cancellationToken);
+
+    Task<bool> RoleNameExistsAsync(string roleName, int? exceptRoleId, CancellationToken cancellationToken);
+
+    Task<Role> AddRoleAsync(Role role, CancellationToken cancellationToken);
+
+    Task<Role> UpdateRoleAsync(Role role, CancellationToken cancellationToken);
+
+    Task<bool> DeleteRoleAsync(Role role, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<Permission>> GetPermissionsAsync(CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<Permission>> GetPermissionsByIdsAsync(IReadOnlyList<int> permissionIds, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<Role>> GetRolesByIdsAsync(IReadOnlyList<int> roleIds, CancellationToken cancellationToken);
+
+    Task ReplaceRolePermissionsAsync(Role role, IReadOnlyList<Permission> permissions, CancellationToken cancellationToken);
+
+    Task ReplaceUserRolesAsync(User user, IReadOnlyList<Role> roles, CancellationToken cancellationToken);
+
+    Task ReplaceUserPermissionsAsync(User user, IReadOnlyList<Permission> permissions, CancellationToken cancellationToken);
 }

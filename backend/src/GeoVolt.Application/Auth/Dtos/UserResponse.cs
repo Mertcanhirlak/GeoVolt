@@ -6,4 +6,5 @@ public sealed record UserResponse(
     string Email,
     string Role,
     int? CompanyId,
-    string? CompanyName);
+    string? CompanyName,
+    IReadOnlyList<string> Permissions);

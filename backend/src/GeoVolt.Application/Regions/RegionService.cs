@@ -147,7 +147,7 @@ public sealed class RegionService : IRegionService
         // Hesaplanan verileri response DTO'ya dönüştürür
         return new RegionSummaryResponseDto
         {
-            RegionId = region.Id,
+            RegionId = region.SourceId,
             RegionName = region.Name,
 
             // İstasyon repository'sindeki gerçek mock sayıyı kullanır
@@ -238,8 +238,9 @@ public sealed class RegionService : IRegionService
         // Region entity'sini response DTO'ya dönüştürür
         return new RegionResponseDto
         {
-            Id = region.Id,
+            Id = region.SourceId,
             Name = region.Name,
+            Population = region.Population,
             BoundaryGeoJson = ToGeoJson(region.Boundary)
         };
     }

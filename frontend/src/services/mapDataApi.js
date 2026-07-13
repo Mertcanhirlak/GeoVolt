@@ -24,7 +24,7 @@ async function getJson(path) {
   });
 
   if (!response.ok) {
-    throw new Error(`${path} request failed: ${response.status}`);
+    throw new Error(`${path} isteği başarısız oldu: ${response.status}`);
   }
 
   return response.json();

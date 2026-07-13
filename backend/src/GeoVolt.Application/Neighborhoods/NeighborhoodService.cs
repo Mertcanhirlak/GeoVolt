@@ -17,6 +17,16 @@ public sealed class NeighborhoodService : INeighborhoodService
         _neighborhoodRepository = neighborhoodRepository;
     }
 
+    public async Task<IReadOnlyList<NeighborhoodResponseDto>> GetAllAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var neighborhoods = await _neighborhoodRepository.GetAllAsync(cancellationToken);
+
+        return neighborhoods
+            .Select(MapToResponseDto)
+            .ToList();
+    }
+
     public async Task<IReadOnlyList<NeighborhoodResponseDto>> GetByRegionIdAsync(
         int regionId,
         CancellationToken cancellationToken = default)
@@ -52,9 +62,11 @@ public sealed class NeighborhoodService : INeighborhoodService
         // Entity nesnesini detay DTO'suna dönüştürür
         return new NeighborhoodDetailResponseDto
         {
-            Id = neighborhood.Id,
+            Id = neighborhood.SourceId,
             Name = neighborhood.Name,
-            RegionId = neighborhood.RegionId,
+            RegionId = neighborhood.Region.SourceId,
+            RegionName = neighborhood.Region.Name,
+            Population = neighborhood.Population,
             BoundaryGeoJson = ToGeoJson(
                 neighborhood.Boundary)
         };
@@ -66,9 +78,11 @@ public sealed class NeighborhoodService : INeighborhoodService
         // Mahalle entity'sini liste DTO'suna dönüştürür
         return new NeighborhoodResponseDto
         {
-            Id = neighborhood.Id,
+            Id = neighborhood.SourceId,
             Name = neighborhood.Name,
-            RegionId = neighborhood.RegionId
+            RegionId = neighborhood.Region.SourceId,
+            RegionName = neighborhood.Region.Name,
+            Population = neighborhood.Population
         };
     }
 

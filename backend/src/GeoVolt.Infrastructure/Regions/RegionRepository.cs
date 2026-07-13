@@ -1,58 +1,48 @@
-﻿using GeoVolt.Application.Regions.Abstractions;
+using GeoVolt.Application.Regions.Abstractions;
 using GeoVolt.Application.Regions.Models;
 using GeoVolt.Domain.Entities;
-using GeoVolt.Infrastructure.Geospatial;
+using GeoVolt.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace GeoVolt.Infrastructure.Regions;
 
 public sealed class RegionRepository : IRegionRepository
 {
-    private readonly IReadOnlyList<Region> _regions;
+    private readonly GeoVoltDbContext _dbContext;
 
-    private readonly IReadOnlyDictionary<int, RegionSummaryData>
-        _regionSummaries;
-
-    public RegionRepository()
+    public RegionRepository(GeoVoltDbContext dbContext)
     {
-        /*
-         * Frontend ile aynı MAHALLE.geojson dosyasındaki gerçek
-         * ID, ad ve polygon geometrileri kullanılır.
-         */
-        _regions = MahalleGeoJsonDataLoader.LoadRegions();
-
-        _regionSummaries = _regions.ToDictionary(
-            region => region.Id,
-            _ => new RegionSummaryData
-            {
-                TrafficLevel = "Veri bulunamadı"
-            });
+        _dbContext = dbContext;
     }
 
-    public Task<IReadOnlyList<Region>> GetAllAsync(
+    public async Task<IReadOnlyList<Region>> GetAllAsync(
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(_regions);
+        return await _dbContext.Regions
+            .AsNoTracking()
+            .OrderBy(region => region.SourceId)
+            .ToListAsync(cancellationToken);
     }
 
-    public Task<Region?> GetByIdAsync(
+    public async Task<Region?> GetByIdAsync(
         int id,
         CancellationToken cancellationToken = default)
     {
-        var region = _regions.FirstOrDefault(
-            currentRegion =>
-                currentRegion.Id == id);
-
-        return Task.FromResult(region);
+        return await _dbContext.Regions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(region => region.SourceId == id, cancellationToken);
     }
 
-    public Task<RegionSummaryData?> GetSummaryAsync(
+    public async Task<RegionSummaryData?> GetSummaryAsync(
         int id,
         CancellationToken cancellationToken = default)
     {
-        _regionSummaries.TryGetValue(
-            id,
-            out var summary);
+        var exists = await _dbContext.Regions
+            .AsNoTracking()
+            .AnyAsync(region => region.SourceId == id, cancellationToken);
 
-        return Task.FromResult(summary);
+        return exists
+            ? new RegionSummaryData { TrafficLevel = "Veri hazırlanıyor" }
+            : null;
     }
 }

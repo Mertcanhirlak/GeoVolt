@@ -1,50 +1,48 @@
-﻿using GeoVolt.Application.Neighborhoods.Abstractions;
+using GeoVolt.Application.Neighborhoods.Abstractions;
 using GeoVolt.Domain.Entities;
-using GeoVolt.Infrastructure.Geospatial;
+using GeoVolt.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace GeoVolt.Infrastructure.Neighborhoods;
 
 public sealed class NeighborhoodRepository : INeighborhoodRepository
 {
-    private readonly IReadOnlyList<Neighborhood> _neighborhoods;
+    private readonly GeoVoltDbContext _dbContext;
 
-    public NeighborhoodRepository()
+    public NeighborhoodRepository(GeoVoltDbContext dbContext)
     {
-        /*
-         * Geçici olarak her MAHALLE.geojson polygonu aynı ID ile
-         * hem bölge hem mahalle olarak kullanılmaktadır.
-         *
-         * Böylece manuel pin değerlendirmesinde seçilen polygonun
-         * gerçek adı ve gerçek geometrisi döner.
-         */
-        _neighborhoods =
-            MahalleGeoJsonDataLoader.LoadNeighborhoods();
+        _dbContext = dbContext;
     }
 
-    public Task<IReadOnlyList<Neighborhood>> GetByRegionIdAsync(
+    public async Task<IReadOnlyList<Neighborhood>> GetAllAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Neighborhoods
+            .AsNoTracking()
+            .Include(neighborhood => neighborhood.Region)
+            .OrderBy(neighborhood => neighborhood.Name)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Neighborhood>> GetByRegionIdAsync(
         int regionId,
         CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<Neighborhood> neighborhoods =
-            _neighborhoods
-                .Where(neighborhood =>
-                    neighborhood.RegionId == regionId)
-                .ToList();
-
-        return Task.FromResult(
-            neighborhoods);
+        return await _dbContext.Neighborhoods
+            .AsNoTracking()
+            .Include(neighborhood => neighborhood.Region)
+            .Where(neighborhood => neighborhood.Region.SourceId == regionId)
+            .OrderBy(neighborhood => neighborhood.Name)
+            .ToListAsync(cancellationToken);
     }
 
-    public Task<Neighborhood?> GetByIdAsync(
+    public async Task<Neighborhood?> GetByIdAsync(
         int id,
         CancellationToken cancellationToken = default)
     {
-        var neighborhood =
-            _neighborhoods.FirstOrDefault(
-                currentNeighborhood =>
-                    currentNeighborhood.Id == id);
-
-        return Task.FromResult(
-            neighborhood);
+        return await _dbContext.Neighborhoods
+            .AsNoTracking()
+            .Include(neighborhood => neighborhood.Region)
+            .FirstOrDefaultAsync(neighborhood => neighborhood.SourceId == id, cancellationToken);
     }
 }

@@ -92,7 +92,7 @@ export default function PoiSummary() {
       }
 
       if (result.source === "local-mock") {
-        setMessage("POI mock verisi kullanılıyor.");
+        setMessage("Yerel POI deneme verileri kullanılıyor.");
         return;
       }
 

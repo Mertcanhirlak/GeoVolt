@@ -78,7 +78,7 @@ export default function RoadSummary() {
       }
 
       if (result.source === "local-mock") {
-        setMessage("Yol mock verisi kullanılıyor.");
+        setMessage("Yerel yol deneme verileri kullanılıyor.");
         return;
       }
 

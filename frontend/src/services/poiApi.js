@@ -178,14 +178,14 @@ async function getPoisFromLocalGeoJson() {
   const response = await fetch(LOCAL_POI_URL);
 
   if (!response.ok) {
-    throw new Error("Local POI.geojson file could not be loaded.");
+    throw new Error("Yerel POI.geojson dosyası yüklenemedi.");
   }
 
   const result = await response.json();
   const poiArray = extractArray(result);
 
   if (!poiArray) {
-    throw new Error("Local POI.geojson response is invalid.");
+    throw new Error("Yerel POI.geojson yanıtı geçersiz.");
   }
 
   return normalizePois(poiArray);

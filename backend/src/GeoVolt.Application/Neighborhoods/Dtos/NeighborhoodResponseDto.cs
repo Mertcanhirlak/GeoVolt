@@ -10,4 +10,8 @@ public sealed class NeighborhoodResponseDto
 
     // Mahallenin bağlı olduğu bölge kimliği
     public int RegionId { get; set; }
+
+    public string RegionName { get; set; } = string.Empty;
+
+    public int Population { get; set; }
 }
