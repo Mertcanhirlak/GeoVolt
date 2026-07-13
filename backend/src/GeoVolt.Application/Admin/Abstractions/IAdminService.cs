@@ -19,4 +19,33 @@ public interface IAdminService
     Task<ApiResponse<int>> DeleteUserAsync(int userId, int currentUserId, CancellationToken cancellationToken);
 
     Task<ApiResponse<int>> DeleteCompanyAsync(int companyId, CancellationToken cancellationToken);
+
+    Task<ApiResponse<IReadOnlyList<RoleResponse>>> GetRolesAsync(CancellationToken cancellationToken);
+
+    Task<ApiResponse<RoleResponse>> CreateRoleAsync(CreateRoleRequest request, CancellationToken cancellationToken);
+
+    Task<ApiResponse<RoleResponse>> UpdateRoleAsync(int roleId, UpdateRoleRequest request, CancellationToken cancellationToken);
+
+    Task<ApiResponse<int>> DeleteRoleAsync(int roleId, CancellationToken cancellationToken);
+
+    Task<ApiResponse<IReadOnlyList<PermissionResponse>>> GetPermissionsAsync(CancellationToken cancellationToken);
+
+    Task<ApiResponse<RoleResponse>> AssignRolePermissionsAsync(
+        int roleId,
+        AssignRolePermissionsRequest request,
+        CancellationToken cancellationToken);
+
+    Task<ApiResponse<UserResponse>> AssignUserRolesAsync(
+        int userId,
+        AssignUserRolesRequest request,
+        CancellationToken cancellationToken);
+
+    Task<ApiResponse<IReadOnlyList<UserPermissionResponse>>> GetUserPermissionsAsync(
+        int userId,
+        CancellationToken cancellationToken);
+
+    Task<ApiResponse<IReadOnlyList<UserPermissionResponse>>> AssignUserPermissionsAsync(
+        int userId,
+        AssignUserPermissionsRequest request,
+        CancellationToken cancellationToken);
 }

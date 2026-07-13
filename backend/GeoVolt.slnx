@@ -4,5 +4,6 @@
     <Project Path="src/GeoVolt.Application/GeoVolt.Application.csproj" />
     <Project Path="src/GeoVolt.Domain/GeoVolt.Domain.csproj" />
     <Project Path="src/GeoVolt.Infrastructure/GeoVolt.Infrastructure.csproj" />
+    <Project Path="tools/GeoVolt.LocalDataImporter/GeoVolt.LocalDataImporter.csproj" />
   </Folder>
 </Solution>

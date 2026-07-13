@@ -4,6 +4,30 @@ import {
   getSavedCandidatePoints
 } from "../services/savedCandidatePointsApi";
 
+function formatMoney(value) {
+  if (value === null || value === undefined) {
+    return "Veri Eksik";
+  }
+
+  return `${Number(value).toLocaleString("tr-TR")} TL`;
+}
+
+function showValue(value) {
+  if (value === null || value === undefined || value === "") {
+    return "Veri Eksik";
+  }
+
+  return value;
+}
+
+function showCoordinate(latitude, longitude) {
+  if (!latitude || !longitude) {
+    return "Veri Eksik";
+  }
+
+  return `${latitude}, ${longitude}`;
+}
+
 export default function SavedCandidates({ refreshKey }) {
   const [savedCandidates, setSavedCandidates] = useState([]);
   const [message, setMessage] = useState("");
@@ -15,15 +39,15 @@ export default function SavedCandidates({ refreshKey }) {
   async function loadSavedCandidates() {
     const result = await getSavedCandidatePoints();
 
-    setSavedCandidates(result.data);
+    setSavedCandidates(result.data || []);
 
     if (result.source === "api-and-local-storage") {
-      setMessage("Kaydedilenler API ve lokal veriden gösteriliyor.");
+      setMessage("Kaydedilenler sunucu ve yerel verilerden gösteriliyor.");
       return;
     }
 
     if (result.source === "local-storage") {
-      setMessage("Kaydedilenler lokal veriden gösteriliyor.");
+      setMessage("Kaydedilenler yerel verilerden gösteriliyor.");
       return;
     }
 
@@ -35,14 +59,17 @@ export default function SavedCandidates({ refreshKey }) {
 
     if (result.success) {
       setSavedCandidates((currentCandidates) =>
-        currentCandidates.filter((candidate) => candidate.id !== candidatePointId)
+        currentCandidates.filter(
+          (candidate) => String(candidate.id) !== String(candidatePointId)
+        )
       );
 
       if (result.source === "api-and-local-storage") {
-        setMessage("Kayıt API ve lokal veriden silindi.");
-      } else {
-        setMessage("Kayıt lokal veriden silindi.");
+        setMessage("Kayıt sunucu ve yerel verilerden silindi.");
+        return;
       }
+
+      setMessage("Kayıt yerel verilerden silindi.");
     }
   }
 
@@ -68,28 +95,53 @@ export default function SavedCandidates({ refreshKey }) {
               className="saved-card"
               data-testid={`saved-candidate-card-${candidate.id}`}
             >
-              <h3>{candidate.name}</h3>
+              <div className="saved-card-header">
+                <div>
+                  <h3>{showValue(candidate.name)}</h3>
+                  <span>{showValue(candidate.status)}</span>
+                </div>
+              </div>
 
               <p>
-                <strong>Adres:</strong> {candidate.estimatedAddress}
+                <strong>Adres:</strong> {showValue(candidate.estimatedAddress)}
               </p>
 
               <p>
-                <strong>Bölge:</strong> {candidate.region}
+                <strong>Bölge:</strong> {showValue(candidate.region)}
               </p>
 
               <p>
-                <strong>Mahalle:</strong> {candidate.neighborhood}
+                <strong>Mahalle:</strong> {showValue(candidate.neighborhood)}
               </p>
 
               <p>
                 <strong>Tahmini Kurulum Maliyeti:</strong>{" "}
-                {candidate.estimatedCost ?? "Veri Eksik"}
+                {formatMoney(candidate.estimatedCost)}
               </p>
 
               <p>
-                <strong>Genel Skor:</strong>{" "}
-                {candidate.generalScore ?? "Veri Eksik"}
+                <strong>Maliyet Skoru:</strong> {showValue(candidate.costScore)}
+              </p>
+
+              <p>
+                <strong>Talep Skoru:</strong> {showValue(candidate.demandScore)}
+              </p>
+
+              <p>
+                <strong>Genel Skor:</strong> {showValue(candidate.generalScore)}
+              </p>
+
+              <p>
+                <strong>Sistem Tipi:</strong> {showValue(candidate.systemType)}
+              </p>
+
+              <p>
+                <strong>Mekân Türü:</strong> {showValue(candidate.placeType)}
+              </p>
+
+              <p>
+                <strong>Koordinat:</strong>{" "}
+                {showCoordinate(candidate.latitude, candidate.longitude)}
               </p>
 
               <button

@@ -7,6 +7,24 @@ import logo from "../assets/logo-cropped.png";
 import basarsoftLogo from "../assets/basarsoft-logo.png"; // Başarsoft logosu eklendi
 import "./LoginPage.css";
 
+const managementPermissions = [
+  "user.read",
+  "user.create",
+  "user.update",
+  "user.delete",
+  "user.role.assign",
+  "role.read",
+  "role.create",
+  "role.update",
+  "role.delete",
+  "permission.assign",
+  "point.read",
+  "point.create",
+  "point.update",
+  "point.delete",
+  "dashboard.admin.view"
+];
+
 function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,9 +41,14 @@ function LoginPage() {
 
     try {
       const data = await login(email, password);
-      loginUser(data.token, data.user);
+      const signedInUser = loginUser(data.token, data.user) ?? data.user;
 
-      navigate(data.user?.role === "Admin" ? "/admin" : "/dashboard");
+      const permissions = Array.isArray(signedInUser?.permissions) ? signedInUser.permissions : [];
+      const canAccessManagement = signedInUser?.role !== "CompanyUser"
+        && (signedInUser?.role === "Admin"
+          || managementPermissions.some((permission) => permissions.includes(permission)));
+
+      navigate(canAccessManagement ? "/admin" : "/dashboard");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -65,7 +88,7 @@ function LoginPage() {
 
           <form onSubmit={handleSubmit} className="login-form" data-testid="login-form">
             <label htmlFor="login-email">
-              Email
+              E-posta
               <input
                 id="login-email"
                 type="email"
