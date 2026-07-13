@@ -1,15 +1,13 @@
-﻿import React, {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+﻿import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  ChevronDown,
   Home,
   Zap,
   ListChecks,
   SlidersHorizontal,
+  Search,
+  MapPinned,
 } from "lucide-react";
 
 import {
@@ -17,14 +15,9 @@ import {
   scanCandidatePointsByRegion,
 } from "../services/candidatePointsApi";
 
-import {
-  evaluateManualPin,
-  locateRegionPoint,
-} from "../services/manualPinApi";
+import { evaluateManualPin, locateRegionPoint } from "../services/manualPinApi";
 
-import {
-  saveCandidatePoint,
-} from "../services/savedCandidatePointsApi";
+import { saveCandidatePoint } from "../services/savedCandidatePointsApi";
 
 import {
   getNeighborhoods,
@@ -42,16 +35,13 @@ import PoiSummary from "../components/PoiSummary";
 import TrafoSummary from "../components/TrafoSummary";
 import RoadSummary from "../components/RoadSummary";
 
-import {
-  mapCandidatePoint,
-} from "../utils/candidatePointMapper";
+import { mapCandidatePoint } from "../utils/candidatePointMapper";
 
 import "./CandidateSearch.css";
 import "./CandidateScan.css";
 import "./PersonalizationLayout.css";
 
-const REGION_SCAN_MIN_GENERAL_SCORE =
-  80;
+const REGION_SCAN_MIN_GENERAL_SCORE = 80;
 
 const defaultFilters = {
   costMin: "",
@@ -76,70 +66,38 @@ const defaultDataFilter = {
   budgetMax: "",
 };
 
-function getNumberOrDefault(
-  value,
-  defaultValue,
-) {
-  if (
-    value === "" ||
-    value === null ||
-    value === undefined
-  ) {
+function getNumberOrDefault(value, defaultValue) {
+  if (value === "" || value === null || value === undefined) {
     return defaultValue;
   }
 
   return Number(value);
 }
 
-function isScoreInRange(
-  score,
-  min,
-  max,
-) {
-  if (
-    score === null ||
-    score === undefined
-  ) {
+function isScoreInRange(score, min, max) {
+  if (score === null || score === undefined) {
     return false;
   }
 
-  return (
-    Number(score) >= min &&
-    Number(score) <= max
-  );
+  return Number(score) >= min && Number(score) <= max;
 }
 
 function formatMoney(value) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
+  if (value === null || value === undefined || value === "") {
     return "Veri Eksik";
   }
 
-  const numericValue =
-    Number(value);
+  const numericValue = Number(value);
 
-  if (
-    !Number.isFinite(
-      numericValue,
-    )
-  ) {
+  if (!Number.isFinite(numericValue)) {
     return "Veri Eksik";
   }
 
-  return `${numericValue.toLocaleString(
-    "tr-TR",
-  )} TL`;
+  return `${numericValue.toLocaleString("tr-TR")} TL`;
 }
 
 function showScore(value) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
+  if (value === null || value === undefined || value === "") {
     return "Veri Eksik";
   }
 
@@ -151,15 +109,9 @@ function normalizeSearchText(value) {
     .trim()
     .toLocaleLowerCase("tr-TR")
     .normalize("NFD")
-    .replace(
-      /[\u0300-\u036f]/g,
-      "",
-    )
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/ı/g, "i")
-    .replace(
-      /[^a-z0-9]/g,
-      "",
-    );
+    .replace(/[^a-z0-9]/g, "");
 }
 
 function getRegionId(region) {
@@ -184,10 +136,7 @@ function getRegionName(region) {
   );
 }
 
-function candidateMatchesSearch(
-  candidate,
-  normalizedSearch,
-) {
+function candidateMatchesSearch(candidate, normalizedSearch) {
   const searchableText = [
     candidate?.name,
     candidate?.estimatedAddress,
@@ -202,45 +151,25 @@ function candidateMatchesSearch(
     .map(normalizeSearchText)
     .join(" ");
 
-  return searchableText.includes(
-    normalizedSearch,
-  );
+  return searchableText.includes(normalizedSearch);
 }
 
-function getSearchMatchScore(
-  value,
-  normalizedSearch,
-) {
-  const normalizedValue =
-    normalizeSearchText(value);
+function getSearchMatchScore(value, normalizedSearch) {
+  const normalizedValue = normalizeSearchText(value);
 
-  if (
-    !normalizedValue ||
-    !normalizedSearch
-  ) {
+  if (!normalizedValue || !normalizedSearch) {
     return Number.POSITIVE_INFINITY;
   }
 
-  if (
-    normalizedValue ===
-    normalizedSearch
-  ) {
+  if (normalizedValue === normalizedSearch) {
     return 0;
   }
 
-  if (
-    normalizedValue.startsWith(
-      normalizedSearch,
-    )
-  ) {
+  if (normalizedValue.startsWith(normalizedSearch)) {
     return 1;
   }
 
-  if (
-    normalizedValue.includes(
-      normalizedSearch,
-    )
-  ) {
+  if (normalizedValue.includes(normalizedSearch)) {
     return 2;
   }
 
@@ -248,614 +177,328 @@ function getSearchMatchScore(
 }
 
 function createSearchTestIdPart(value) {
-  return String(
-    value ?? "unknown",
-  )
+  return String(value ?? "unknown")
     .trim()
-    .replace(
-      /[^a-zA-Z0-9_-]/g,
-      "-",
-    );
+    .replace(/[^a-zA-Z0-9_-]/g, "-");
 }
 
-function mergeCandidateLists(
-  currentCandidates,
-  incomingCandidates,
-) {
-  const mergedCandidates =
-    new Map();
+function mergeCandidateLists(currentCandidates, incomingCandidates) {
+  const mergedCandidates = new Map();
 
   [
-    ...(Array.isArray(
-      currentCandidates,
-    )
-      ? currentCandidates
-      : []),
+    ...(Array.isArray(currentCandidates) ? currentCandidates : []),
 
-    ...(Array.isArray(
-      incomingCandidates,
-    )
-      ? incomingCandidates
-      : []),
+    ...(Array.isArray(incomingCandidates) ? incomingCandidates : []),
   ].forEach((candidate) => {
-    if (
-      candidate?.id === null ||
-      candidate?.id === undefined
-    ) {
+    if (candidate?.id === null || candidate?.id === undefined) {
       return;
     }
 
-    mergedCandidates.set(
-      String(candidate.id),
-      candidate,
-    );
+    mergedCandidates.set(String(candidate.id), candidate);
   });
 
-  return Array.from(
-    mergedCandidates.values(),
-  );
+  return Array.from(mergedCandidates.values());
 }
 
-function createManualCandidate(
-  evaluation,
-  locateResult,
-) {
+function createManualCandidate(evaluation, locateResult) {
   const regionName =
-    evaluation.regionName ||
-    locateResult.regionName ||
-    "Bölge";
+    evaluation.regionName || locateResult.regionName || "Bölge";
 
   const neighborhoodName =
-    evaluation.neighborhoodName ||
-    locateResult.neighborhoodName ||
-    null;
+    evaluation.neighborhoodName || locateResult.neighborhoodName || null;
 
-  const estimatedAddress = [
-    neighborhoodName,
-    regionName,
-    "Çankaya",
-    "Ankara",
-  ]
+  const estimatedAddress = [neighborhoodName, regionName, "Çankaya", "Ankara"]
     .filter(Boolean)
     .join(" / ");
 
-  const mappedCandidate =
-    mapCandidatePoint(
-      {
-        id:
-          `manual-${Date.now()}`,
+  const mappedCandidate = mapCandidatePoint(
+    {
+      id: `manual-${Date.now()}`,
 
-        name:
-          neighborhoodName
-            ? `Manuel Aday - ${neighborhoodName}`
-            : `Manuel Aday - ${regionName}`,
+      name: neighborhoodName
+        ? `Manuel Aday - ${neighborhoodName}`
+        : `Manuel Aday - ${regionName}`,
 
-        estimatedAddress,
+      estimatedAddress,
 
-        regionId:
-          evaluation.regionId ??
-          locateResult.regionId,
+      regionId: evaluation.regionId ?? locateResult.regionId,
 
-        regionName,
-        region: regionName,
+      regionName,
+      region: regionName,
 
-        neighborhoodId:
-          evaluation.neighborhoodId ??
-          locateResult.neighborhoodId,
+      neighborhoodId: evaluation.neighborhoodId ?? locateResult.neighborhoodId,
 
-        neighborhoodName,
+      neighborhoodName,
 
-        neighborhood:
-          neighborhoodName,
+      neighborhood: neighborhoodName,
 
-        estimatedCost:
-          evaluation.estimatedCost,
+      estimatedCost: evaluation.estimatedCost,
 
-        costScore:
-          evaluation.costScore,
+      costScore: evaluation.costScore,
 
-        demandScore:
-          evaluation.demandScore,
+      demandScore: evaluation.demandScore,
 
-        generalScore:
-          evaluation.generalScore,
+      generalScore: evaluation.generalScore,
 
-        latitude:
-          evaluation.latitude,
+      latitude: evaluation.latitude,
 
-        longitude:
-          evaluation.longitude,
+      longitude: evaluation.longitude,
 
-        systemType:
-          evaluation.systemType ||
-          "",
+      systemType: evaluation.systemType || "",
 
-        placeType:
-          evaluation.placeType ||
-          "",
+      placeType: evaluation.placeType || "",
 
-        isManual: true,
+      isManual: true,
 
-        status:
-          evaluation.status ||
-          "missing",
-      },
-      0,
-    );
+      status: evaluation.status || "missing",
+    },
+    0,
+  );
 
   return {
     ...mappedCandidate,
 
     isManual: true,
 
-    costSource:
-      evaluation.costSource ||
-      "",
+    costSource: evaluation.costSource || "",
 
-    manualMessage:
-      evaluation.message ||
-      "",
+    manualMessage: evaluation.message || "",
 
-    status:
-      evaluation.status ||
-      mappedCandidate?.status ||
-      "missing",
+    status: evaluation.status || mappedCandidate?.status || "missing",
   };
 }
 
 export default function CandidatePointsPage() {
-  const scanRequestIdRef =
-    useRef(0);
+  const scanRequestIdRef = useRef(0);
 
-  const manualPinRequestIdRef =
-    useRef(0);
+  const manualPinRequestIdRef = useRef(0);
 
-  const [
-    activeTab,
-    setActiveTab,
-  ] = useState("home");
+  const [activeTab, setActiveTab] = useState("home");
 
-  const [
-    selectedCandidate,
-    setSelectedCandidate,
-  ] = useState(null);
+  const [dataLayersOpen, setDataLayersOpen] = useState(false);
 
-  const [
-    alternativeModalOpen,
-    setAlternativeModalOpen,
-  ] = useState(false);
+  const [selectedCandidate, setSelectedCandidate] = useState(null);
 
-  const [
-    manualPinCandidate,
-    setManualPinCandidate,
-  ] = useState(null);
+  const [alternativeModalOpen, setAlternativeModalOpen] = useState(false);
 
-  const [
-    manualPinStatus,
-    setManualPinStatus,
-  ] = useState("idle");
+  const [manualPinCandidate, setManualPinCandidate] = useState(null);
 
-  const [
-    manualPinMessage,
-    setManualPinMessage,
-  ] = useState("");
+  const [manualPinStatus, setManualPinStatus] = useState("idle");
 
-  const [
-    manualPinError,
-    setManualPinError,
-  ] = useState("");
+  const [manualPinMessage, setManualPinMessage] = useState("");
 
-  const [
-    candidates,
-    setCandidates,
-  ] = useState([]);
+  const [manualPinError, setManualPinError] = useState("");
 
-  const [
-    filteredCandidates,
-    setFilteredCandidates,
-  ] = useState([]);
+  const [candidates, setCandidates] = useState([]);
 
-  const [
-    scannedCandidates,
-    setScannedCandidates,
-  ] = useState([]);
+  const [filteredCandidates, setFilteredCandidates] = useState([]);
 
-  const [
-    selectedScanRegion,
-    setSelectedScanRegion,
-  ] = useState(null);
+  const [scannedCandidates, setScannedCandidates] = useState([]);
 
-  const [
-    scanStatus,
-    setScanStatus,
-  ] = useState("idle");
+  const [selectedScanRegion, setSelectedScanRegion] = useState(null);
 
-  const [
-    scanMessage,
-    setScanMessage,
-  ] = useState("");
+  const [scanStatus, setScanStatus] = useState("idle");
 
-  const [
-    scanError,
-    setScanError,
-  ] = useState("");
+  const [scanMessage, setScanMessage] = useState("");
 
-  const [
-    scanResultCount,
-    setScanResultCount,
-  ] = useState(0);
+  const [scanError, setScanError] = useState("");
 
-  const [
-    personalizedCandidates,
-    setPersonalizedCandidates,
-  ] = useState([]);
+  const [scanResultCount, setScanResultCount] = useState(0);
 
-  const [
-    regions,
-    setRegions,
-  ] = useState([]);
+  const [personalizedCandidates, setPersonalizedCandidates] = useState([]);
 
-  const [
-    neighborhoods,
-    setNeighborhoods,
-  ] = useState([]);
+  const [regions, setRegions] = useState([]);
 
-  const [
-    selectedRegionSummary,
-    setSelectedRegionSummary,
-  ] = useState(null);
+  const [neighborhoods, setNeighborhoods] = useState([]);
 
-  const [
-    regionSummaryMessage,
-    setRegionSummaryMessage,
-  ] = useState("");
+  const [selectedRegionSummary, setSelectedRegionSummary] = useState(null);
 
-  const [
-    filters,
-    setFilters,
-  ] = useState(defaultFilters);
+  const [regionSummaryMessage, setRegionSummaryMessage] = useState("");
 
-  const [
-    selectedDataFilter,
-    setSelectedDataFilter,
-  ] = useState(
-    defaultDataFilter,
-  );
+  const [filters, setFilters] = useState(defaultFilters);
 
-  const [
-    message,
-    setMessage,
-  ] = useState("");
+  const [selectedDataFilter, setSelectedDataFilter] =
+    useState(defaultDataFilter);
 
-  const [
-    saveFeedback,
-    setSaveFeedback,
-  ] = useState("");
+  const [message, setMessage] = useState("");
 
-  const [
-    savedRefreshKey,
-    setSavedRefreshKey,
-  ] = useState(0);
+  const [saveFeedback, setSaveFeedback] = useState("");
 
-  const [
-    stationSearch,
-    setStationSearch,
-  ] = useState("");
+  const [savedRefreshKey, setSavedRefreshKey] = useState(0);
 
-  const [
-    homeSearchSuggestions,
-    setHomeSearchSuggestions,
-  ] = useState([]);
+  const [stationSearch, setStationSearch] = useState("");
 
-  const [
-    homeSearchOpen,
-    setHomeSearchOpen,
-  ] = useState(false);
+  const [homeSearchSuggestions, setHomeSearchSuggestions] = useState([]);
 
-  const [
-    activeHomeSearchIndex,
-    setActiveHomeSearchIndex,
-  ] = useState(-1);
+  const [homeSearchOpen, setHomeSearchOpen] = useState(false);
 
-  const [
-    selectedHomeSearchResult,
-    setSelectedHomeSearchResult,
-  ] = useState(null);
+  const [activeHomeSearchIndex, setActiveHomeSearchIndex] = useState(-1);
 
-  const [
-    homeSearchSelectionKey,
-    setHomeSearchSelectionKey,
-  ] = useState(0);
+  const [selectedHomeSearchResult, setSelectedHomeSearchResult] =
+    useState(null);
 
-  const [
-    candidateSearch,
-    setCandidateSearch,
-  ] = useState("");
+  const [homeSearchSelectionKey, setHomeSearchSelectionKey] = useState(0);
 
-  const [
-    regionsActive,
-    setRegionsActive,
-  ] = useState(false);
+  const [candidateSearch, setCandidateSearch] = useState("");
 
-  const [
-    focusedRegionId,
-    setFocusedRegionId,
-  ] = useState(null);
+  const [regionsActive, setRegionsActive] = useState(false);
 
-  const [
-    regionFocusKey,
-    setRegionFocusKey,
-  ] = useState(0);
+  const [focusedRegionId, setFocusedRegionId] = useState(null);
 
-  const [
-    candidateFocusKey,
-    setCandidateFocusKey,
-  ] = useState(0);
+  const [regionFocusKey, setRegionFocusKey] = useState(0);
 
-  const [
-    candidateSearchOpen,
-    setCandidateSearchOpen,
-  ] = useState(false);
+  const [candidateFocusKey, setCandidateFocusKey] = useState(0);
 
-  const [
-    activeSearchSuggestionIndex,
-    setActiveSearchSuggestionIndex,
-  ] = useState(-1);
+  const [candidateSearchOpen, setCandidateSearchOpen] = useState(false);
 
-  const candidateSearchSuggestions =
-    useMemo(() => {
-      const normalizedSearch =
-        normalizeSearchText(
-          candidateSearch,
+  const [activeSearchSuggestionIndex, setActiveSearchSuggestionIndex] =
+    useState(-1);
+
+  const candidateSearchSuggestions = useMemo(() => {
+    const normalizedSearch = normalizeSearchText(candidateSearch);
+
+    if (normalizedSearch.length < 2) {
+      return [];
+    }
+
+    const candidateSuggestions = candidates
+      .map((candidate) => {
+        const candidateName = candidate?.name || "Aday Nokta";
+
+        let score = getSearchMatchScore(candidateName, normalizedSearch);
+
+        if (
+          !Number.isFinite(score) &&
+          candidateMatchesSearch(candidate, normalizedSearch)
+        ) {
+          score = 3;
+        }
+
+        return {
+          key: `candidate-${candidate.id}`,
+
+          id: candidate.id,
+
+          type: "candidate",
+
+          typeLabel: "Aday Nokta",
+
+          label: candidateName,
+
+          description:
+            candidate.estimatedAddress ||
+            candidate.region ||
+            "Adres bilgisi yok",
+
+          score,
+          value: candidate,
+        };
+      })
+      .filter((suggestion) => Number.isFinite(suggestion.score));
+
+    const usedRegionIds = new Set();
+
+    const regionSuggestions = regions
+      .filter((region) => {
+        const regionId = getRegionId(region);
+
+        return (
+          regionId !== null && regionId !== undefined && Number(regionId) !== 0
         );
+      })
+      .map((region) => {
+        const regionId = getRegionId(region);
 
-      if (
-        normalizedSearch.length < 2
-      ) {
-        return [];
-      }
+        const regionName = getRegionName(region);
 
-      const candidateSuggestions =
-        candidates
-          .map((candidate) => {
-            const candidateName =
-              candidate?.name ||
-              "Aday Nokta";
+        return {
+          key: `region-${regionId}`,
 
-            let score =
-              getSearchMatchScore(
-                candidateName,
-                normalizedSearch,
-              );
+          id: regionId,
 
-            if (
-              !Number.isFinite(
-                score,
-              ) &&
-              candidateMatchesSearch(
-                candidate,
-                normalizedSearch,
-              )
-            ) {
-              score = 3;
-            }
+          type: "region",
 
-            return {
-              key:
-                `candidate-${candidate.id}`,
+          typeLabel: "Mahalle",
 
-              id:
-                candidate.id,
+          label: regionName,
 
-              type:
-                "candidate",
+          description: "Mahalle sınırını haritada göster",
 
-              typeLabel:
-                "Aday Nokta",
+          score: getSearchMatchScore(regionName, normalizedSearch),
 
-              label:
-                candidateName,
+          value: region,
+        };
+      })
+      .filter((suggestion) => {
+        if (!Number.isFinite(suggestion.score)) {
+          return false;
+        }
 
-              description:
-                candidate.estimatedAddress ||
-                candidate.region ||
-                "Adres bilgisi yok",
+        const regionKey = String(suggestion.id);
 
-              score,
-              value:
-                candidate,
-            };
-          })
-          .filter(
-            (suggestion) =>
-              Number.isFinite(
-                suggestion.score,
-              ),
-          );
+        if (usedRegionIds.has(regionKey)) {
+          return false;
+        }
 
-      const usedRegionIds =
-        new Set();
+        usedRegionIds.add(regionKey);
 
-      const regionSuggestions =
-        regions
-          .filter((region) => {
-            const regionId =
-              getRegionId(region);
+        return true;
+      });
 
-            return (
-              regionId !== null &&
-              regionId !== undefined &&
-              Number(regionId) !== 0
-            );
-          })
-          .map((region) => {
-            const regionId =
-              getRegionId(region);
+    return [...candidateSuggestions, ...regionSuggestions]
+      .sort((first, second) => {
+        if (first.score !== second.score) {
+          return first.score - second.score;
+        }
 
-            const regionName =
-              getRegionName(region);
-
-            return {
-              key:
-                `region-${regionId}`,
-
-              id:
-                regionId,
-
-              type:
-                "region",
-
-              typeLabel:
-                "Mahalle",
-
-              label:
-                regionName,
-
-              description:
-                "Mahalle sınırını haritada göster",
-
-              score:
-                getSearchMatchScore(
-                  regionName,
-                  normalizedSearch,
-                ),
-
-              value:
-                region,
-            };
-          })
-          .filter((suggestion) => {
-            if (
-              !Number.isFinite(
-                suggestion.score,
-              )
-            ) {
-              return false;
-            }
-
-            const regionKey =
-              String(
-                suggestion.id,
-              );
-
-            if (
-              usedRegionIds.has(
-                regionKey,
-              )
-            ) {
-              return false;
-            }
-
-            usedRegionIds.add(
-              regionKey,
-            );
-
-            return true;
-          });
-
-      return [
-        ...candidateSuggestions,
-        ...regionSuggestions,
-      ]
-        .sort(
-          (
-            first,
-            second,
-          ) => {
-            if (
-              first.score !==
-              second.score
-            ) {
-              return (
-                first.score -
-                second.score
-              );
-            }
-
-            return first.label.localeCompare(
-              second.label,
-              "tr-TR",
-            );
-          },
-        )
-        .slice(0, 8);
-    }, [
-      candidateSearch,
-      candidates,
-      regions,
-    ]);
+        return first.label.localeCompare(second.label, "tr-TR");
+      })
+      .slice(0, 8);
+  }, [candidateSearch, candidates, regions]);
 
   useEffect(() => {
     let isMounted = true;
 
     async function loadCandidatePoints() {
-      setMessage(
-        "Hesaplanıyor...",
-      );
+      setMessage("Hesaplanıyor...");
 
-      const result =
-        await getCandidatePoints();
+      const result = await getCandidatePoints();
 
       if (!isMounted) {
         return;
       }
 
-      const safeCandidates =
-        Array.isArray(
-          result.data,
-        )
-          ? result.data
-          : [];
+      const safeCandidates = Array.isArray(result.data) ? result.data : [];
 
-      setCandidates(
-        safeCandidates,
-      );
+      setCandidates(safeCandidates);
 
       setFilteredCandidates([]);
 
-      setPersonalizedCandidates(
-        safeCandidates,
-      );
+      setPersonalizedCandidates(safeCandidates);
 
-      setSelectedCandidate(
-        null,
-      );
+      setSelectedCandidate(null);
 
       setMessage("");
     }
 
     async function loadRegions() {
-      const result =
-        await getRegions();
+      const result = await getRegions();
 
       if (!isMounted) {
         return;
       }
 
-      setRegions(
-        Array.isArray(
-          result.data,
-        )
-          ? result.data
-          : [],
-      );
+      setRegions(Array.isArray(result.data) ? result.data : []);
     }
 
     async function loadNeighborhoods() {
-      const result =
-        await getNeighborhoods();
+      const result = await getNeighborhoods();
 
       if (!isMounted) {
         return;
       }
 
-      setNeighborhoods(
-        Array.isArray(
-          result.data,
-        )
-          ? result.data
-          : [],
-      );
+      setNeighborhoods(Array.isArray(result.data) ? result.data : []);
     }
 
     loadCandidatePoints();
@@ -869,84 +512,37 @@ export default function CandidatePointsPage() {
 
   useEffect(() => {
     if (!selectedCandidate) {
-      setAlternativeModalOpen(
-        false,
-      );
+      setAlternativeModalOpen(false);
     }
   }, [selectedCandidate]);
 
   function validateFilters() {
-    const values =
-      Object.values(
-        filters,
-      ).filter(
-        (value) =>
-          value !== "",
-      );
+    const values = Object.values(filters).filter((value) => value !== "");
 
     for (const value of values) {
-      const numberValue =
-        Number(value);
+      const numberValue = Number(value);
 
-      if (
-        Number.isNaN(
-          numberValue,
-        ) ||
-        numberValue < 0 ||
-        numberValue > 100
-      ) {
-        setMessage(
-          "Skor değerleri 0 ile 100 arasında olmalıdır.",
-        );
+      if (Number.isNaN(numberValue) || numberValue < 0 || numberValue > 100) {
+        setMessage("Skor değerleri 0 ile 100 arasında olmalıdır.");
 
         return false;
       }
     }
 
-    const costMin =
-      getNumberOrDefault(
-        filters.costMin,
-        0,
-      );
+    const costMin = getNumberOrDefault(filters.costMin, 0);
 
-    const costMax =
-      getNumberOrDefault(
-        filters.costMax,
-        100,
-      );
+    const costMax = getNumberOrDefault(filters.costMax, 100);
 
-    const demandMin =
-      getNumberOrDefault(
-        filters.demandMin,
-        0,
-      );
+    const demandMin = getNumberOrDefault(filters.demandMin, 0);
 
-    const demandMax =
-      getNumberOrDefault(
-        filters.demandMax,
-        100,
-      );
+    const demandMax = getNumberOrDefault(filters.demandMax, 100);
 
-    const generalMin =
-      getNumberOrDefault(
-        filters.generalMin,
-        0,
-      );
+    const generalMin = getNumberOrDefault(filters.generalMin, 0);
 
-    const generalMax =
-      getNumberOrDefault(
-        filters.generalMax,
-        100,
-      );
+    const generalMax = getNumberOrDefault(filters.generalMax, 100);
 
-    if (
-      costMin > costMax ||
-      demandMin > demandMax ||
-      generalMin > generalMax
-    ) {
-      setMessage(
-        "Minimum değer maksimum değerden büyük olamaz.",
-      );
+    if (costMin > costMax || demandMin > demandMax || generalMin > generalMax) {
+      setMessage("Minimum değer maksimum değerden büyük olamaz.");
 
       return false;
     }
@@ -959,99 +555,44 @@ export default function CandidatePointsPage() {
       return;
     }
 
-    const costMin =
-      getNumberOrDefault(
-        filters.costMin,
-        0,
-      );
+    const costMin = getNumberOrDefault(filters.costMin, 0);
 
-    const costMax =
-      getNumberOrDefault(
-        filters.costMax,
-        100,
-      );
+    const costMax = getNumberOrDefault(filters.costMax, 100);
 
-    const demandMin =
-      getNumberOrDefault(
-        filters.demandMin,
-        0,
-      );
+    const demandMin = getNumberOrDefault(filters.demandMin, 0);
 
-    const demandMax =
-      getNumberOrDefault(
-        filters.demandMax,
-        100,
-      );
+    const demandMax = getNumberOrDefault(filters.demandMax, 100);
 
-    const generalMin =
-      getNumberOrDefault(
-        filters.generalMin,
-        0,
-      );
+    const generalMin = getNumberOrDefault(filters.generalMin, 0);
 
-    const generalMax =
-      getNumberOrDefault(
-        filters.generalMax,
-        100,
-      );
+    const generalMax = getNumberOrDefault(filters.generalMax, 100);
 
     const candidatePool =
-      scanStatus === "success"
-        ? scannedCandidates
-        : candidates;
+      scanStatus === "success" ? scannedCandidates : candidates;
 
-    const result =
-      candidatePool.filter(
-        (candidate) =>
-          isScoreInRange(
-            candidate.costScore,
-            costMin,
-            costMax,
-          ) &&
-          isScoreInRange(
-            candidate.demandScore,
-            demandMin,
-            demandMax,
-          ) &&
-          isScoreInRange(
-            candidate.generalScore,
-            generalMin,
-            generalMax,
-          ),
-      );
-
-    setFilteredCandidates(
-      result,
+    const result = candidatePool.filter(
+      (candidate) =>
+        isScoreInRange(candidate.costScore, costMin, costMax) &&
+        isScoreInRange(candidate.demandScore, demandMin, demandMax) &&
+        isScoreInRange(candidate.generalScore, generalMin, generalMax),
     );
 
-    setSelectedCandidate(
-      null,
-    );
+    setFilteredCandidates(result);
+
+    setSelectedCandidate(null);
 
     if (result.length === 0) {
-      setMessage(
-        "Belirtilen skor aralıklarında aday nokta bulunamadı.",
-      );
+      setMessage("Belirtilen skor aralıklarında aday nokta bulunamadı.");
     } else {
-      setMessage(
-        `${result.length} aday nokta filtrelendi.`,
-      );
+      setMessage(`${result.length} aday nokta filtrelendi.`);
     }
   }
 
-  async function saveCandidate(
-    candidate,
-  ) {
-    function showFeedback(
-      feedbackMessage,
-    ) {
-      setMessage(
-        feedbackMessage,
-      );
+  async function saveCandidate(candidate) {
+    function showFeedback(feedbackMessage) {
+      setMessage(feedbackMessage);
 
-      setSaveFeedback(
-        feedbackMessage,
-      );
+      setSaveFeedback(feedbackMessage);
 
       window.setTimeout(() => {
         setSaveFeedback("");
@@ -1059,90 +600,53 @@ export default function CandidatePointsPage() {
     }
 
     try {
-      const result =
-        await saveCandidatePoint(
-          candidate,
-        );
+      const result = await saveCandidatePoint(candidate);
 
-      if (
-        result.status ===
-        "already-saved"
-      ) {
+      if (result.status === "already-saved") {
+        showFeedback("Bu aday nokta zaten kaydedilmiş.");
+
+        return;
+      }
+
+      if (result.status === "limit-exceeded") {
+        showFeedback("En fazla 10 aday nokta kaydedebilirsiniz.");
+
+        return;
+      }
+
+      if (result.status === "auth-required") {
         showFeedback(
-          "Bu aday nokta zaten kaydedilmiş.",
+          result.error || "Aday noktayı kaydetmek için giriş yapmalısınız.",
         );
 
         return;
       }
 
-      if (
-        result.status ===
-        "limit-exceeded"
-      ) {
+      if (result.status === "error") {
         showFeedback(
-          "En fazla 10 aday nokta kaydedebilirsiniz.",
+          result.error || "Aday nokta backend üzerinden kaydedilemedi.",
         );
 
         return;
       }
 
-      if (
-        result.status ===
-        "auth-required"
-      ) {
-        showFeedback(
-          result.error ||
-            "Aday noktayı kaydetmek için giriş yapmalısınız.",
-        );
+      if (result.status !== "saved") {
+        showFeedback("Kayıt işlemi tamamlanamadı.");
 
         return;
       }
 
-      if (
-        result.status === "error"
-      ) {
-        showFeedback(
-          result.error ||
-            "Aday nokta backend üzerinden kaydedilemedi.",
-        );
+      setSavedRefreshKey((currentKey) => currentKey + 1);
+
+      if (result.source === "manual-local-storage") {
+        showFeedback("Manuel aday nokta yalnızca bu tarayıcıya kaydedildi.");
 
         return;
       }
 
-      if (
-        result.status !== "saved"
-      ) {
-        showFeedback(
-          "Kayıt işlemi tamamlanamadı.",
-        );
-
-        return;
-      }
-
-      setSavedRefreshKey(
-        (currentKey) =>
-          currentKey + 1,
-      );
-
-      if (
-        result.source ===
-        "manual-local-storage"
-      ) {
-        showFeedback(
-          "Manuel aday nokta yalnızca bu tarayıcıya kaydedildi.",
-        );
-
-        return;
-      }
-
-      showFeedback(
-        "Aday nokta backend hesabınıza kaydedildi.",
-      );
+      showFeedback("Aday nokta backend hesabınıza kaydedildi.");
     } catch (error) {
-      console.error(
-        "Aday nokta kaydedilemedi:",
-        error,
-      );
+      console.error("Aday nokta kaydedilemedi:", error);
 
       showFeedback(
         error instanceof Error
@@ -1154,133 +658,73 @@ export default function CandidatePointsPage() {
 
   function openAlternativeCandidates() {
     if (!selectedCandidate) {
-      setMessage(
-        "Alternatifleri görmek için önce bir aday nokta seçin.",
-      );
+      setMessage("Alternatifleri görmek için önce bir aday nokta seçin.");
 
       return;
     }
 
-    setAlternativeModalOpen(
-      true,
-    );
+    setAlternativeModalOpen(true);
   }
 
   function closeAlternativeCandidates() {
-    setAlternativeModalOpen(
-      false,
-    );
+    setAlternativeModalOpen(false);
   }
 
-  function selectAlternativeCandidate(
-    candidate,
-  ) {
+  function selectAlternativeCandidate(candidate) {
     closeAlternativeCandidates();
 
-    showCandidateOnMap(
-      candidate,
-    );
+    showCandidateOnMap(candidate);
 
-    setMessage(
-      `${candidate.name || "Alternatif aday"} haritada gösteriliyor.`,
-    );
+    setMessage(`${candidate.name || "Alternatif aday"} haritada gösteriliyor.`);
   }
 
-  function handlePersonalizedResult(
-    result,
-  ) {
-    const safeResult =
-      Array.isArray(result)
-        ? result
-        : [];
+  function handlePersonalizedResult(result) {
+    const safeResult = Array.isArray(result) ? result : [];
 
-    setPersonalizedCandidates(
-      safeResult,
-    );
+    setPersonalizedCandidates(safeResult);
 
-    setFilteredCandidates(
-      safeResult,
-    );
+    setFilteredCandidates(safeResult);
 
-    setSelectedCandidate(
-      null,
-    );
+    setSelectedCandidate(null);
   }
 
-  function handleSelectionChange(
-    selection,
-  ) {
+  function handleSelectionChange(selection) {
     setSelectedDataFilter({
-      regionId:
-        selection.regionId ||
-        "0",
+      regionId: selection.regionId || "0",
 
-      region:
-        selection.region ||
-        "Tümü",
+      region: selection.region || "Tümü",
 
-      neighborhoodId:
-        selection.neighborhoodId ||
-        "0",
+      neighborhoodId: selection.neighborhoodId || "0",
 
-      neighborhood:
-        selection.neighborhood ||
-        "Tümü",
+      neighborhood: selection.neighborhood || "Tümü",
 
-      systemType:
-        selection.systemType ||
-        "Tümü",
+      systemType: selection.systemType || "Tümü",
 
-      placeType:
-        selection.placeType ||
-        "Tümü",
+      placeType: selection.placeType || "Tümü",
 
-      budgetMin:
-        selection.budgetMin ||
-        "",
+      budgetMin: selection.budgetMin || "",
 
-      budgetMax:
-        selection.budgetMax ||
-        "",
+      budgetMax: selection.budgetMax || "",
     });
   }
 
-  async function handleRegionChange(
-    regionId,
-  ) {
-    const numericRegionId =
-      Number(regionId);
+  async function handleRegionChange(regionId) {
+    const numericRegionId = Number(regionId);
 
-    if (
-      !Number.isInteger(
-        numericRegionId,
-      ) ||
-      numericRegionId <= 0
-    ) {
-      setSelectedRegionSummary(
-        null,
-      );
+    if (!Number.isInteger(numericRegionId) || numericRegionId <= 0) {
+      setSelectedRegionSummary(null);
 
-      setRegionSummaryMessage(
-        "",
-      );
+      setRegionSummaryMessage("");
 
       return;
     }
 
-    const result =
-      await getRegionSummary(
-        numericRegionId,
-      );
+    const result = await getRegionSummary(numericRegionId);
 
-    setSelectedRegionSummary(
-      result.data,
-    );
+    setSelectedRegionSummary(result.data);
 
     if (result.source === "api") {
-      setRegionSummaryMessage(
-        "Bölge özeti API üzerinden getirildi.",
-      );
+      setRegionSummaryMessage("Bölge özeti API üzerinden getirildi.");
 
       return;
     }
@@ -1288,21 +732,12 @@ export default function CandidatePointsPage() {
     setRegionSummaryMessage("");
   }
 
-  function handleHomeSearchChange(
-    searchValue,
-  ) {
-    setStationSearch(
-      searchValue,
-    );
+  function handleHomeSearchChange(searchValue) {
+    setStationSearch(searchValue);
 
-    setActiveHomeSearchIndex(
-      -1,
-    );
+    setActiveHomeSearchIndex(-1);
 
-    const normalizedSearch =
-      normalizeSearchText(
-        searchValue,
-      );
+    const normalizedSearch = normalizeSearchText(searchValue);
 
     if (!normalizedSearch) {
       clearHomeSearch();
@@ -1310,10 +745,7 @@ export default function CandidatePointsPage() {
       return;
     }
 
-    setHomeSearchOpen(
-      normalizedSearch.length >=
-        2,
-    );
+    setHomeSearchOpen(normalizedSearch.length >= 2);
   }
 
   function clearHomeSearch() {
@@ -1321,114 +753,72 @@ export default function CandidatePointsPage() {
 
     setHomeSearchOpen(false);
 
-    setHomeSearchSuggestions(
-      [],
-    );
+    setHomeSearchSuggestions([]);
 
-    setActiveHomeSearchIndex(
-      -1,
-    );
+    setActiveHomeSearchIndex(-1);
 
-    setSelectedHomeSearchResult(
-      null,
-    );
+    setSelectedHomeSearchResult(null);
 
-    setHomeSearchSelectionKey(
-      (currentKey) =>
-        currentKey + 1,
-    );
+    setHomeSearchSelectionKey((currentKey) => currentKey + 1);
   }
 
-  function selectHomeSearchSuggestion(
-    suggestion,
-  ) {
+  function selectHomeSearchSuggestion(suggestion) {
     if (!suggestion) {
       return;
     }
 
-    setStationSearch(
-      suggestion.label,
-    );
+    setStationSearch(suggestion.label);
 
-    setSelectedHomeSearchResult(
-      suggestion,
-    );
+    setSelectedHomeSearchResult(suggestion);
 
     setHomeSearchOpen(false);
 
-    setActiveHomeSearchIndex(
-      -1,
-    );
+    setActiveHomeSearchIndex(-1);
 
-    setHomeSearchSelectionKey(
-      (currentKey) =>
-        currentKey + 1,
-    );
+    setHomeSearchSelectionKey((currentKey) => currentKey + 1);
   }
 
-  function handleHomeSearchKeyDown(
-    event,
-  ) {
+  function handleHomeSearchKeyDown(event) {
     if (event.key === "Escape") {
       setHomeSearchOpen(false);
 
-      setActiveHomeSearchIndex(
-        -1,
-      );
+      setActiveHomeSearchIndex(-1);
 
       return;
     }
 
-    if (
-      homeSearchSuggestions.length ===
-      0
-    ) {
+    if (homeSearchSuggestions.length === 0) {
       return;
     }
 
-    if (
-      event.key === "ArrowDown"
-    ) {
+    if (event.key === "ArrowDown") {
       event.preventDefault();
 
       setHomeSearchOpen(true);
 
-      setActiveHomeSearchIndex(
-        (currentIndex) => {
-          if (
-            currentIndex >=
-            homeSearchSuggestions.length -
-              1
-          ) {
-            return 0;
-          }
+      setActiveHomeSearchIndex((currentIndex) => {
+        if (currentIndex >= homeSearchSuggestions.length - 1) {
+          return 0;
+        }
 
-          return currentIndex + 1;
-        },
-      );
+        return currentIndex + 1;
+      });
 
       return;
     }
 
-    if (
-      event.key === "ArrowUp"
-    ) {
+    if (event.key === "ArrowUp") {
       event.preventDefault();
 
       setHomeSearchOpen(true);
 
-      setActiveHomeSearchIndex(
-        (currentIndex) => {
-          if (currentIndex <= 0) {
-            return (
-              homeSearchSuggestions.length -
-              1
-            );
-          }
+      setActiveHomeSearchIndex((currentIndex) => {
+        if (currentIndex <= 0) {
+          return homeSearchSuggestions.length - 1;
+        }
 
-          return currentIndex - 1;
-        },
-      );
+        return currentIndex - 1;
+      });
 
       return;
     }
@@ -1438,15 +828,10 @@ export default function CandidatePointsPage() {
 
       const suggestion =
         homeSearchSuggestions[
-          activeHomeSearchIndex >=
-          0
-            ? activeHomeSearchIndex
-            : 0
+          activeHomeSearchIndex >= 0 ? activeHomeSearchIndex : 0
         ];
 
-      selectHomeSearchSuggestion(
-        suggestion,
-      );
+      selectHomeSearchSuggestion(suggestion);
     }
   }
 
@@ -1454,13 +839,10 @@ export default function CandidatePointsPage() {
     clearSelectedRegion = true,
     restoreCandidateList = false,
   } = {}) {
-    scanRequestIdRef.current +=
-      1;
+    scanRequestIdRef.current += 1;
 
     if (clearSelectedRegion) {
-      setSelectedScanRegion(
-        null,
-      );
+      setSelectedScanRegion(null);
     }
 
     setScannedCandidates([]);
@@ -1474,36 +856,23 @@ export default function CandidatePointsPage() {
     setScanResultCount(0);
 
     if (restoreCandidateList) {
-      setFilteredCandidates(
-        candidates,
-      );
+      setFilteredCandidates(candidates);
     }
   }
 
-  function handleMapPointSelect(
-    candidate,
-  ) {
+  function handleMapPointSelect(candidate) {
     if (!candidate) {
       return;
     }
 
-    setSelectedCandidate(
-      candidate,
-    );
+    setSelectedCandidate(candidate);
 
-    setCandidateFocusKey(
-      (currentKey) =>
-        currentKey + 1,
-    );
+    setCandidateFocusKey((currentKey) => currentKey + 1);
   }
 
-  function showCandidateOnMap(
-    candidate,
-  ) {
+  function showCandidateOnMap(candidate) {
     if (!candidate) {
-      setMessage(
-        "Haritada gösterilecek aday nokta bulunamadı.",
-      );
+      setMessage("Haritada gösterilecek aday nokta bulunamadı.");
 
       return;
     }
@@ -1513,49 +882,29 @@ export default function CandidatePointsPage() {
       restoreCandidateList: false,
     });
 
-    setAlternativeModalOpen(
-      false,
-    );
+    setAlternativeModalOpen(false);
 
     setRegionsActive(false);
 
     setFocusedRegionId(null);
 
-    setRegionFocusKey(
-      (currentKey) =>
-        currentKey + 1,
-    );
+    setRegionFocusKey((currentKey) => currentKey + 1);
 
-    setFilteredCandidates([
-      candidate,
-    ]);
+    setFilteredCandidates([candidate]);
 
-    setSelectedCandidate(
-      candidate,
-    );
+    setSelectedCandidate(candidate);
 
-    setCandidateFocusKey(
-      (currentKey) =>
-        currentKey + 1,
-    );
+    setCandidateFocusKey((currentKey) => currentKey + 1);
 
     setCandidateSearch("");
 
-    setCandidateSearchOpen(
-      false,
-    );
+    setCandidateSearchOpen(false);
 
-    setActiveSearchSuggestionIndex(
-      -1,
-    );
+    setActiveSearchSuggestionIndex(-1);
 
-    setActiveTab(
-      "candidateMap",
-    );
+    setActiveTab("candidateMap");
 
-    setMessage(
-      `${candidate.name || "Aday nokta"} haritada gösteriliyor.`,
-    );
+    setMessage(`${candidate.name || "Aday nokta"} haritada gösteriliyor.`);
   }
 
   function openCandidateMap() {
@@ -1568,9 +917,7 @@ export default function CandidatePointsPage() {
 
     setFilteredCandidates([]);
 
-    setManualPinCandidate(
-      null,
-    );
+    setManualPinCandidate(null);
 
     setManualPinStatus("idle");
 
@@ -1578,36 +925,23 @@ export default function CandidatePointsPage() {
 
     setManualPinError("");
 
-    setSelectedCandidate(
-      null,
-    );
+    setSelectedCandidate(null);
 
-    setAlternativeModalOpen(
-      false,
-    );
+    setAlternativeModalOpen(false);
 
     setFocusedRegionId(null);
 
-    setRegionFocusKey(
-      (currentKey) =>
-        currentKey + 1,
-    );
+    setRegionFocusKey((currentKey) => currentKey + 1);
 
     setCandidateSearch("");
 
-    setCandidateSearchOpen(
-      false,
-    );
+    setCandidateSearchOpen(false);
 
-    setActiveSearchSuggestionIndex(
-      -1,
-    );
+    setActiveSearchSuggestionIndex(-1);
 
     setMessage("");
 
-    setActiveTab(
-      "candidateMap",
-    );
+    setActiveTab("candidateMap");
   }
 
   function resetCandidateSearch() {
@@ -1618,136 +952,84 @@ export default function CandidatePointsPage() {
 
     setFilteredCandidates([]);
 
-    setSelectedCandidate(
-      null,
-    );
+    setSelectedCandidate(null);
 
     setFocusedRegionId(null);
 
-    setRegionFocusKey(
-      (currentKey) =>
-        currentKey + 1,
-    );
+    setRegionFocusKey((currentKey) => currentKey + 1);
 
     setMessage("");
   }
 
-  function handleCandidateSearchChange(
-    searchValue,
-  ) {
-    setCandidateSearch(
-      searchValue,
-    );
+  function handleCandidateSearchChange(searchValue) {
+    setCandidateSearch(searchValue);
 
-    setActiveSearchSuggestionIndex(
-      -1,
-    );
+    setActiveSearchSuggestionIndex(-1);
 
-    const normalizedSearch =
-      normalizeSearchText(
-        searchValue,
-      );
+    const normalizedSearch = normalizeSearchText(searchValue);
 
     if (!normalizedSearch) {
-      setCandidateSearchOpen(
-        false,
-      );
+      setCandidateSearchOpen(false);
 
       resetCandidateSearch();
 
       return;
     }
 
-    if (
-      normalizedSearch.length < 2
-    ) {
-      setCandidateSearchOpen(
-        false,
-      );
+    if (normalizedSearch.length < 2) {
+      setCandidateSearchOpen(false);
 
       setFilteredCandidates([]);
 
-      setSelectedCandidate(
-        null,
-      );
+      setSelectedCandidate(null);
 
       setFocusedRegionId(null);
 
-      setRegionFocusKey(
-        (currentKey) =>
-          currentKey + 1,
-      );
+      setRegionFocusKey((currentKey) => currentKey + 1);
 
       setMessage("");
 
       return;
     }
 
-    setCandidateSearchOpen(
-      true,
-    );
+    setCandidateSearchOpen(true);
 
-    setSelectedCandidate(
-      null,
-    );
+    setSelectedCandidate(null);
 
     setFocusedRegionId(null);
 
     setMessage("");
 
-    const candidateMatches =
-      candidates.filter(
-        (candidate) =>
-          candidateMatchesSearch(
-            candidate,
-            normalizedSearch,
-          ),
-      );
-
-    setFilteredCandidates(
-      candidateMatches,
+    const candidateMatches = candidates.filter((candidate) =>
+      candidateMatchesSearch(candidate, normalizedSearch),
     );
+
+    setFilteredCandidates(candidateMatches);
   }
 
   function clearCandidateSearch() {
     setCandidateSearch("");
 
-    setCandidateSearchOpen(
-      false,
-    );
+    setCandidateSearchOpen(false);
 
-    setActiveSearchSuggestionIndex(
-      -1,
-    );
+    setActiveSearchSuggestionIndex(-1);
 
     resetCandidateSearch();
   }
 
-  function selectCandidateSearchSuggestion(
-    suggestion,
-  ) {
+  function selectCandidateSearchSuggestion(suggestion) {
     if (!suggestion) {
       return;
     }
 
-    setCandidateSearch(
-      suggestion.label,
-    );
+    setCandidateSearch(suggestion.label);
 
-    setCandidateSearchOpen(
-      false,
-    );
+    setCandidateSearchOpen(false);
 
-    setActiveSearchSuggestionIndex(
-      -1,
-    );
+    setActiveSearchSuggestionIndex(-1);
 
-    if (
-      suggestion.type ===
-      "candidate"
-    ) {
-      const candidate =
-        suggestion.value;
+    if (suggestion.type === "candidate") {
+      const candidate = suggestion.value;
 
       resetRegionScanState({
         clearSelectedRegion: true,
@@ -1756,67 +1038,42 @@ export default function CandidatePointsPage() {
 
       setRegionsActive(false);
 
-      setFilteredCandidates([
-        candidate,
-      ]);
+      setFilteredCandidates([candidate]);
 
-      setSelectedCandidate(
-        candidate,
-      );
+      setSelectedCandidate(candidate);
 
-      setCandidateFocusKey(
-        (currentKey) =>
-          currentKey + 1,
-      );
+      setCandidateFocusKey((currentKey) => currentKey + 1);
 
       setFocusedRegionId(null);
 
-      setRegionFocusKey(
-        (currentKey) =>
-          currentKey + 1,
-      );
+      setRegionFocusKey((currentKey) => currentKey + 1);
 
-      setMessage(
-        `${candidate.name} aday noktası seçildi.`,
-      );
+      setMessage(`${candidate.name} aday noktası seçildi.`);
 
       return;
     }
 
-    const region =
-      suggestion.value;
+    const region = suggestion.value;
 
-    const regionId =
-      getRegionId(region);
+    const regionId = getRegionId(region);
 
-    const regionName =
-      getRegionName(region);
+    const regionName = getRegionName(region);
 
     setRegionsActive(true);
 
-    setFocusedRegionId(
-      regionId,
-    );
+    setFocusedRegionId(regionId);
 
-    setRegionFocusKey(
-      (currentKey) =>
-        currentKey + 1,
-    );
+    setRegionFocusKey((currentKey) => currentKey + 1);
 
-    scanRequestIdRef.current +=
-      1;
+    scanRequestIdRef.current += 1;
 
-    setSelectedScanRegion(
-      region,
-    );
+    setSelectedScanRegion(region);
 
     setFilteredCandidates([]);
 
     setScannedCandidates([]);
 
-    setSelectedCandidate(
-      null,
-    );
+    setSelectedCandidate(null);
 
     setScanStatus("idle");
 
@@ -1828,80 +1085,50 @@ export default function CandidatePointsPage() {
 
     setScanResultCount(0);
 
-    setMessage(
-      `${regionName} mahallesi seçildi.`,
-    );
+    setMessage(`${regionName} mahallesi seçildi.`);
   }
 
-  function handleCandidateSearchKeyDown(
-    event,
-  ) {
+  function handleCandidateSearchKeyDown(event) {
     if (event.key === "Escape") {
-      setCandidateSearchOpen(
-        false,
-      );
+      setCandidateSearchOpen(false);
 
-      setActiveSearchSuggestionIndex(
-        -1,
-      );
+      setActiveSearchSuggestionIndex(-1);
 
       return;
     }
 
-    if (
-      candidateSearchSuggestions.length ===
-      0
-    ) {
+    if (candidateSearchSuggestions.length === 0) {
       return;
     }
 
-    if (
-      event.key === "ArrowDown"
-    ) {
+    if (event.key === "ArrowDown") {
       event.preventDefault();
 
-      setCandidateSearchOpen(
-        true,
-      );
+      setCandidateSearchOpen(true);
 
-      setActiveSearchSuggestionIndex(
-        (currentIndex) => {
-          if (
-            currentIndex >=
-            candidateSearchSuggestions.length -
-              1
-          ) {
-            return 0;
-          }
+      setActiveSearchSuggestionIndex((currentIndex) => {
+        if (currentIndex >= candidateSearchSuggestions.length - 1) {
+          return 0;
+        }
 
-          return currentIndex + 1;
-        },
-      );
+        return currentIndex + 1;
+      });
 
       return;
     }
 
-    if (
-      event.key === "ArrowUp"
-    ) {
+    if (event.key === "ArrowUp") {
       event.preventDefault();
 
-      setCandidateSearchOpen(
-        true,
-      );
+      setCandidateSearchOpen(true);
 
-      setActiveSearchSuggestionIndex(
-        (currentIndex) => {
-          if (currentIndex <= 0) {
-            return (
-              candidateSearchSuggestions.length -
-              1
-            );
-          }
+      setActiveSearchSuggestionIndex((currentIndex) => {
+        if (currentIndex <= 0) {
+          return candidateSearchSuggestions.length - 1;
+        }
 
-          return currentIndex - 1;
-        },
-      );
+        return currentIndex - 1;
+      });
 
       return;
     }
@@ -1911,60 +1138,37 @@ export default function CandidatePointsPage() {
 
       const selectedSuggestion =
         candidateSearchSuggestions[
-          activeSearchSuggestionIndex >=
-          0
-            ? activeSearchSuggestionIndex
-            : 0
+          activeSearchSuggestionIndex >= 0 ? activeSearchSuggestionIndex : 0
         ];
 
-      selectCandidateSearchSuggestion(
-        selectedSuggestion,
-      );
+      selectCandidateSearchSuggestion(selectedSuggestion);
     }
   }
 
-  async function handleScanRegion(
-    region = selectedScanRegion,
-  ) {
-    const regionId =
-      getRegionId(region);
+  async function handleScanRegion(region = selectedScanRegion) {
+    const regionId = getRegionId(region);
 
-    const regionName =
-      getRegionName(region) ||
-      "Seçili bölge";
+    const regionName = getRegionName(region) || "Seçili bölge";
 
-    if (
-      regionId === null ||
-      regionId === undefined ||
-      Number(regionId) <= 0
-    ) {
+    if (regionId === null || regionId === undefined || Number(regionId) <= 0) {
       setScanStatus("error");
 
       setScanMessage("");
 
-      setScanError(
-        "Bölgeyi taramak için önce haritadaki bir bölgeyi seçin.",
-      );
+      setScanError("Bölgeyi taramak için önce haritadaki bir bölgeyi seçin.");
 
       setScanResultCount(0);
 
       return;
     }
 
-    const requestId =
-      scanRequestIdRef.current +
-      1;
+    const requestId = scanRequestIdRef.current + 1;
 
-    scanRequestIdRef.current =
-      requestId;
+    scanRequestIdRef.current = requestId;
 
-    setSelectedScanRegion(
-      region,
-    );
+    setSelectedScanRegion(region);
 
-    setSelectedCandidate(
-      null,
-    );
+    setSelectedCandidate(null);
 
     setFilteredCandidates([]);
 
@@ -1982,22 +1186,16 @@ export default function CandidatePointsPage() {
 
     setMessage("");
 
-    const result =
-      await scanCandidatePointsByRegion(
-        regionId,
-        REGION_SCAN_MIN_GENERAL_SCORE,
-      );
+    const result = await scanCandidatePointsByRegion(
+      regionId,
+      REGION_SCAN_MIN_GENERAL_SCORE,
+    );
 
-    if (
-      scanRequestIdRef.current !==
-      requestId
-    ) {
+    if (scanRequestIdRef.current !== requestId) {
       return;
     }
 
-    if (
-      result.source === "disabled"
-    ) {
+    if (result.source === "disabled") {
       setScanStatus("disabled");
 
       setScanMessage(
@@ -2017,60 +1215,32 @@ export default function CandidatePointsPage() {
 
       setScanMessage("");
 
-      setScanError(
-        result.error ||
-          "Bölgesel aday noktalar alınamadı.",
-      );
+      setScanError(result.error || "Bölgesel aday noktalar alınamadı.");
 
       setScanResultCount(0);
 
       return;
     }
 
-    const safeCandidates =
-      (
-        Array.isArray(
-          result.data,
-        )
-          ? result.data
-          : []
-      ).filter((candidate) => {
-        const score =
-          Number(
-            candidate?.generalScore,
-          );
+    const safeCandidates = (
+      Array.isArray(result.data) ? result.data : []
+    ).filter((candidate) => {
+      const score = Number(candidate?.generalScore);
 
-        return (
-          Number.isFinite(score) &&
-          score >=
-            REGION_SCAN_MIN_GENERAL_SCORE
-        );
-      });
+      return Number.isFinite(score) && score >= REGION_SCAN_MIN_GENERAL_SCORE;
+    });
 
-    setScannedCandidates(
-      safeCandidates,
+    setScannedCandidates(safeCandidates);
+
+    setFilteredCandidates(safeCandidates);
+
+    setCandidates((currentCandidates) =>
+      mergeCandidateLists(currentCandidates, safeCandidates),
     );
 
-    setFilteredCandidates(
-      safeCandidates,
-    );
+    setScanResultCount(safeCandidates.length);
 
-    setCandidates(
-      (currentCandidates) =>
-        mergeCandidateLists(
-          currentCandidates,
-          safeCandidates,
-        ),
-    );
-
-    setScanResultCount(
-      safeCandidates.length,
-    );
-
-    if (
-      safeCandidates.length ===
-      0
-    ) {
+    if (safeCandidates.length === 0) {
       setScanStatus("empty");
 
       setScanMessage(
@@ -2098,29 +1268,21 @@ export default function CandidatePointsPage() {
   }
 
   function handleRetryRegionScan() {
-    handleScanRegion(
-      selectedScanRegion,
-    );
+    handleScanRegion(selectedScanRegion);
   }
 
-  function handleCandidateRegionSelect(
-    region,
-  ) {
+  function handleCandidateRegionSelect(region) {
     if (!region) {
       return;
     }
 
-    const regionName =
-      getRegionName(region);
+    const regionName = getRegionName(region);
 
-    const regionId =
-      getRegionId(region);
+    const regionId = getRegionId(region);
 
-    scanRequestIdRef.current +=
-      1;
+    scanRequestIdRef.current += 1;
 
-    manualPinRequestIdRef.current +=
-      1;
+    manualPinRequestIdRef.current += 1;
 
     setManualPinStatus("idle");
 
@@ -2128,25 +1290,15 @@ export default function CandidatePointsPage() {
 
     setManualPinError("");
 
-    setCandidateSearchOpen(
-      false,
-    );
+    setCandidateSearchOpen(false);
 
-    setActiveSearchSuggestionIndex(
-      -1,
-    );
+    setActiveSearchSuggestionIndex(-1);
 
-    setFocusedRegionId(
-      regionId,
-    );
+    setFocusedRegionId(regionId);
 
-    setSelectedScanRegion(
-      region,
-    );
+    setSelectedScanRegion(region);
 
-    setSelectedCandidate(
-      null,
-    );
+    setSelectedCandidate(null);
 
     setFilteredCandidates([]);
 
@@ -2162,9 +1314,7 @@ export default function CandidatePointsPage() {
 
     setScanResultCount(0);
 
-    setMessage(
-      `${regionName || "Bölge"} mahallesi seçildi.`,
-    );
+    setMessage(`${regionName || "Bölge"} mahallesi seçildi.`);
   }
 
   async function handleManualPinRequest({
@@ -2173,153 +1323,89 @@ export default function CandidatePointsPage() {
     latitude,
     longitude,
   }) {
-    const numericRegionId =
-      Number(
-        regionId ??
-          getRegionId(region),
-      );
+    const numericRegionId = Number(regionId ?? getRegionId(region));
 
-    const numericLatitude =
-      Number(latitude);
+    const numericLatitude = Number(latitude);
 
-    const numericLongitude =
-      Number(longitude);
+    const numericLongitude = Number(longitude);
 
-    function hasNumericValue(
-      value,
-    ) {
+    function hasNumericValue(value) {
       return (
         value !== null &&
         value !== undefined &&
         value !== "" &&
-        Number.isFinite(
-          Number(value),
-        )
+        Number.isFinite(Number(value))
       );
     }
 
     function removeOldManualCandidate() {
-      setManualPinCandidate(
-        null,
+      setManualPinCandidate(null);
+
+      setCandidates((currentCandidates) =>
+        currentCandidates.filter((candidate) => !candidate?.isManual),
       );
 
-      setCandidates(
-        (currentCandidates) =>
-          currentCandidates.filter(
-            (candidate) =>
-              !candidate?.isManual,
-          ),
+      setFilteredCandidates((currentCandidates) =>
+        currentCandidates.filter((candidate) => !candidate?.isManual),
       );
 
-      setFilteredCandidates(
-        (currentCandidates) =>
-          currentCandidates.filter(
-            (candidate) =>
-              !candidate?.isManual,
-          ),
+      setPersonalizedCandidates((currentCandidates) =>
+        currentCandidates.filter((candidate) => !candidate?.isManual),
       );
 
-      setPersonalizedCandidates(
-        (currentCandidates) =>
-          currentCandidates.filter(
-            (candidate) =>
-              !candidate?.isManual,
-          ),
-      );
-
-      setSelectedCandidate(
-        (currentCandidate) =>
-          currentCandidate?.isManual
-            ? null
-            : currentCandidate,
+      setSelectedCandidate((currentCandidate) =>
+        currentCandidate?.isManual ? null : currentCandidate,
       );
     }
 
-    if (
-      !Number.isInteger(
-        numericRegionId,
-      ) ||
-      numericRegionId <= 0
-    ) {
-      setManualPinStatus(
-        "error",
-      );
+    if (!Number.isInteger(numericRegionId) || numericRegionId <= 0) {
+      setManualPinStatus("error");
 
       setManualPinMessage("");
 
-      setManualPinError(
-        "Manuel pin için önce geçerli bir bölge seçmelisiniz.",
-      );
+      setManualPinError("Manuel pin için önce geçerli bir bölge seçmelisiniz.");
 
       return;
     }
 
     if (
-      !Number.isFinite(
-        numericLatitude,
-      ) ||
-      !Number.isFinite(
-        numericLongitude,
-      )
+      !Number.isFinite(numericLatitude) ||
+      !Number.isFinite(numericLongitude)
     ) {
-      setManualPinStatus(
-        "error",
-      );
+      setManualPinStatus("error");
 
       setManualPinMessage("");
 
-      setManualPinError(
-        "Manuel pin koordinatları geçersiz.",
-      );
+      setManualPinError("Manuel pin koordinatları geçersiz.");
 
       return;
     }
 
-    const requestId =
-      manualPinRequestIdRef.current +
-      1;
+    const requestId = manualPinRequestIdRef.current + 1;
 
-    manualPinRequestIdRef.current =
-      requestId;
+    manualPinRequestIdRef.current = requestId;
 
     removeOldManualCandidate();
 
-    setManualPinStatus(
-      "loading",
-    );
+    setManualPinStatus("loading");
 
     setManualPinError("");
 
-    setManualPinMessage(
-      "Noktanın bölge ve mahalle kontrolü yapılıyor...",
-    );
+    setManualPinMessage("Noktanın bölge ve mahalle kontrolü yapılıyor...");
 
     try {
-      const locateResult =
-        await locateRegionPoint(
-          numericRegionId,
-          {
-            latitude:
-              numericLatitude,
+      const locateResult = await locateRegionPoint(numericRegionId, {
+        latitude: numericLatitude,
 
-            longitude:
-              numericLongitude,
-          },
-        );
+        longitude: numericLongitude,
+      });
 
-      if (
-        manualPinRequestIdRef.current !==
-        requestId
-      ) {
+      if (manualPinRequestIdRef.current !== requestId) {
         return;
       }
 
-      if (
-        !locateResult.isInsideRegion
-      ) {
-        setManualPinStatus(
-          "error",
-        );
+      if (!locateResult.isInsideRegion) {
+        setManualPinStatus("error");
 
         setManualPinMessage("");
 
@@ -2330,183 +1416,104 @@ export default function CandidatePointsPage() {
         return;
       }
 
-      setManualPinMessage(
-        "Tahmini maliyet ve aday skorları hesaplanıyor...",
-      );
+      setManualPinMessage("Tahmini maliyet ve aday skorları hesaplanıyor...");
 
-      const evaluation =
-        await evaluateManualPin({
-          regionId:
-            numericRegionId,
+      const evaluation = await evaluateManualPin({
+        regionId: numericRegionId,
 
-          latitude:
-            numericLatitude,
+        latitude: numericLatitude,
 
-          longitude:
-            numericLongitude,
-        });
+        longitude: numericLongitude,
+      });
 
-      if (
-        manualPinRequestIdRef.current !==
-        requestId
-      ) {
+      if (manualPinRequestIdRef.current !== requestId) {
         return;
       }
 
       if (!evaluation.isValid) {
-        setManualPinStatus(
-          "error",
-        );
+        setManualPinStatus("error");
 
         setManualPinMessage("");
 
         setManualPinError(
-          evaluation.message ||
-            "Manuel pin değerlendirilemedi.",
+          evaluation.message || "Manuel pin değerlendirilemedi.",
         );
 
         return;
       }
 
-      const hasEstimatedCost =
-        hasNumericValue(
-          evaluation.estimatedCost,
-        );
+      const hasEstimatedCost = hasNumericValue(evaluation.estimatedCost);
 
-      const hasCostScore =
-        hasNumericValue(
-          evaluation.costScore,
-        );
+      const hasCostScore = hasNumericValue(evaluation.costScore);
 
-      const hasDemandScore =
-        hasNumericValue(
-          evaluation.demandScore,
-        );
+      const hasDemandScore = hasNumericValue(evaluation.demandScore);
 
-      const hasGeneralScore =
-        hasNumericValue(
-          evaluation.generalScore,
-        );
+      const hasGeneralScore = hasNumericValue(evaluation.generalScore);
 
       const hasCompleteAnalysis =
-        hasEstimatedCost &&
-        hasCostScore &&
-        hasDemandScore &&
-        hasGeneralScore;
+        hasEstimatedCost && hasCostScore && hasDemandScore && hasGeneralScore;
 
       const normalizedEvaluation = {
         ...evaluation,
 
-        estimatedCost:
-          hasEstimatedCost
-            ? Number(
-                evaluation.estimatedCost,
-              )
-            : null,
+        estimatedCost: hasEstimatedCost
+          ? Number(evaluation.estimatedCost)
+          : null,
 
-        costScore:
-          hasCostScore
-            ? Number(
-                evaluation.costScore,
-              )
-            : null,
+        costScore: hasCostScore ? Number(evaluation.costScore) : null,
 
-        demandScore:
-          hasDemandScore
-            ? Number(
-                evaluation.demandScore,
-              )
-            : null,
+        demandScore: hasDemandScore ? Number(evaluation.demandScore) : null,
 
-        generalScore:
-          hasGeneralScore
-            ? Number(
-                evaluation.generalScore,
-              )
-            : null,
+        generalScore: hasGeneralScore ? Number(evaluation.generalScore) : null,
 
-        latitude:
-          hasNumericValue(
-            evaluation.latitude,
-          )
-            ? Number(
-                evaluation.latitude,
-              )
-            : numericLatitude,
+        latitude: hasNumericValue(evaluation.latitude)
+          ? Number(evaluation.latitude)
+          : numericLatitude,
 
-        longitude:
-          hasNumericValue(
-            evaluation.longitude,
-          )
-            ? Number(
-                evaluation.longitude,
-              )
-            : numericLongitude,
+        longitude: hasNumericValue(evaluation.longitude)
+          ? Number(evaluation.longitude)
+          : numericLongitude,
 
-        status:
-          hasCompleteAnalysis
-            ? evaluation.status ||
-              "ready"
-            : "missing",
+        status: hasCompleteAnalysis ? evaluation.status || "ready" : "missing",
       };
 
-      const manualCandidate =
-        createManualCandidate(
-          normalizedEvaluation,
-          locateResult,
-        );
-
-      setManualPinCandidate(
-        manualCandidate,
+      const manualCandidate = createManualCandidate(
+        normalizedEvaluation,
+        locateResult,
       );
 
-      setCandidates(
-        (currentCandidates) =>
-          mergeCandidateLists(
-            currentCandidates.filter(
-              (candidate) =>
-                !candidate?.isManual,
-            ),
-            [manualCandidate],
-          ),
+      setManualPinCandidate(manualCandidate);
+
+      setCandidates((currentCandidates) =>
+        mergeCandidateLists(
+          currentCandidates.filter((candidate) => !candidate?.isManual),
+          [manualCandidate],
+        ),
       );
 
-      setFilteredCandidates(
-        (currentCandidates) =>
-          mergeCandidateLists(
-            currentCandidates.filter(
-              (candidate) =>
-                !candidate?.isManual,
-            ),
-            [manualCandidate],
-          ),
+      setFilteredCandidates((currentCandidates) =>
+        mergeCandidateLists(
+          currentCandidates.filter((candidate) => !candidate?.isManual),
+          [manualCandidate],
+        ),
       );
 
-      setPersonalizedCandidates(
-        (currentCandidates) =>
-          mergeCandidateLists(
-            currentCandidates.filter(
-              (candidate) =>
-                !candidate?.isManual,
-            ),
-            [manualCandidate],
-          ),
+      setPersonalizedCandidates((currentCandidates) =>
+        mergeCandidateLists(
+          currentCandidates.filter((candidate) => !candidate?.isManual),
+          [manualCandidate],
+        ),
       );
 
-      setSelectedCandidate(
-        manualCandidate,
-      );
+      setSelectedCandidate(manualCandidate);
 
-      setManualPinStatus(
-        "success",
-      );
+      setManualPinStatus("success");
 
       setManualPinError("");
 
       if (hasCompleteAnalysis) {
         setManualPinMessage(
-          evaluation.message ||
-            "Manuel pin başarıyla değerlendirildi.",
+          evaluation.message || "Manuel pin başarıyla değerlendirildi.",
         );
 
         setMessage(
@@ -2525,21 +1532,13 @@ export default function CandidatePointsPage() {
         "Manuel aday nokta eklendi. Eksik maliyet ve skorlar backend hazır olduğunda doldurulacak.",
       );
     } catch (error) {
-      if (
-        manualPinRequestIdRef.current !==
-        requestId
-      ) {
+      if (manualPinRequestIdRef.current !== requestId) {
         return;
       }
 
-      console.error(
-        "Manuel pin işlemi başarısız:",
-        error,
-      );
+      console.error("Manuel pin işlemi başarısız:", error);
 
-      setManualPinStatus(
-        "error",
-      );
+      setManualPinStatus("error");
 
       setManualPinMessage("");
 
@@ -2552,15 +1551,11 @@ export default function CandidatePointsPage() {
   }
 
   function toggleCandidateRegions() {
-    const nextValue =
-      !regionsActive;
+    const nextValue = !regionsActive;
 
-    setRegionsActive(
-      nextValue,
-    );
+    setRegionsActive(nextValue);
 
-    manualPinRequestIdRef.current +=
-      1;
+    manualPinRequestIdRef.current += 1;
 
     setManualPinStatus("idle");
 
@@ -2568,32 +1563,19 @@ export default function CandidatePointsPage() {
 
     setManualPinError("");
 
-    setManualPinCandidate(
-      null,
-    );
+    setManualPinCandidate(null);
 
     setFocusedRegionId(null);
 
-    setSelectedCandidate(
-      null,
-    );
+    setSelectedCandidate(null);
 
-    setAlternativeModalOpen(
-      false,
-    );
+    setAlternativeModalOpen(false);
 
-    setCandidateSearchOpen(
-      false,
-    );
+    setCandidateSearchOpen(false);
 
-    setActiveSearchSuggestionIndex(
-      -1,
-    );
+    setActiveSearchSuggestionIndex(-1);
 
-    setRegionFocusKey(
-      (currentKey) =>
-        currentKey + 1,
-    );
+    setRegionFocusKey((currentKey) => currentKey + 1);
 
     if (!nextValue) {
       resetRegionScanState({
@@ -2615,106 +1597,65 @@ export default function CandidatePointsPage() {
 
     setFilteredCandidates([]);
 
-    setMessage(
-      "Haritadaki bir bölgeyi seçip Bölgeyi Tara butonuna basın.",
-    );
+    setMessage("Haritadaki bir bölgeyi seçip Bölgeyi Tara butonuna basın.");
   }
 
   return (
-    <div
-      className="candidate-page"
-      data-testid="candidate-points-page"
-    >
-      <aside
-        className="left-menu"
-        data-testid="left-menu"
-      >
+    <div className="candidate-page" data-testid="candidate-points-page">
+      <aside className="left-menu" data-testid="left-menu">
         <button
           type="button"
           className={
-            activeTab === "home"
-              ? "menu-button active"
-              : "menu-button"
+            activeTab === "home" ? "menu-button active" : "menu-button"
           }
           data-testid="home-tab-button"
-          onClick={() =>
-            setActiveTab("home")
-          }
+          onClick={() => setActiveTab("home")}
           title="Mevcut istasyon haritası"
         >
-          <Home
-            size={26}
-            strokeWidth={2.3}
-          />
+          <Home size={26} strokeWidth={2.3} />
         </button>
 
         <button
           type="button"
           className={
-            activeTab ===
-            "candidateMap"
-              ? "menu-button active"
-              : "menu-button"
+            activeTab === "candidateMap" ? "menu-button active" : "menu-button"
           }
           data-testid="candidate-map-tab-button"
-          onClick={
-            openCandidateMap
-          }
+          onClick={openCandidateMap}
           title="Aday nokta haritası"
         >
-          <Zap
-            size={26}
-            strokeWidth={2.3}
-          />
+          <Zap size={26} strokeWidth={2.3} />
         </button>
 
         <button
           type="button"
           className={
-            activeTab === "saved"
-              ? "menu-button active"
-              : "menu-button"
+            activeTab === "saved" ? "menu-button active" : "menu-button"
           }
           data-testid="saved-tab-button"
-          onClick={() =>
-            setActiveTab("saved")
-          }
+          onClick={() => setActiveTab("saved")}
           title="Kaydedilenler"
         >
-          <ListChecks
-            size={26}
-            strokeWidth={2.3}
-          />
+          <ListChecks size={26} strokeWidth={2.3} />
         </button>
 
         <button
           type="button"
           className={
-            activeTab ===
-            "personalization"
+            activeTab === "personalization"
               ? "menu-button active"
               : "menu-button"
           }
           data-testid="personalization-tab-button"
-          onClick={() =>
-            setActiveTab(
-              "personalization",
-            )
-          }
+          onClick={() => setActiveTab("personalization")}
           title="Kişiselleştirme"
         >
-          <SlidersHorizontal
-            size={26}
-            strokeWidth={2.3}
-          />
+          <SlidersHorizontal size={26} strokeWidth={2.3} />
         </button>
       </aside>
 
       {saveFeedback && (
-        <div
-          className="save-feedback-toast"
-          data-testid="save-feedback-toast"
-        >
+        <div className="save-feedback-toast" data-testid="save-feedback-toast">
           {saveFeedback}
         </div>
       )}
@@ -2732,94 +1673,69 @@ export default function CandidatePointsPage() {
         }
       >
         {activeTab === "home" && (
-          <section
-            className="map-screen"
-            data-testid="home-map-screen"
-          >
-            <div className="map-topbar">
+          <section className="map-screen" data-testid="home-map-screen">
+            <div className="map-topbar modern-topbar">
               <div
-                className="home-search-shell"
+                className="home-search-shell modern-search-shell"
                 data-testid="home-search-shell"
               >
-                <input
-                  className="map-search home-search-input"
-                  data-testid="home-search-input"
-                  placeholder="İstasyon, mahalle veya konum ara"
-                  value={stationSearch}
-                  autoComplete="off"
-                  spellCheck={false}
-                  role="combobox"
-                  aria-autocomplete="list"
-                  aria-expanded={
-                    homeSearchOpen
-                  }
-                  aria-controls="home-search-suggestions"
-                  aria-activedescendant={
-                    activeHomeSearchIndex >=
-                    0
-                      ? `home-search-option-${
-                          homeSearchSuggestions[
-                            activeHomeSearchIndex
-                          ]?.key
-                        }`
-                      : undefined
-                  }
-                  onFocus={() => {
-                    if (
-                      normalizeSearchText(
-                        stationSearch,
-                      ).length >= 2
-                    ) {
-                      setHomeSearchOpen(
-                        true,
-                      );
-                    }
-                  }}
-                  onBlur={() => {
-                    window.setTimeout(
-                      () => {
-                        setHomeSearchOpen(
-                          false,
-                        );
+                <div className="modern-search-box">
+                  <Search
+                    className="modern-search-icon"
+                    size={18}
+                    strokeWidth={2.2}
+                    aria-hidden="true"
+                  />
 
-                        setActiveHomeSearchIndex(
-                          -1,
-                        );
-                      },
-                      120,
-                    );
-                  }}
-                  onKeyDown={
-                    handleHomeSearchKeyDown
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    handleHomeSearchChange(
-                      event.target.value,
-                    )
-                  }
-                />
+                  <input
+                    className="map-search home-search-input modern-search-input"
+                    data-testid="home-search-input"
+                    placeholder="İstasyon, mahalle veya konum ara"
+                    value={stationSearch}
+                    autoComplete="off"
+                    spellCheck={false}
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded={homeSearchOpen}
+                    aria-controls="home-search-suggestions"
+                    aria-activedescendant={
+                      activeHomeSearchIndex >= 0
+                        ? `home-search-option-${
+                            homeSearchSuggestions[activeHomeSearchIndex]?.key
+                          }`
+                        : undefined
+                    }
+                    onFocus={() => {
+                      if (normalizeSearchText(stationSearch).length >= 2) {
+                        setHomeSearchOpen(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      window.setTimeout(() => {
+                        setHomeSearchOpen(false);
+                        setActiveHomeSearchIndex(-1);
+                      }, 120);
+                    }}
+                    onKeyDown={handleHomeSearchKeyDown}
+                    onChange={(event) =>
+                      handleHomeSearchChange(event.target.value)
+                    }
+                  />
 
-                {stationSearch && (
-                  <button
-                    type="button"
-                    className="candidate-search-clear-button"
-                    aria-label="Aramayı temizle"
-                    title="Aramayı temizle"
-                    data-testid="home-search-clear-button"
-                    onMouseDown={(
-                      event,
-                    ) =>
-                      event.preventDefault()
-                    }
-                    onClick={
-                      clearHomeSearch
-                    }
-                  >
-                    ×
-                  </button>
-                )}
+                  {stationSearch && (
+                    <button
+                      type="button"
+                      className="modern-search-clear-button"
+                      aria-label="Aramayı temizle"
+                      title="Aramayı temizle"
+                      data-testid="home-search-clear-button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={clearHomeSearch}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
 
                 {homeSearchOpen && (
                   <div
@@ -2828,86 +1744,43 @@ export default function CandidatePointsPage() {
                     role="listbox"
                     data-testid="home-search-suggestions"
                   >
-                    {homeSearchSuggestions.map(
-                      (
-                        suggestion,
-                        index,
-                      ) => {
-                        const testIdPart =
-                          createSearchTestIdPart(
-                            suggestion.id,
-                          );
+                    {homeSearchSuggestions.map((suggestion, index) => {
+                      const testIdPart = createSearchTestIdPart(suggestion.id);
+                      const isActive = index === activeHomeSearchIndex;
 
-                        const isActive =
-                          index ===
-                          activeHomeSearchIndex;
+                      return (
+                        <button
+                          key={suggestion.key}
+                          id={`home-search-option-${suggestion.key}`}
+                          type="button"
+                          role="option"
+                          aria-selected={isActive}
+                          className={
+                            isActive
+                              ? "candidate-search-suggestion active"
+                              : "candidate-search-suggestion"
+                          }
+                          data-testid={`home-search-suggestion-${suggestion.type}-${testIdPart}`}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onMouseEnter={() => setActiveHomeSearchIndex(index)}
+                          onClick={() => selectHomeSearchSuggestion(suggestion)}
+                        >
+                          <span className="candidate-search-suggestion-main">
+                            <strong>{suggestion.label}</strong>
+                            <small>{suggestion.description}</small>
+                          </span>
 
-                        return (
-                          <button
-                            key={
-                              suggestion.key
-                            }
-                            id={`home-search-option-${suggestion.key}`}
-                            type="button"
-                            role="option"
-                            aria-selected={
-                              isActive
-                            }
-                            className={
-                              isActive
-                                ? "candidate-search-suggestion active"
-                                : "candidate-search-suggestion"
-                            }
-                            data-testid={`home-search-suggestion-${suggestion.type}-${testIdPart}`}
-                            onMouseDown={(
-                              event,
-                            ) =>
-                              event.preventDefault()
-                            }
-                            onMouseEnter={() =>
-                              setActiveHomeSearchIndex(
-                                index,
-                              )
-                            }
-                            onClick={() =>
-                              selectHomeSearchSuggestion(
-                                suggestion,
-                              )
-                            }
-                          >
-                            <span className="candidate-search-suggestion-main">
-                              <strong>
-                                {
-                                  suggestion.label
-                                }
-                              </strong>
+                          <em>{suggestion.typeLabel}</em>
+                        </button>
+                      );
+                    })}
 
-                              <small>
-                                {
-                                  suggestion.description
-                                }
-                              </small>
-                            </span>
-
-                            <em>
-                              {
-                                suggestion.typeLabel
-                              }
-                            </em>
-                          </button>
-                        );
-                      },
-                    )}
-
-                    {homeSearchSuggestions.length ===
-                      0 && (
+                    {homeSearchSuggestions.length === 0 && (
                       <div
                         className="candidate-search-empty"
                         data-testid="home-search-no-results"
                       >
-                        Eşleşen istasyon,
-                        mahalle veya konum
-                        bulunamadı.
+                        Eşleşen istasyon, mahalle veya konum bulunamadı.
                       </div>
                     )}
                   </div>
@@ -2916,141 +1789,114 @@ export default function CandidatePointsPage() {
 
               <button
                 type="button"
-                className={
-                  regionsActive
-                    ? "region-toggle active"
-                    : "region-toggle"
-                }
+                className={`region-toggle modern-region-toggle ${
+                  regionsActive ? "active" : "inactive"
+                }`}
                 data-testid="home-region-toggle-button"
+                aria-pressed={regionsActive}
                 onClick={() =>
-                  setRegionsActive(
-                    (
-                      currentValue,
-                    ) =>
-                      !currentValue,
-                  )
+                  setRegionsActive((currentValue) => !currentValue)
                 }
               >
-                {regionsActive
-                  ? "Bölgeler aktif"
-                  : "Bölgeler inaktif"}
+                <span className="region-toggle-left">
+                  <span className="region-toggle-indicator" aria-hidden="true" />
+
+                  <span className="region-toggle-icon-wrap" aria-hidden="true">
+                    <MapPinned size={18} strokeWidth={2.2} />
+                  </span>
+
+                  <span className="region-toggle-texts">
+                    <strong>Bölge Katmanları</strong>
+                    <small>
+                      {regionsActive ? "Haritada açık" : "Haritada kapalı"}
+                    </small>
+                  </span>
+                </span>
+
+                <span className="region-toggle-badge">
+                  {regionsActive ? "Aktif" : "İnaktif"}
+                </span>
               </button>
             </div>
 
             <div className="mock-map">
               <ExistingStationsMap
-                searchTerm={
-                  stationSearch
-                }
-                searchSelection={
-                  selectedHomeSearchResult
-                }
-                searchSelectionKey={
-                  homeSearchSelectionKey
-                }
-                onSearchSuggestionsChange={
-                  setHomeSearchSuggestions
-                }
-                mapStep={
-                  regionsActive ? 2 : 1
-                }
+                searchTerm={stationSearch}
+                searchSelection={selectedHomeSearchResult}
+                searchSelectionKey={homeSearchSelectionKey}
+                onSearchSuggestionsChange={setHomeSearchSuggestions}
+                mapStep={regionsActive ? 2 : 1}
               />
             </div>
           </section>
         )}
 
-        {activeTab ===
-          "candidateMap" && (
-          <section
-            className="map-screen"
-            data-testid="candidate-map-screen"
-          >
-            <div className="map-topbar">
+        {activeTab === "candidateMap" && (
+          <section className="map-screen" data-testid="candidate-map-screen">
+            <div className="map-topbar modern-topbar">
               <div
-                className="candidate-search-shell"
+                className="candidate-search-shell modern-search-shell"
                 data-testid="candidate-search-shell"
               >
-                <input
-                  className="map-search candidate-search-input"
-                  data-testid="candidate-search-input"
-                  placeholder="Aday nokta veya mahalle ara"
-                  value={
-                    candidateSearch
-                  }
-                  autoComplete="off"
-                  spellCheck={false}
-                  role="combobox"
-                  aria-autocomplete="list"
-                  aria-expanded={
-                    candidateSearchOpen
-                  }
-                  aria-controls="candidate-search-suggestions"
-                  aria-activedescendant={
-                    activeSearchSuggestionIndex >=
-                    0
-                      ? `candidate-search-option-${
-                          candidateSearchSuggestions[
-                            activeSearchSuggestionIndex
-                          ]?.key
-                        }`
-                      : undefined
-                  }
-                  onFocus={() => {
-                    if (
-                      normalizeSearchText(
-                        candidateSearch,
-                      ).length >= 2
-                    ) {
-                      setCandidateSearchOpen(
-                        true,
-                      );
-                    }
-                  }}
-                  onBlur={() => {
-                    window.setTimeout(
-                      () => {
-                        setCandidateSearchOpen(
-                          false,
-                        );
+                <div className="modern-search-box">
+                  <Search
+                    className="modern-search-icon"
+                    size={18}
+                    strokeWidth={2.2}
+                    aria-hidden="true"
+                  />
 
-                        setActiveSearchSuggestionIndex(
-                          -1,
-                        );
-                      },
-                      120,
-                    );
-                  }}
-                  onKeyDown={
-                    handleCandidateSearchKeyDown
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    handleCandidateSearchChange(
-                      event.target.value,
-                    )
-                  }
-                />
+                  <input
+                    className="map-search candidate-search-input modern-search-input"
+                    data-testid="candidate-search-input"
+                    placeholder="Aday nokta veya mahalle ara"
+                    value={candidateSearch}
+                    autoComplete="off"
+                    spellCheck={false}
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded={candidateSearchOpen}
+                    aria-controls="candidate-search-suggestions"
+                    aria-activedescendant={
+                      activeSearchSuggestionIndex >= 0
+                        ? `candidate-search-option-${
+                            candidateSearchSuggestions[
+                              activeSearchSuggestionIndex
+                            ]?.key
+                          }`
+                        : undefined
+                    }
+                    onFocus={() => {
+                      if (normalizeSearchText(candidateSearch).length >= 2) {
+                        setCandidateSearchOpen(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      window.setTimeout(() => {
+                        setCandidateSearchOpen(false);
+                        setActiveSearchSuggestionIndex(-1);
+                      }, 120);
+                    }}
+                    onKeyDown={handleCandidateSearchKeyDown}
+                    onChange={(event) =>
+                      handleCandidateSearchChange(event.target.value)
+                    }
+                  />
 
-                {candidateSearch && (
-                  <button
-                    type="button"
-                    className="candidate-search-clear-button"
-                    aria-label="Aramayı temizle"
-                    title="Aramayı temizle"
-                    data-testid="candidate-search-clear-button"
-                    onMouseDown={(
-                      event,
-                    ) =>
-                      event.preventDefault()
-                    }
-                    onClick={
-                      clearCandidateSearch
-                    }
-                  >
-                    ×
-                  </button>
-                )}
+                  {candidateSearch && (
+                    <button
+                      type="button"
+                      className="modern-search-clear-button"
+                      aria-label="Aramayı temizle"
+                      title="Aramayı temizle"
+                      data-testid="candidate-search-clear-button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={clearCandidateSearch}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
 
                 {candidateSearchOpen && (
                   <div
@@ -3059,86 +1905,47 @@ export default function CandidatePointsPage() {
                     role="listbox"
                     data-testid="candidate-search-suggestions"
                   >
-                    {candidateSearchSuggestions.map(
-                      (
-                        suggestion,
-                        index,
-                      ) => {
-                        const testIdPart =
-                          createSearchTestIdPart(
-                            suggestion.id,
-                          );
+                    {candidateSearchSuggestions.map((suggestion, index) => {
+                      const testIdPart = createSearchTestIdPart(suggestion.id);
+                      const isActive = index === activeSearchSuggestionIndex;
 
-                        const isActive =
-                          index ===
-                          activeSearchSuggestionIndex;
+                      return (
+                        <button
+                          key={suggestion.key}
+                          id={`candidate-search-option-${suggestion.key}`}
+                          type="button"
+                          role="option"
+                          aria-selected={isActive}
+                          className={
+                            isActive
+                              ? "candidate-search-suggestion active"
+                              : "candidate-search-suggestion"
+                          }
+                          data-testid={`candidate-search-suggestion-${suggestion.type}-${testIdPart}`}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onMouseEnter={() =>
+                            setActiveSearchSuggestionIndex(index)
+                          }
+                          onClick={() =>
+                            selectCandidateSearchSuggestion(suggestion)
+                          }
+                        >
+                          <span className="candidate-search-suggestion-main">
+                            <strong>{suggestion.label}</strong>
+                            <small>{suggestion.description}</small>
+                          </span>
 
-                        return (
-                          <button
-                            key={
-                              suggestion.key
-                            }
-                            id={`candidate-search-option-${suggestion.key}`}
-                            type="button"
-                            role="option"
-                            aria-selected={
-                              isActive
-                            }
-                            className={
-                              isActive
-                                ? "candidate-search-suggestion active"
-                                : "candidate-search-suggestion"
-                            }
-                            data-testid={`candidate-search-suggestion-${suggestion.type}-${testIdPart}`}
-                            onMouseDown={(
-                              event,
-                            ) =>
-                              event.preventDefault()
-                            }
-                            onMouseEnter={() =>
-                              setActiveSearchSuggestionIndex(
-                                index,
-                              )
-                            }
-                            onClick={() =>
-                              selectCandidateSearchSuggestion(
-                                suggestion,
-                              )
-                            }
-                          >
-                            <span className="candidate-search-suggestion-main">
-                              <strong>
-                                {
-                                  suggestion.label
-                                }
-                              </strong>
+                          <em>{suggestion.typeLabel}</em>
+                        </button>
+                      );
+                    })}
 
-                              <small>
-                                {
-                                  suggestion.description
-                                }
-                              </small>
-                            </span>
-
-                            <em>
-                              {
-                                suggestion.typeLabel
-                              }
-                            </em>
-                          </button>
-                        );
-                      },
-                    )}
-
-                    {candidateSearchSuggestions.length ===
-                      0 && (
+                    {candidateSearchSuggestions.length === 0 && (
                       <div
                         className="candidate-search-empty"
                         data-testid="candidate-search-no-results"
                       >
-                        Eşleşen aday nokta
-                        veya mahalle
-                        bulunamadı.
+                        Eşleşen aday nokta veya mahalle bulunamadı.
                       </div>
                     )}
                   </div>
@@ -3147,65 +1954,50 @@ export default function CandidatePointsPage() {
 
               <button
                 type="button"
-                className={
-                  regionsActive
-                    ? "region-toggle active"
-                    : "region-toggle"
-                }
+                className={`region-toggle modern-region-toggle ${
+                  regionsActive ? "active" : "inactive"
+                }`}
                 data-testid="candidate-region-toggle-button"
-                onClick={
-                  toggleCandidateRegions
-                }
+                aria-pressed={regionsActive}
+                onClick={toggleCandidateRegions}
               >
-                {regionsActive
-                  ? "Bölgeler aktif"
-                  : "Bölgeler inaktif"}
+                <span className="region-toggle-left">
+                  <span className="region-toggle-indicator" aria-hidden="true" />
+
+                  <span className="region-toggle-icon-wrap" aria-hidden="true">
+                    <MapPinned size={18} strokeWidth={2.2} />
+                  </span>
+
+                  <span className="region-toggle-texts">
+                    <strong>Bölge Katmanları</strong>
+                    <small>
+                      {regionsActive ? "Haritada açık" : "Haritada kapalı"}
+                    </small>
+                  </span>
+                </span>
+
+                <span className="region-toggle-badge">
+                  {regionsActive ? "Aktif" : "İnaktif"}
+                </span>
               </button>
             </div>
 
             <div className="mock-map candidate-map">
               <CandidatePointsMap
-                points={
-                  filteredCandidates
-                }
+                points={filteredCandidates}
                 regions={regions}
-                regionsActive={
-                  regionsActive
-                }
-                selectedPointId={
-                  selectedCandidate?.id ??
-                  null
-                }
-                candidateFocusKey={
-                  candidateFocusKey
-                }
-                focusedRegionId={
-                  focusedRegionId
-                }
-                regionFocusKey={
-                  regionFocusKey
-                }
-                manualPinCandidate={
-                  manualPinCandidate
-                }
-                manualPinStatus={
-                  manualPinStatus
-                }
-                manualPinMessage={
-                  manualPinMessage
-                }
-                manualPinError={
-                  manualPinError
-                }
-                onManualPinRequest={
-                  handleManualPinRequest
-                }
-                onPointSelect={
-                  handleMapPointSelect
-                }
-                onRegionSelect={
-                  handleCandidateRegionSelect
-                }
+                regionsActive={regionsActive}
+                selectedPointId={selectedCandidate?.id ?? null}
+                candidateFocusKey={candidateFocusKey}
+                focusedRegionId={focusedRegionId}
+                regionFocusKey={regionFocusKey}
+                manualPinCandidate={manualPinCandidate}
+                manualPinStatus={manualPinStatus}
+                manualPinMessage={manualPinMessage}
+                manualPinError={manualPinError}
+                onManualPinRequest={handleManualPinRequest}
+                onPointSelect={handleMapPointSelect}
+                onRegionSelect={handleCandidateRegionSelect}
               />
 
               <aside
@@ -3213,17 +2005,11 @@ export default function CandidatePointsPage() {
                 data-testid="candidate-scan-control-panel"
               >
                 <div className="candidate-scan-control-header">
-                  <strong>
-                    Bölgeyi Tara
-                  </strong>
+                  <strong>Bölgeyi Tara</strong>
 
-                  <span
-                    data-testid="candidate-scan-selected-region"
-                  >
+                  <span data-testid="candidate-scan-selected-region">
                     {selectedScanRegion
-                      ? getRegionName(
-                          selectedScanRegion,
-                        )
+                      ? getRegionName(selectedScanRegion)
                       : "Bölge seçilmedi"}
                   </span>
                 </div>
@@ -3234,18 +2020,12 @@ export default function CandidatePointsPage() {
                   disabled={
                     !regionsActive ||
                     !selectedScanRegion ||
-                    scanStatus ===
-                      "loading"
+                    scanStatus === "loading"
                   }
-                  onClick={() =>
-                    handleScanRegion(
-                      selectedScanRegion,
-                    )
-                  }
+                  onClick={() => handleScanRegion(selectedScanRegion)}
                   data-testid="scan-region-button"
                 >
-                  {scanStatus ===
-                  "loading"
+                  {scanStatus === "loading"
                     ? "Bölge Taranıyor..."
                     : "Bölgeyi Tara"}
                 </button>
@@ -3254,29 +2034,20 @@ export default function CandidatePointsPage() {
                   className="candidate-scan-threshold"
                   data-testid="candidate-scan-threshold"
                 >
-                  Yalnızca genel skoru{" "}
-                  {
-                    REGION_SCAN_MIN_GENERAL_SCORE
-                  }{" "}
-                  ve üzeri gerçek
-                  adaylar gösterilir.
+                  Yalnızca genel skoru {REGION_SCAN_MIN_GENERAL_SCORE} ve üzeri
+                  gerçek adaylar gösterilir.
                 </small>
 
-                {scanStatus ===
-                  "idle" &&
-                  scanMessage && (
-                    <div
-                      className="candidate-scan-state idle"
-                      data-testid="candidate-scan-idle"
-                    >
-                      <span>
-                        {scanMessage}
-                      </span>
-                    </div>
-                  )}
+                {scanStatus === "idle" && scanMessage && (
+                  <div
+                    className="candidate-scan-state idle"
+                    data-testid="candidate-scan-idle"
+                  >
+                    <span>{scanMessage}</span>
+                  </div>
+                )}
 
-                {scanStatus ===
-                  "loading" && (
+                {scanStatus === "loading" && (
                   <div
                     className="candidate-scan-state loading"
                     data-testid="candidate-scan-loading"
@@ -3287,84 +2058,57 @@ export default function CandidatePointsPage() {
                     />
 
                     <span>
-                      {scanMessage ||
-                        "Bölgesel aday noktalar aranıyor..."}
+                      {scanMessage || "Bölgesel aday noktalar aranıyor..."}
                     </span>
                   </div>
                 )}
 
-                {scanStatus ===
-                  "success" && (
+                {scanStatus === "success" && (
                   <div
                     className="candidate-scan-state success"
                     data-testid="candidate-scan-success"
                   >
-                    <strong>
-                      {
-                        scanResultCount
-                      }{" "}
-                      aday bulundu.
-                    </strong>
+                    <strong>{scanResultCount} aday bulundu.</strong>
 
-                    <span>
-                      {scanMessage}
-                    </span>
+                    <span>{scanMessage}</span>
                   </div>
                 )}
 
-                {scanStatus ===
-                  "empty" && (
+                {scanStatus === "empty" && (
                   <div
                     className="candidate-scan-state empty"
                     data-testid="candidate-scan-empty"
                   >
-                    <strong>
-                      Sonuç bulunamadı.
-                    </strong>
+                    <strong>Sonuç bulunamadı.</strong>
 
-                    <span>
-                      {scanMessage}
-                    </span>
+                    <span>{scanMessage}</span>
                   </div>
                 )}
 
-                {scanStatus ===
-                  "disabled" && (
+                {scanStatus === "disabled" && (
                   <div
                     className="candidate-scan-state disabled"
                     data-testid="candidate-scan-disabled"
                   >
-                    <strong>
-                      Gerçek veri
-                      bekleniyor.
-                    </strong>
+                    <strong>Gerçek veri bekleniyor.</strong>
 
-                    <span>
-                      {scanMessage}
-                    </span>
+                    <span>{scanMessage}</span>
                   </div>
                 )}
 
-                {scanStatus ===
-                  "error" && (
+                {scanStatus === "error" && (
                   <div
                     className="candidate-scan-state error"
                     data-testid="candidate-scan-error"
                   >
-                    <strong>
-                      Tarama başarısız.
-                    </strong>
+                    <strong>Tarama başarısız.</strong>
 
-                    <span>
-                      {scanError}
-                    </span>
+                    <span>{scanError}</span>
 
                     <button
                       type="button"
                       className="candidate-scan-retry-button"
-                      onClick={
-                        handleRetryRegionScan
-                      }
+                      onClick={handleRetryRegionScan}
                       data-testid="candidate-scan-retry-button"
                     >
                       Tekrar Dene
@@ -3373,89 +2117,50 @@ export default function CandidatePointsPage() {
                 )}
               </aside>
 
-              {scanStatus ===
-                "success" &&
-                filteredCandidates.length >
-                  0 && (
-                  <aside
-                    className="candidate-scan-results-panel"
-                    data-testid="candidate-scan-results-panel"
-                  >
-                    <div className="candidate-scan-results-header">
-                      <div>
-                        <strong>
-                          Bölgesel
-                          Sonuçlar
-                        </strong>
+              {scanStatus === "success" && filteredCandidates.length > 0 && (
+                <aside
+                  className="candidate-scan-results-panel"
+                  data-testid="candidate-scan-results-panel"
+                >
+                  <div className="candidate-scan-results-header">
+                    <div>
+                      <strong>Bölgesel Sonuçlar</strong>
 
-                        <span>
-                          {
-                            filteredCandidates.length
-                          }{" "}
-                          aday
-                        </span>
-                      </div>
+                      <span>{filteredCandidates.length} aday</span>
+                    </div>
 
-                      <small>
-                        Genel skor ≥{" "}
-                        {
-                          REGION_SCAN_MIN_GENERAL_SCORE
+                    <small>Genel skor ≥ {REGION_SCAN_MIN_GENERAL_SCORE}</small>
+                  </div>
+
+                  <div className="candidate-scan-results-list">
+                    {filteredCandidates.map((candidate) => (
+                      <button
+                        key={candidate.id}
+                        type="button"
+                        className={
+                          String(selectedCandidate?.id) === String(candidate.id)
+                            ? "candidate-scan-result-card active"
+                            : "candidate-scan-result-card"
                         }
-                      </small>
-                    </div>
+                        data-testid={`candidate-scan-result-card-${candidate.id}`}
+                        onClick={() => handleMapPointSelect(candidate)}
+                      >
+                        <span className="candidate-scan-result-main">
+                          <strong>{candidate.name}</strong>
 
-                    <div className="candidate-scan-results-list">
-                      {filteredCandidates.map(
-                        (
-                          candidate,
-                        ) => (
-                          <button
-                            key={
-                              candidate.id
-                            }
-                            type="button"
-                            className={
-                              String(
-                                selectedCandidate?.id,
-                              ) ===
-                              String(
-                                candidate.id,
-                              )
-                                ? "candidate-scan-result-card active"
-                                : "candidate-scan-result-card"
-                            }
-                            data-testid={`candidate-scan-result-card-${candidate.id}`}
-                            onClick={() =>
-                              handleMapPointSelect(
-                                candidate,
-                              )
-                            }
-                          >
-                            <span className="candidate-scan-result-main">
-                              <strong>
-                                {
-                                  candidate.name
-                                }
-                              </strong>
+                          <small>
+                            {candidate.estimatedAddress ||
+                              candidate.region ||
+                              "Adres bilgisi yok"}
+                          </small>
+                        </span>
 
-                              <small>
-                                {candidate.estimatedAddress ||
-                                  candidate.region ||
-                                  "Adres bilgisi yok"}
-                              </small>
-                            </span>
-
-                            <em>
-                              {showScore(
-                                candidate.generalScore,
-                              )}
-                            </em>
-                          </button>
-                        ),
-                      )}
-                    </div>
-                  </aside>
-                )}
+                        <em>{showScore(candidate.generalScore)}</em>
+                      </button>
+                    ))}
+                  </div>
+                </aside>
+              )}
 
               {selectedCandidate && (
                 <div
@@ -3465,110 +2170,63 @@ export default function CandidatePointsPage() {
                   <button
                     className="popup-close-button"
                     data-testid="candidate-popup-close-button"
-                    onClick={() =>
-                      setSelectedCandidate(
-                        null,
-                      )
-                    }
+                    onClick={() => setSelectedCandidate(null)}
                     type="button"
                   >
                     ×
                   </button>
 
-                  <small>
-                    {
-                      selectedCandidate.estimatedAddress
-                    }
-                  </small>
+                  <small>{selectedCandidate.estimatedAddress}</small>
 
-                  <h3>
-                    {
-                      selectedCandidate.name
-                    }
-                  </h3>
+                  <h3>{selectedCandidate.name}</h3>
 
                   <p>
-                    <strong>
-                      Tahmini Maliyet:
-                    </strong>
+                    <strong>Tahmini Maliyet:</strong>
 
-                    <span>
-                      {formatMoney(
-                        selectedCandidate.estimatedCost,
-                      )}
-                    </span>
+                    <span>{formatMoney(selectedCandidate.estimatedCost)}</span>
                   </p>
 
                   <p>
-                    <strong>
-                      Maliyet Skoru:
-                    </strong>
+                    <strong>Maliyet Skoru:</strong>
 
-                    <span>
-                      {showScore(
-                        selectedCandidate.costScore,
-                      )}
-                    </span>
+                    <span>{showScore(selectedCandidate.costScore)}</span>
                   </p>
 
                   <p>
-                    <strong>
-                      Talep Skoru:
-                    </strong>
+                    <strong>Talep Skoru:</strong>
 
-                    <span>
-                      {showScore(
-                        selectedCandidate.demandScore,
-                      )}
-                    </span>
+                    <span>{showScore(selectedCandidate.demandScore)}</span>
                   </p>
 
                   <p>
-                    <strong>
-                      Genel Skor:
-                    </strong>
+                    <strong>Genel Skor:</strong>
 
-                    <span>
-                      {showScore(
-                        selectedCandidate.generalScore,
-                      )}
-                    </span>
+                    <span>{showScore(selectedCandidate.generalScore)}</span>
                   </p>
 
                   <p>
-                    <strong>
-                      Koordinat:
-                    </strong>
+                    <strong>Koordinat:</strong>
 
                     <span>
-                      {selectedCandidate.latitude &&
-                      selectedCandidate.longitude
+                      {selectedCandidate.latitude && selectedCandidate.longitude
                         ? `${selectedCandidate.latitude}, ${selectedCandidate.longitude}`
                         : "Veri Eksik"}
                     </span>
                   </p>
 
-                  {selectedCandidate.status ===
-                    "calculating" && (
-                    <div className="popup-warning">
-                      Hesaplanıyor
-                    </div>
+                  {selectedCandidate.status === "calculating" && (
+                    <div className="popup-warning">Hesaplanıyor</div>
                   )}
 
-                  {selectedCandidate.status ===
-                    "missing" && (
-                    <div className="popup-warning">
-                      Veri Eksik
-                    </div>
+                  {selectedCandidate.status === "missing" && (
+                    <div className="popup-warning">Veri Eksik</div>
                   )}
 
                   <button
                     type="button"
                     className="popup-alternatives-button"
                     data-testid={`popup-alternatives-button-${selectedCandidate.id}`}
-                    onClick={
-                      openAlternativeCandidates
-                    }
+                    onClick={openAlternativeCandidates}
                     title="Benzer alternatif adayları göster"
                   >
                     Alternatifleri Gör
@@ -3578,20 +2236,12 @@ export default function CandidatePointsPage() {
                     type="button"
                     className="popup-save-button"
                     data-testid={`popup-save-candidate-button-${selectedCandidate.id}`}
-                    onClick={() =>
-                      saveCandidate(
-                        selectedCandidate,
-                      )
-                    }
+                    onClick={() => saveCandidate(selectedCandidate)}
                     title="Aday noktayı kaydet"
                   >
-                    <span className="popup-save-icon">
-                      +
-                    </span>
+                    <span className="popup-save-icon">+</span>
 
-                    <span className="popup-save-text">
-                      Kaydet
-                    </span>
+                    <span className="popup-save-text">Kaydet</span>
                   </button>
                 </div>
               )}
@@ -3601,15 +2251,9 @@ export default function CandidatePointsPage() {
                 data-testid="map-filter-overlay"
               >
                 <CandidateFilters
-                  filters={
-                    filters
-                  }
-                  setFilters={
-                    setFilters
-                  }
-                  onApply={
-                    applyFilters
-                  }
+                  filters={filters}
+                  setFilters={setFilters}
+                  onApply={applyFilters}
                 />
               </div>
             </div>
@@ -3625,41 +2269,25 @@ export default function CandidatePointsPage() {
           </section>
         )}
 
-        {activeTab ===
-          "personalization" && (
+        {activeTab === "personalization" && (
           <section
             className="standalone-panel personalization-screen"
             data-testid="personalization-screen"
           >
-            <h1>
-              Kişiselleştirme
-            </h1>
+            <h1>Kişiselleştirme</h1>
 
             <p className="page-description">
-              Firma bütçesi, sistem
-              tipi, mekân türü ve
-              bölgeye göre aday
-              noktalar
-              kişiselleştirilir.
+              Firma bütçesi, sistem tipi, mekân türü ve bölgeye göre aday
+              noktalar kişiselleştirilir.
             </p>
 
             <PersonalizationForm
-              candidates={
-                candidates
-              }
+              candidates={candidates}
               regions={regions}
-              neighborhoods={
-                neighborhoods
-              }
-              onResult={
-                handlePersonalizedResult
-              }
-              onRegionChange={
-                handleRegionChange
-              }
-              onSelectionChange={
-                handleSelectionChange
-              }
+              neighborhoods={neighborhoods}
+              onResult={handlePersonalizedResult}
+              onRegionChange={handleRegionChange}
+              onSelectionChange={handleSelectionChange}
             />
 
             {selectedRegionSummary && (
@@ -3669,16 +2297,9 @@ export default function CandidatePointsPage() {
               >
                 <div className="region-summary-header">
                   <div>
-                    <span className="region-summary-eyebrow">
-                      Seçili Bölge
-                    </span>
+                    <span className="region-summary-eyebrow">Seçili Bölge</span>
 
-                    <h2>
-                      Bölge Özeti:{" "}
-                      {
-                        selectedRegionSummary.regionName
-                      }
-                    </h2>
+                    <h2>Bölge Özeti: {selectedRegionSummary.regionName}</h2>
                   </div>
 
                   {regionSummaryMessage && (
@@ -3686,40 +2307,30 @@ export default function CandidatePointsPage() {
                       className="region-summary-source"
                       data-testid="region-summary-message"
                     >
-                      {
-                        regionSummaryMessage
-                      }
+                      {regionSummaryMessage}
                     </span>
                   )}
                 </div>
 
                 <div className="region-summary-grid">
                   <div>
-                    <strong>
-                      Toplam İstasyon
-                    </strong>
+                    <strong>Toplam İstasyon</strong>
 
                     <span>
-                      {selectedRegionSummary.chargingStationCount ??
-                        0}
+                      {selectedRegionSummary.chargingStationCount ?? 0}
                     </span>
                   </div>
 
                   <div>
-                    <strong>
-                      Trafik Yoğunluğu
-                    </strong>
+                    <strong>Trafik Yoğunluğu</strong>
 
                     <span>
-                      {selectedRegionSummary.trafficLevel ||
-                        "Veri bulunamadı"}
+                      {selectedRegionSummary.trafficLevel || "Veri bulunamadı"}
                     </span>
                   </div>
 
                   <div>
-                    <strong>
-                      En Yaygın Soket
-                    </strong>
+                    <strong>En Yaygın Soket</strong>
 
                     <span>
                       {selectedRegionSummary.mostCommonSocketType ||
@@ -3728,9 +2339,7 @@ export default function CandidatePointsPage() {
                   </div>
 
                   <div>
-                    <strong>
-                      En Yaygın Güç
-                    </strong>
+                    <strong>En Yaygın Güç</strong>
 
                     <span>
                       {selectedRegionSummary.mostCommonPowerKw
@@ -3742,46 +2351,25 @@ export default function CandidatePointsPage() {
 
                 <div className="company-distribution-section">
                   <div className="company-distribution-header">
-                    <h3>
-                      Firma Dağılımı
-                    </h3>
+                    <h3>Firma Dağılımı</h3>
 
                     <span>
-                      {Array.isArray(
-                        selectedRegionSummary.companyDistribution,
-                      )
+                      {Array.isArray(selectedRegionSummary.companyDistribution)
                         ? selectedRegionSummary.companyDistribution.length
                         : 0}{" "}
                       firma
                     </span>
                   </div>
 
-                  {Array.isArray(
-                    selectedRegionSummary.companyDistribution,
-                  ) &&
-                  selectedRegionSummary.companyDistribution.length >
-                    0 ? (
+                  {Array.isArray(selectedRegionSummary.companyDistribution) &&
+                  selectedRegionSummary.companyDistribution.length > 0 ? (
                     <div className="company-distribution-list">
                       {selectedRegionSummary.companyDistribution.map(
-                        (
-                          company,
-                          index,
-                        ) => (
-                          <div
-                            key={`${company.companyName}-${index}`}
-                          >
-                            <span>
-                              {
-                                company.companyName
-                              }
-                            </span>
+                        (company, index) => (
+                          <div key={`${company.companyName}-${index}`}>
+                            <span>{company.companyName}</span>
 
-                            <strong>
-                              {
-                                company.stationCount
-                              }{" "}
-                              istasyon
-                            </strong>
+                            <strong>{company.stationCount} istasyon</strong>
                           </div>
                         ),
                       )}
@@ -3791,9 +2379,7 @@ export default function CandidatePointsPage() {
                       className="region-summary-empty"
                       data-testid="company-distribution-empty"
                     >
-                      Bu bölge için
-                      firma dağılımı
-                      verisi bulunamadı.
+                      Bu bölge için firma dağılımı verisi bulunamadı.
                     </div>
                   )}
                 </div>
@@ -3804,243 +2390,203 @@ export default function CandidatePointsPage() {
               className="data-layers-section"
               data-testid="data-layers-section"
             >
-              <div className="data-layers-header">
-                <h2>
-                  Veri Katmanları
-                  Özeti
-                </h2>
+              <button
+                type="button"
+                className="data-layers-accordion-button"
+                data-testid="data-layers-accordion-button"
+                aria-expanded={dataLayersOpen}
+                aria-controls="data-layers-accordion-content"
+                onClick={() =>
+                  setDataLayersOpen((currentValue) => !currentValue)
+                }
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "24px",
+                  padding: "0",
+                  border: "0",
+                  background: "transparent",
+                  color: "inherit",
+                  textAlign: "left",
+                  cursor: "pointer",
+                }}
+              >
+                <div className="data-layers-header">
+                  <h2>Veri Katmanları Özeti</h2>
 
-                <p>
-                  Aday nokta analizi
-                  için kullanılan temel
-                  CBS katmanları aşağıda
-                  özetlenmiştir.
-                </p>
-
-                <div
-                  className="selected-data-filter"
-                  data-testid="selected-data-filter"
-                >
-                  <span>
-                    <strong>
-                      Seçilen Bölge:
-                    </strong>{" "}
-                    {
-                      selectedDataFilter.region
-                    }
-                  </span>
-
-                  <span>
-                    <strong>
-                      Seçilen Mahalle:
-                    </strong>{" "}
-                    {
-                      selectedDataFilter.neighborhood
-                    }
-                  </span>
-
-                  <span>
-                    <strong>
-                      Sistem Tipi:
-                    </strong>{" "}
-                    {
-                      selectedDataFilter.systemType
-                    }
-                  </span>
-
-                  <span>
-                    <strong>
-                      Mekân Türü:
-                    </strong>{" "}
-                    {
-                      selectedDataFilter.placeType
-                    }
-                  </span>
+                  <p>
+                    POI, trafo ve yol katmanı özetlerini görüntülemek için
+                    tıklayın.
+                  </p>
                 </div>
+
+                <span
+                  aria-hidden="true"
+                  style={{
+                    flexShrink: 0,
+                    width: "42px",
+                    height: "42px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: "12px",
+                    background: "#eef4ff",
+                    color: "#2563eb",
+                  }}
+                >
+                  <ChevronDown
+                    size={24}
+                    strokeWidth={2.4}
+                    style={{
+                      transform: dataLayersOpen
+                        ? "rotate(180deg)"
+                        : "rotate(0deg)",
+                      transition: "transform 180ms ease",
+                    }}
+                  />
+                </span>
+              </button>
+
+              <div
+                className="selected-data-filter"
+                data-testid="selected-data-filter"
+                style={{
+                  marginTop: "16px",
+                }}
+              >
+                <span>
+                  <strong>Seçilen Bölge:</strong> {selectedDataFilter.region}
+                </span>
+
+                <span>
+                  <strong>Seçilen Mahalle:</strong>{" "}
+                  {selectedDataFilter.neighborhood}
+                </span>
+
+                <span>
+                  <strong>Sistem Tipi:</strong> {selectedDataFilter.systemType}
+                </span>
+
+                <span>
+                  <strong>Mekân Türü:</strong> {selectedDataFilter.placeType}
+                </span>
               </div>
 
-              <PoiSummary />
-              <TrafoSummary />
-              <RoadSummary />
+              {dataLayersOpen && (
+                <div
+                  id="data-layers-accordion-content"
+                  data-testid="data-layers-accordion-content"
+                  style={{
+                    marginTop: "18px",
+                  }}
+                >
+                  <PoiSummary />
+                  <TrafoSummary />
+                  <RoadSummary />
+                </div>
+              )}
             </section>
 
-            <h2 className="section-title">
-              Kişiselleştirilmiş
-              Sonuçlar
-            </h2>
+            <h2 className="section-title">Kişiselleştirilmiş Sonuçlar</h2>
 
             <div
               className="personalized-card-grid"
               data-testid="personalized-candidate-list"
             >
-              {personalizedCandidates.length ===
-              0 ? (
+              {personalizedCandidates.length === 0 ? (
                 <div
                   className="region-summary-empty"
                   data-testid="personalized-candidate-empty"
                 >
-                  Seçilen kriterlere
-                  uygun aday nokta
-                  bulunamadı.
+                  Seçilen kriterlere uygun aday nokta bulunamadı.
                 </div>
               ) : (
-                personalizedCandidates.map(
-                  (candidate) => (
-                    <div
-                      key={
-                        candidate.id
-                      }
-                      className="personalized-candidate-card"
-                      data-testid={`personalized-candidate-card-${candidate.id}`}
-                    >
-                      <h3>
-                        {
-                          candidate.name
-                        }
-                      </h3>
+                personalizedCandidates.map((candidate) => (
+                  <div
+                    key={candidate.id}
+                    className="personalized-candidate-card"
+                    data-testid={`personalized-candidate-card-${candidate.id}`}
+                  >
+                    <h3>{candidate.name}</h3>
 
-                      <p>
-                        <strong>
-                          Tahmini Adres:
-                        </strong>{" "}
-                        {
-                          candidate.estimatedAddress
-                        }
-                      </p>
+                    <p>
+                      <strong>Tahmini Adres:</strong>{" "}
+                      {candidate.estimatedAddress}
+                    </p>
 
-                      <p>
-                        <strong>
-                          Bölge:
-                        </strong>{" "}
-                        {
-                          candidate.region
-                        }
-                      </p>
+                    <p>
+                      <strong>Bölge:</strong> {candidate.region}
+                    </p>
 
-                      <p>
-                        <strong>
-                          Mahalle:
-                        </strong>{" "}
-                        {
-                          candidate.neighborhood
-                        }
-                      </p>
+                    <p>
+                      <strong>Mahalle:</strong> {candidate.neighborhood}
+                    </p>
 
-                      <p>
-                        <strong>
-                          Tahmini Kurulum
-                          Maliyeti:
-                        </strong>{" "}
-                        {formatMoney(
-                          candidate.estimatedCost,
-                        )}
-                      </p>
+                    <p>
+                      <strong>Tahmini Kurulum Maliyeti:</strong>{" "}
+                      {formatMoney(candidate.estimatedCost)}
+                    </p>
 
-                      <div className="score-row">
-                        <span>
-                          Maliyet Skoru:{" "}
-                          {showScore(
-                            candidate.costScore,
-                          )}
-                        </span>
+                    <div className="score-row">
+                      <span>
+                        Maliyet Skoru: {showScore(candidate.costScore)}
+                      </span>
 
-                        <span>
-                          Talep Skoru:{" "}
-                          {showScore(
-                            candidate.demandScore,
-                          )}
-                        </span>
+                      <span>
+                        Talep Skoru: {showScore(candidate.demandScore)}
+                      </span>
 
-                        <span>
-                          Genel Skor:{" "}
-                          {showScore(
-                            candidate.generalScore,
-                          )}
-                        </span>
-                      </div>
-
-                      <p>
-                        <strong>
-                          Sistem Tipi:
-                        </strong>{" "}
-                        {
-                          candidate.systemType
-                        }
-                      </p>
-
-                      <p>
-                        <strong>
-                          Mekân Türü:
-                        </strong>{" "}
-                        {
-                          candidate.placeType
-                        }
-                      </p>
-
-                      {candidate.status ===
-                        "calculating" && (
-                        <div className="warning-box">
-                          Hesaplanıyor
-                        </div>
-                      )}
-
-                      {candidate.status ===
-                        "missing" && (
-                        <div className="warning-box">
-                          Veri Eksik
-                        </div>
-                      )}
-
-                      <button
-                        type="button"
-                        data-testid={`show-on-map-button-${candidate.id}`}
-                        onClick={() =>
-                          showCandidateOnMap(
-                            candidate,
-                          )
-                        }
-                      >
-                        Haritada Göster
-                      </button>
+                      <span>
+                        Genel Skor: {showScore(candidate.generalScore)}
+                      </span>
                     </div>
-                  ),
-                )
+
+                    <p>
+                      <strong>Sistem Tipi:</strong> {candidate.systemType}
+                    </p>
+
+                    <p>
+                      <strong>Mekân Türü:</strong> {candidate.placeType}
+                    </p>
+
+                    {candidate.status === "calculating" && (
+                      <div className="warning-box">Hesaplanıyor</div>
+                    )}
+
+                    {candidate.status === "missing" && (
+                      <div className="warning-box">Veri Eksik</div>
+                    )}
+
+                    <button
+                      type="button"
+                      data-testid={`show-on-map-button-${candidate.id}`}
+                      onClick={() => showCandidateOnMap(candidate)}
+                    >
+                      Haritada Göster
+                    </button>
+                  </div>
+                ))
               )}
             </div>
           </section>
         )}
 
         {activeTab === "saved" && (
-          <section
-            className="standalone-panel"
-            data-testid="saved-screen"
-          >
-            <SavedCandidates
-              refreshKey={
-                savedRefreshKey
-              }
-            />
+          <section className="standalone-panel" data-testid="saved-screen">
+            <SavedCandidates refreshKey={savedRefreshKey} />
           </section>
         )}
       </main>
 
       <AlternativeCandidatesModal
-        isOpen={
-          alternativeModalOpen
-        }
-        selectedCandidate={
-          selectedCandidate
-        }
+        isOpen={alternativeModalOpen}
+        selectedCandidate={selectedCandidate}
         candidates={candidates}
-        onClose={
-          closeAlternativeCandidates
-        }
-        onCandidateSelect={
-          selectAlternativeCandidate
-        }
-        onSaveCandidate={
-          saveCandidate
-        }
+        onClose={closeAlternativeCandidates}
+        onCandidateSelect={selectAlternativeCandidate}
+        onSaveCandidate={saveCandidate}
       />
     </div>
   );
