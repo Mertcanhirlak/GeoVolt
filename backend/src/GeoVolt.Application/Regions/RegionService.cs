@@ -5,6 +5,7 @@ using GeoVolt.Application.Regions.Dtos;
 using GeoVolt.Domain.Entities;
 using NetTopologySuite.Geometries;
 using GeoVolt.Application.Neighborhoods.Abstractions;
+using GeoVolt.Application.Common.Exceptions;
 
 // Bölge ve istasyon verilerini yönetmek için servis sınıfı
 namespace GeoVolt.Application.Regions;
@@ -39,21 +40,19 @@ public sealed class RegionService : IRegionService
     }
 
     public async Task<RegionResponseDto?> GetByIdAsync(
-        int id,
-        CancellationToken cancellationToken = default)
+    int id,
+    CancellationToken cancellationToken = default)
     {
-        // Id değerine göre bölgeyi getirir
+        // Id değerine göre bölgeyi getirir.
         var region = await _regionRepository.GetByIdAsync(
             id,
             cancellationToken);
 
-        // Bölge bulunamazsa null döner
         if (region is null)
         {
-            return null;
+            throw new NotFoundException("Bölge bulunamadı.");
         }
 
-        // Entity nesnesini DTO'ya dönüştürür
         return MapToResponseDto(region);
     }
 

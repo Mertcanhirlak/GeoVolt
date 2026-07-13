@@ -1,9 +1,11 @@
 ﻿using System.Diagnostics;
 using GeoVolt.Api.Common.Responses;
+using GeoVolt.Application.Common.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 
 namespace GeoVolt.Api.ExceptionHandling;
-// GlobalExceptionHandler, uygulama genelinde yakalanmamış istisnaları ele almak için kullanılan bir sınıftır.
+
+// Uygulama genelindeki yakalanmamış hataları yönetir.
 public sealed class GlobalExceptionHandler(
     ILogger<GlobalExceptionHandler> logger)
     : IExceptionHandler
@@ -17,22 +19,48 @@ public sealed class GlobalExceptionHandler(
         var traceId = Activity.Current?.Id
             ?? httpContext.TraceIdentifier;
 
-        // Gerçek hata detayı sunucu loguna yazılır.
-        logger.LogError(
-            exception,
-            "Beklenmeyen bir hata oluştu. TraceId: {TraceId}",
-            traceId);
+        var statusCode = exception switch
+        {
+            NotFoundException => StatusCodes.Status404NotFound,
+            _ => StatusCodes.Status500InternalServerError
+        };
+
+        var errorCode = exception switch
+        {
+            NotFoundException => "NOT_FOUND",
+            _ => "INTERNAL_SERVER_ERROR"
+        };
+
+        var message = exception switch
+        {
+            NotFoundException => exception.Message,
+            _ => "Beklenmeyen bir hata oluştu."
+        };
+
+        if (exception is NotFoundException)
+        {
+            logger.LogWarning(
+                exception,
+                "Kaynak bulunamadı. TraceId: {TraceId}",
+                traceId);
+        }
+        else
+        {
+            logger.LogError(
+                exception,
+                "Beklenmeyen bir hata oluştu. TraceId: {TraceId}",
+                traceId);
+        }
 
         var response = new ApiErrorResponse
         {
             Success = false,
-            Message = "Beklenmeyen bir hata oluştu.",
-            ErrorCode = "INTERNAL_SERVER_ERROR",
+            Message = message,
+            ErrorCode = errorCode,
             TraceId = traceId
         };
 
-        httpContext.Response.StatusCode =
-            StatusCodes.Status500InternalServerError;
+        httpContext.Response.StatusCode = statusCode;
 
         await httpContext.Response.WriteAsJsonAsync(
             response,
