@@ -17,6 +17,14 @@ public sealed class NeighborhoodsController : ControllerBase
         _neighborhoodService = neighborhoodService;
     }
 
+    [HttpGet]
+    public async Task<IActionResult> GetAllAsync(
+        CancellationToken cancellationToken)
+    {
+        var neighborhoods = await _neighborhoodService.GetAllAsync(cancellationToken);
+        return Ok(neighborhoods);
+    }
+
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetByIdAsync(
         int id,

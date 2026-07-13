@@ -10,6 +10,8 @@ public static class DatasetDefinitions
             ["POI.geojson"] = Create("poi", "POI.geojson", ["Point"], ["ID", "NAME", "CATEGORY"]),
             ["YOL.geojson"] = Create("roads", "YOL.geojson", ["LineString", "MultiLineString"], ["ID", "TYPES"]),
             ["TRAFO.geojson"] = Create("power-transformers", "TRAFO.geojson", ["Point"], ["ID", "CATEGORY", "SUB_CATEGORY"]),
+            ["Semttt.geojson"] = Create("regions", "Semttt.geojson", ["Polygon", "MultiPolygon"], ["Semt"]),
+            ["SEMT.geojson"] = Create("regions", "SEMT.geojson", ["Polygon", "MultiPolygon"], ["Semt"]),
             ["MAHALLE.geojson"] = Create("neighborhoods", "MAHALLE.geojson", ["Polygon", "MultiPolygon"], ["ID", "NAME", "POPULATION"]),
             ["ILCE.geojson"] = Create("district", "ILCE.geojson", ["Polygon", "MultiPolygon"], ["Id", "Name", "Population"])
         };

@@ -2,6 +2,12 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000
 
 const LOCAL_MAHALLE_URL = "/data/MAHALLE.geojson";
 
+function getAuthHeaders() {
+  const token = localStorage.getItem("token");
+
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 const allRegionOption = { id: 0, name: "Tümü", boundaryGeoJson: "" };
 
 const fallbackRegions = [
@@ -302,6 +308,7 @@ function normalizeRegion(region, index) {
       ]) ?? index + 1,
 
     name: regionName,
+    population: Number(properties.population ?? properties.POPULATION ?? 0),
     boundaryGeoJson: getBoundaryGeoJson(region)
   };
 }
@@ -328,7 +335,9 @@ function normalizeNeighborhood(neighborhood, index) {
       ]) ?? index + 1,
 
     name: formatNeighborhoodName(neighborhoodName),
+    regionId: Number(properties.regionId ?? properties.REGION_ID ?? 0),
     regionName,
+    population: Number(properties.population ?? properties.POPULATION ?? 0),
     boundaryGeoJson: getBoundaryGeoJson(neighborhood)
   };
 }
@@ -344,10 +353,7 @@ function normalizeRegions(regionArray) {
     }
 
     if (!regionMap.has(normalizedRegion.name)) {
-      regionMap.set(normalizedRegion.name, {
-        ...normalizedRegion,
-        id: regionMap.size + 1
-      });
+      regionMap.set(normalizedRegion.name, normalizedRegion);
     }
   });
 
@@ -369,10 +375,7 @@ function normalizeNeighborhoods(neighborhoodArray) {
     const key = `${normalizedNeighborhood.regionName}-${normalizedNeighborhood.name}`;
 
     if (!neighborhoodMap.has(key)) {
-      neighborhoodMap.set(key, {
-        ...normalizedNeighborhood,
-        id: neighborhoodMap.size + 1
-      });
+      neighborhoodMap.set(key, normalizedNeighborhood);
     }
   });
 
@@ -433,7 +436,9 @@ function normalizeSummary(summary, regionId) {
 }
 
 async function getRegionsFromApi() {
-  const response = await fetch(`${API_BASE_URL}/api/regions`);
+  const response = await fetch(`${API_BASE_URL}/api/regions`, {
+    headers: getAuthHeaders()
+  });
 
   if (!response.ok) {
     throw new Error(`Bölge isteği başarısız oldu: ${response.status}`);
@@ -467,7 +472,9 @@ async function getRegionsFromLocalGeoJson() {
 }
 
 async function getNeighborhoodsFromApi() {
-  const response = await fetch(`${API_BASE_URL}/api/neighborhoods`);
+  const response = await fetch(`${API_BASE_URL}/api/neighborhoods`, {
+    headers: getAuthHeaders()
+  });
 
   if (!response.ok) {
     throw new Error(`Mahalle isteği başarısız oldu: ${response.status}`);
@@ -574,7 +581,9 @@ export async function getRegionSummary(regionId) {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/regions/${regionId}/summary`);
+    const response = await fetch(`${API_BASE_URL}/api/regions/${regionId}/summary`, {
+      headers: getAuthHeaders()
+    });
 
     if (!response.ok) {
       throw new Error(`Bölge özeti isteği başarısız oldu: ${response.status}`);

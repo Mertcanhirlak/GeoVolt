@@ -14,13 +14,16 @@ public sealed class AdminDataImportsController : ControllerBase
 {
     private readonly IDataImportValidationService _validationService;
     private readonly IDataImportStagingService _stagingService;
+    private readonly IDataImportPromotionService _promotionService;
 
     public AdminDataImportsController(
         IDataImportValidationService validationService,
-        IDataImportStagingService stagingService)
+        IDataImportStagingService stagingService,
+        IDataImportPromotionService promotionService)
     {
         _validationService = validationService;
         _stagingService = stagingService;
+        _promotionService = promotionService;
     }
 
     [HttpPost("validate")]
@@ -84,6 +87,28 @@ public sealed class AdminDataImportsController : ControllerBase
         if (result.IsDuplicate)
         {
             return Conflict(response);
+        }
+
+        return result.Success ? Ok(response) : BadRequest(response);
+    }
+
+    [HttpPost("{datasetImportId:int}/promote")]
+    [Authorize(Policy = PermissionNames.DataImportExecute)]
+    [ProducesResponseType(typeof(ApiResponse<DatasetPromotionResult>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<DatasetPromotionResult>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<DatasetPromotionResult>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<ApiResponse<DatasetPromotionResult>>> Promote(
+        int datasetImportId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _promotionService.PromoteAsync(datasetImportId, cancellationToken);
+        var response = new ApiResponse<DatasetPromotionResult>(result.Success, result, result.Message);
+
+        if (result.Status == "NotFound")
+        {
+            return NotFound(response);
         }
 
         return result.Success ? Ok(response) : BadRequest(response);
