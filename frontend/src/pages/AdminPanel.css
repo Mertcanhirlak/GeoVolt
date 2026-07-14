@@ -422,6 +422,57 @@ body:has(.admin-page) {
   background: color-mix(in srgb, var(--danger) 82%, var(--text));
 }
 
+
+/* Yönetim paneli modern çıkış butonu */
+.admin-page .admin-logout-button {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 42px;
+  color: #ffffff;
+  background: linear-gradient(145deg, #ef4444, #b91c1c);
+  border: 1px solid rgba(153, 27, 27, 0.34);
+  border-radius: 13px;
+  box-shadow:
+    0 9px 20px rgba(220, 38, 38, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  transition:
+    transform 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.admin-page .admin-logout-button svg {
+  display: block;
+  width: 21px;
+  height: 21px;
+  color: currentColor;
+  stroke: currentColor;
+}
+
+.admin-page .admin-logout-button:hover:not(:disabled) {
+  color: #ffffff;
+  background: linear-gradient(145deg, #dc2626, #991b1b);
+  transform: translateY(-2px) scale(1.03);
+  box-shadow:
+    0 13px 27px rgba(220, 38, 38, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.admin-page .admin-logout-button:active:not(:disabled) {
+  transform: translateY(0) scale(0.94);
+}
+
+.admin-page .admin-logout-button:focus-visible {
+  outline: 3px solid rgba(248, 113, 113, 0.38);
+  outline-offset: 3px;
+}
+
 .admin-alert {
   box-sizing: border-box;
   margin-bottom: 18px;

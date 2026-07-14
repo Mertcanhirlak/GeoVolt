@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Power } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import {
   assignAdminRolePermissions,
@@ -542,8 +543,15 @@ export default function AdminPanel() {
           <button type="button" className="admin-secondary-button" onClick={() => navigate("/dashboard")}>
             Harita
           </button>
-          <button type="button" className="admin-danger-button" onClick={handleLogout}>
-            Çıkış
+          <button
+            type="button"
+            className="admin-danger-button admin-logout-button"
+            onClick={handleLogout}
+            title="Çıkış Yap"
+            aria-label="Çıkış Yap"
+            data-testid="admin-logout-button"
+          >
+            <Power size={21} strokeWidth={2.6} aria-hidden="true" />
           </button>
         </div>
       </header>

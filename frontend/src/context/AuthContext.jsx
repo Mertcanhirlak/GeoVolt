@@ -1,246 +1,115 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, useState, useContext, useEffect } from "react";
+import { decodeMockToken } from "../services/authService";
 
-import {
-  decodeMockToken,
-} from "../services/authService";
+const AuthContext = createContext();
 
-const AuthContext =
-  createContext(null);
+const managementPermissions = [
+  "user.read",
+  "user.create",
+  "user.update",
+  "user.delete",
+  "user.role.assign",
+  "role.read",
+  "role.create",
+  "role.update",
+  "role.delete",
+  "permission.assign",
+  "point.read",
+  "point.create",
+  "point.update",
+  "point.delete",
+  "dashboard.admin.view"
+];
 
-function readStoredUser() {
-  const storedUser =
-    localStorage.getItem("user");
+export function AuthProvider({ children }) {
+  const [token, setToken] = useState(localStorage.getItem("token"));
+  const [user, setUser] = useState(() => {
+    const storedToken = localStorage.getItem("token");
 
-  if (!storedUser) {
-    return null;
-  }
+    if (storedToken) {
+      return decodeMockToken(storedToken);
+    }
 
-  try {
-    return JSON.parse(storedUser);
-  } catch {
-    localStorage.removeItem("user");
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) return null;
 
-    return null;
-  }
-}
-
-function decodeTokenSafely(token) {
-  if (!token) {
-    return null;
-  }
-
-  try {
-    return decodeMockToken(token);
-  } catch (error) {
-    console.warn(
-      "Token çözümlenemedi:",
-      error,
-    );
-
-    return null;
-  }
-}
-
-export function AuthProvider({
-  children,
-}) {
-  const [token, setToken] =
-    useState(() =>
-      localStorage.getItem("token"),
-    );
-
-  const [user, setUser] =
-    useState(() => {
-      const storedUser =
-        readStoredUser();
-
-      if (storedUser) {
-        return storedUser;
-      }
-
-      return decodeTokenSafely(
-        localStorage.getItem("token"),
-      );
-    });
+    try {
+      return JSON.parse(storedUser);
+    } catch {
+      localStorage.removeItem("user");
+      return null;
+    }
+  });
 
   useEffect(() => {
+    if (token) {
+      const decoded = decodeMockToken(token);
+
+      if (decoded) {
+        localStorage.setItem("user", JSON.stringify(decoded));
+        setUser(decoded);
+      }
+    }
+
     if (!token) {
       setUser(null);
+    }
+  }, [token]);
 
-      localStorage.removeItem(
-        "user",
-      );
+  const loginUser = (newToken, userData = null) => {
+    const tokenUser = decodeMockToken(newToken);
+    const nextUser = tokenUser ?? userData;
 
-      return;
+    localStorage.setItem("token", newToken);
+    setToken(newToken);
+
+    if (nextUser) {
+      localStorage.setItem("user", JSON.stringify(nextUser));
+      setUser(nextUser);
     }
 
-    if (!user) {
-      const decodedUser =
-        decodeTokenSafely(token);
+    return nextUser;
+  };
 
-      if (decodedUser) {
-        setUser(decodedUser);
-
-        localStorage.setItem(
-          "user",
-          JSON.stringify(decodedUser),
-        );
-      }
-    }
-  }, [token, user]);
-
-  useEffect(() => {
-    function handleStorageChange(
-      event,
-    ) {
-      if (event.key === "token") {
-        const nextToken =
-          event.newValue;
-
-        setToken(nextToken);
-
-        if (!nextToken) {
-          setUser(null);
-
-          return;
-        }
-
-        const storedUser =
-          readStoredUser();
-
-        setUser(
-          storedUser ??
-            decodeTokenSafely(
-              nextToken,
-            ),
-        );
-      }
-
-      if (event.key === "user") {
-        setUser(readStoredUser());
-      }
-    }
-
-    window.addEventListener(
-      "storage",
-      handleStorageChange,
-    );
-
-    return () => {
-      window.removeEventListener(
-        "storage",
-        handleStorageChange,
-      );
-    };
-  }, []);
-
-  function loginUser(
-    newToken,
-    userData = null,
-  ) {
-    if (!newToken) {
-      throw new Error(
-        "Giriş tokenı bulunamadı.",
-      );
-    }
-
-    const normalizedToken =
-      String(newToken).trim();
-
-    const resolvedUser =
-      userData ??
-      decodeTokenSafely(
-        normalizedToken,
-      );
-
-    localStorage.setItem(
-      "token",
-      normalizedToken,
-    );
-
-    setToken(normalizedToken);
-
-    if (resolvedUser) {
-      localStorage.setItem(
-        "user",
-        JSON.stringify(resolvedUser),
-      );
-
-      setUser(resolvedUser);
-    } else {
-      localStorage.removeItem(
-        "user",
-      );
-
-      setUser(null);
-    }
-  }
-
-  function logoutUser() {
-    localStorage.removeItem(
-      "token",
-    );
-
-    localStorage.removeItem(
-      "user",
-    );
-
+  const logoutUser = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
     setToken(null);
     setUser(null);
-  }
+  };
 
-  const value = useMemo(() => {
-    const isAuthenticated =
-      Boolean(token);
+  const isAuthenticated = !!token;
+  const role = user?.role ?? null;
+  const companyId = user?.companyId ?? null;
+  const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
 
-    const role =
-      user?.role ?? null;
-
-    const companyId =
-      user?.companyId ?? null;
-
-    return {
-      token,
-      user,
-      role,
-      companyId,
-      isAuthenticated,
-
-      isAdmin:
-        role === "Admin",
-
-      isCompanyUser:
-        role === "CompanyUser",
-
-      loginUser,
-      logoutUser,
-    };
-  }, [token, user]);
+  const isAdmin = role === "Admin";
+  const isCompanyUser = role === "CompanyUser";
+  const hasPermission = (permission) => isAdmin || permissions.includes(permission);
+  const hasAnyPermission = (permissionList) => isAdmin || permissionList.some((permission) => permissions.includes(permission));
+  const canAccessManagement = !isCompanyUser && hasAnyPermission(managementPermissions);
 
   return (
     <AuthContext.Provider
-      value={value}
+      value={{
+        token,
+        user,
+        role,
+        companyId,
+        permissions,
+        isAuthenticated,
+        isAdmin,
+        isCompanyUser,
+        hasPermission,
+        hasAnyPermission,
+        canAccessManagement,
+        loginUser,
+        logoutUser,
+      }}
     >
       {children}
     </AuthContext.Provider>
   );
 }
 
-export function useAuth() {
-  const context =
-    useContext(AuthContext);
-
-  if (!context) {
-    throw new Error(
-      "useAuth yalnızca AuthProvider içinde kullanılabilir.",
-    );
-  }
-
-  return context;
-}
+export const useAuth = () => useContext(AuthContext);

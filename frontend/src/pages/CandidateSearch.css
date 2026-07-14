@@ -574,3 +574,178 @@
     min-width: 100%;
   }
 }
+/* Sol menü çıkış alanı */
+
+/* Sol menüyü ekran yüksekliğine yayar */
+.left-menu {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 100vh;
+}
+
+/* Çıkış butonunu menünün tam en altına iter */
+.menu-bottom-actions {
+  width: 100%;
+  margin-top: auto;
+  padding: 0 0 18px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+/* Modern kırmızı güç düğmesi */
+.left-menu .logout-menu-button {
+  width: 42px !important;
+  height: 42px !important;
+  min-width: 42px !important;
+  min-height: 42px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  color: #ffffff !important;
+  background: linear-gradient(
+    145deg,
+    #ef4444,
+    #c81e1e
+  ) !important;
+
+  border: 1px solid rgba(185, 28, 28, 0.35) !important;
+  border-radius: 14px !important;
+
+  box-shadow:
+    0 9px 20px rgba(220, 38, 38, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+
+  opacity: 1 !important;
+  visibility: visible !important;
+
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease !important;
+}
+
+.left-menu .logout-menu-button svg {
+  width: 23px !important;
+  height: 23px !important;
+  color: #ffffff !important;
+  stroke: currentColor !important;
+}
+
+/* Üzerine gelindiğinde */
+.left-menu .logout-menu-button:hover {
+  color: #ffffff !important;
+
+  background: linear-gradient(
+    145deg,
+    #dc2626,
+    #991b1b
+  ) !important;
+
+  transform: translateY(-2px) scale(1.04);
+
+  box-shadow:
+    0 13px 27px rgba(220, 38, 38, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Tıklama efekti */
+.left-menu .logout-menu-button:active {
+  transform: translateY(0) scale(0.93);
+}
+
+/* Klavyeyle seçim */
+.left-menu .logout-menu-button:focus-visible {
+  outline: 3px solid rgba(248, 113, 113, 0.38);
+  outline-offset: 3px;
+}
+/* Admin için yönetim paneline dönüş butonu */
+
+/* Yalnızca admin hesabında görünen yönetim paneli butonu */
+
+.left-menu .admin-panel-menu-button {
+  width: 42px !important;
+  height: 42px !important;
+  min-width: 42px !important;
+  min-height: 42px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  color: #ffffff !important;
+
+  background: linear-gradient(
+    145deg,
+    #0f766e,
+    #115e59
+  ) !important;
+
+  border: 1px solid rgba(
+    15,
+    118,
+    110,
+    0.34
+  ) !important;
+
+  border-radius: 14px !important;
+
+  box-shadow:
+    0 9px 20px rgba(15, 118, 110, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+
+  transition:
+    transform 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease !important;
+}
+
+.left-menu .admin-panel-menu-button svg {
+  width: 23px !important;
+  height: 23px !important;
+
+  color: #ffffff !important;
+  stroke: currentColor !important;
+}
+
+.left-menu .admin-panel-menu-button:hover {
+  color: #ffffff !important;
+
+  background: linear-gradient(
+    145deg,
+    #0d9488,
+    #0f766e
+  ) !important;
+
+  transform: translateY(-2px) scale(1.04);
+
+  box-shadow:
+    0 13px 27px rgba(15, 118, 110, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+.left-menu .admin-panel-menu-button:active {
+  transform: translateY(0) scale(0.94);
+}
+
+.left-menu .admin-panel-menu-button:focus-visible {
+  outline: 3px solid rgba(
+    45,
+    212,
+    191,
+    0.36
+  );
+
+  outline-offset: 3px;
+}
