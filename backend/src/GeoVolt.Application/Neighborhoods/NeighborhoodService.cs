@@ -1,12 +1,13 @@
 ﻿using System.Text.Json;
+using GeoVolt.Application.Common.Exceptions;
 using GeoVolt.Application.Neighborhoods.Abstractions;
 using GeoVolt.Application.Neighborhoods.Dtos;
 using GeoVolt.Domain.Entities;
 using NetTopologySuite.Geometries;
 
-//mahalle verilerini yönetmek için servis sınıfı
 namespace GeoVolt.Application.Neighborhoods;
 
+// Mahallelerle ilgili iş kurallarını yönetir.
 public sealed class NeighborhoodService : INeighborhoodService
 {
     private readonly INeighborhoodRepository _neighborhoodRepository;
@@ -20,48 +21,72 @@ public sealed class NeighborhoodService : INeighborhoodService
     public async Task<IReadOnlyList<NeighborhoodResponseDto>> GetAllAsync(
         CancellationToken cancellationToken = default)
     {
-        var neighborhoods = await _neighborhoodRepository.GetAllAsync(cancellationToken);
-
-        return neighborhoods
-            .Select(MapToResponseDto)
-            .ToList();
-    }
-
-    public async Task<IReadOnlyList<NeighborhoodResponseDto>> GetByRegionIdAsync(
-        int regionId,
-        CancellationToken cancellationToken = default)
-    {
-        // Belirtilen bölgeye bağlı mahalleleri getirir
+        // Tüm mahalleleri getirir.
         var neighborhoods =
-            await _neighborhoodRepository.GetByRegionIdAsync(
-                regionId,
+            await _neighborhoodRepository.GetAllAsync(
                 cancellationToken);
 
-        // Entity listesini DTO listesine dönüştürür
         return neighborhoods
             .Select(MapToResponseDto)
             .ToList();
     }
 
-    public async Task<NeighborhoodDetailResponseDto?> GetByIdAsync(
-        int id,
-        CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<NeighborhoodResponseDto>>
+        GetByRegionSourceIdAsync(
+            int regionSourceId,
+            CancellationToken cancellationToken = default)
     {
-        // Id değerine göre mahalleyi getirir
-        var neighborhood =
-            await _neighborhoodRepository.GetByIdAsync(
-                id,
+        // Bölgenin kaynak kimliğine bağlı mahalleleri getirir.
+        var neighborhoods =
+            await _neighborhoodRepository.GetByRegionSourceIdAsync(
+                regionSourceId,
                 cancellationToken);
 
-        // Mahalle bulunamazsa null döner
+        return neighborhoods
+            .Select(MapToResponseDto)
+            .ToList();
+    }
+
+    public async Task<NeighborhoodDetailResponseDto> GetBySourceIdAsync(
+        int sourceId,
+        CancellationToken cancellationToken = default)
+    {
+        // Mahallenin kaynak kimliğine göre kaydı getirir.
+        var neighborhood =
+            await _neighborhoodRepository.GetBySourceIdAsync(
+                sourceId,
+                cancellationToken);
+
         if (neighborhood is null)
         {
-            return null;
+            throw new NotFoundException(
+                "Mahalle bulunamadı.");
         }
 
-        // Entity nesnesini detay DTO'suna dönüştürür
+        return MapToDetailResponseDto(
+            neighborhood);
+    }
+
+    private static NeighborhoodResponseDto MapToResponseDto(
+        Neighborhood neighborhood)
+    {
+        return new NeighborhoodResponseDto
+        {
+            // API kaynak kimliklerini döndürür.
+            Id = neighborhood.SourceId,
+            Name = neighborhood.Name,
+            RegionId = neighborhood.Region.SourceId,
+            RegionName = neighborhood.Region.Name,
+            Population = neighborhood.Population
+        };
+    }
+
+    private static NeighborhoodDetailResponseDto MapToDetailResponseDto(
+        Neighborhood neighborhood)
+    {
         return new NeighborhoodDetailResponseDto
         {
+            // API kaynak kimliklerini döndürür.
             Id = neighborhood.SourceId,
             Name = neighborhood.Name,
             RegionId = neighborhood.Region.SourceId,
@@ -72,24 +97,9 @@ public sealed class NeighborhoodService : INeighborhoodService
         };
     }
 
-    private static NeighborhoodResponseDto MapToResponseDto(
-        Neighborhood neighborhood)
-    {
-        // Mahalle entity'sini liste DTO'suna dönüştürür
-        return new NeighborhoodResponseDto
-        {
-            Id = neighborhood.SourceId,
-            Name = neighborhood.Name,
-            RegionId = neighborhood.Region.SourceId,
-            RegionName = neighborhood.Region.Name,
-            Population = neighborhood.Population
-        };
-    }
-
     private static string ToGeoJson(
         Geometry geometry)
     {
-        // Polygon geometrisini GeoJSON'a çevirir
         if (geometry is Polygon polygon)
         {
             return JsonSerializer.Serialize(new
@@ -100,7 +110,6 @@ public sealed class NeighborhoodService : INeighborhoodService
             });
         }
 
-        // MultiPolygon geometrisini GeoJSON'a çevirir
         if (geometry is MultiPolygon multiPolygon)
         {
             var coordinates = Enumerable
@@ -120,7 +129,6 @@ public sealed class NeighborhoodService : INeighborhoodService
             });
         }
 
-        // Desteklenmeyen geometri tipinde hata verir
         throw new NotSupportedException(
             $"Desteklenmeyen geometri tipi: {geometry.GeometryType}");
     }
@@ -128,14 +136,12 @@ public sealed class NeighborhoodService : INeighborhoodService
     private static double[][][] GetPolygonCoordinates(
         Polygon polygon)
     {
-        var rings = new List<double[][]>();
-
-        // Polygon dış sınırını ekler
-        rings.Add(
+        var rings = new List<double[][]>
+        {
             GetRingCoordinates(
-                polygon.ExteriorRing));
+                polygon.ExteriorRing)
+        };
 
-        // Varsa iç boşlukları ekler
         for (var i = 0; i < polygon.NumInteriorRings; i++)
         {
             rings.Add(
@@ -149,7 +155,7 @@ public sealed class NeighborhoodService : INeighborhoodService
     private static double[][] GetRingCoordinates(
         LineString ring)
     {
-        // Koordinatları [longitude, latitude] formatına çevirir
+        // GeoJSON koordinat sırası: longitude, latitude
         return ring.Coordinates
             .Select(coordinate => new[]
             {

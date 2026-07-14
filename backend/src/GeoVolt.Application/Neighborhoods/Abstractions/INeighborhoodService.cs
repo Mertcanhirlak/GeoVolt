@@ -1,19 +1,21 @@
 ﻿using GeoVolt.Application.Neighborhoods.Dtos;
 
 namespace GeoVolt.Application.Neighborhoods.Abstractions;
-// interface, mahalleler ile ilgili servis işlemlerini tanımlar
+
+// Mahallelerle ilgili iş mantığı işlemlerini tanımlar.
 public interface INeighborhoodService
 {
+    // Tüm mahalleleri getirir.
     Task<IReadOnlyList<NeighborhoodResponseDto>> GetAllAsync(
         CancellationToken cancellationToken = default);
 
-    // Belirtilen bölgeye bağlı mahalleleri getirir
-    Task<IReadOnlyList<NeighborhoodResponseDto>> GetByRegionIdAsync(
-        int regionId,
+    // Bölgenin kaynak kimliğine bağlı mahalleleri getirir.
+    Task<IReadOnlyList<NeighborhoodResponseDto>> GetByRegionSourceIdAsync(
+        int regionSourceId,
         CancellationToken cancellationToken = default);
 
-    // Id değerine göre tek mahallenin detayını getirir
-    Task<NeighborhoodDetailResponseDto?> GetByIdAsync(
-        int id,
+    // Mahallenin kaynak kimliğine göre detayını getirir.
+    Task<NeighborhoodDetailResponseDto> GetBySourceIdAsync(
+        int sourceId,
         CancellationToken cancellationToken = default);
 }

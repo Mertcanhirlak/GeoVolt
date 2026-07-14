@@ -187,9 +187,9 @@ public sealed class RegionService : IRegionService
 
         // Kaynak bölge kimliğine bağlı mahalleleri getirir.
         var neighborhoods =
-            await _neighborhoodRepository.GetByRegionIdAsync(
-                regionSourceId,
-                cancellationToken);
+           await _neighborhoodRepository.GetByRegionSourceIdAsync(
+    regionSourceId,
+    cancellationToken);
 
         var neighborhood = neighborhoods.FirstOrDefault(
             item => item.Boundary.Covers(point));

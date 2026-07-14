@@ -1,19 +1,21 @@
 ﻿using GeoVolt.Domain.Entities;
 
 namespace GeoVolt.Application.Neighborhoods.Abstractions;
-// interface, mahalleler ile ilgili veri erişim işlemlerini tanımlar
+
+// Mahalle veri erişim işlemlerini tanımlar.
 public interface INeighborhoodRepository
 {
+    // Tüm mahalleleri getirir.
     Task<IReadOnlyList<Neighborhood>> GetAllAsync(
         CancellationToken cancellationToken = default);
 
-    // Belirtilen bölgeye bağlı mahalleleri getirir
-    Task<IReadOnlyList<Neighborhood>> GetByRegionIdAsync(
-        int regionId,
+    // Bölgenin kaynak kimliğine bağlı mahalleleri getirir.
+    Task<IReadOnlyList<Neighborhood>> GetByRegionSourceIdAsync(
+        int regionSourceId,
         CancellationToken cancellationToken = default);
 
-    // Id değerine göre tek mahalleyi getirir
-    Task<Neighborhood?> GetByIdAsync(
-        int id,
+    // Mahallenin kaynak kimliğine göre tek mahalleyi getirir.
+    Task<Neighborhood?> GetBySourceIdAsync(
+        int sourceId,
         CancellationToken cancellationToken = default);
 }

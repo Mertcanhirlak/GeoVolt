@@ -5,11 +5,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GeoVolt.Infrastructure.Neighborhoods;
 
+// Mahalle verilerine erişim işlemlerini gerçekleştirir.
 public sealed class NeighborhoodRepository : INeighborhoodRepository
 {
     private readonly GeoVoltDbContext _dbContext;
 
-    public NeighborhoodRepository(GeoVoltDbContext dbContext)
+    public NeighborhoodRepository(
+        GeoVoltDbContext dbContext)
     {
         _dbContext = dbContext;
     }
@@ -17,6 +19,7 @@ public sealed class NeighborhoodRepository : INeighborhoodRepository
     public async Task<IReadOnlyList<Neighborhood>> GetAllAsync(
         CancellationToken cancellationToken = default)
     {
+        // Tüm mahalleleri bölge bilgileriyle getirir.
         return await _dbContext.Neighborhoods
             .AsNoTracking()
             .Include(neighborhood => neighborhood.Region)
@@ -24,25 +27,32 @@ public sealed class NeighborhoodRepository : INeighborhoodRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Neighborhood>> GetByRegionIdAsync(
-        int regionId,
-        CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Neighborhood>>
+        GetByRegionSourceIdAsync(
+            int regionSourceId,
+            CancellationToken cancellationToken = default)
     {
+        // Bölgenin kaynak kimliğine bağlı mahalleleri getirir.
         return await _dbContext.Neighborhoods
             .AsNoTracking()
             .Include(neighborhood => neighborhood.Region)
-            .Where(neighborhood => neighborhood.Region.SourceId == regionId)
+            .Where(neighborhood =>
+                neighborhood.Region.SourceId == regionSourceId)
             .OrderBy(neighborhood => neighborhood.Name)
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<Neighborhood?> GetByIdAsync(
-        int id,
+    public async Task<Neighborhood?> GetBySourceIdAsync(
+        int sourceId,
         CancellationToken cancellationToken = default)
     {
+        // Mahallenin kaynak kimliğine göre kaydı getirir.
         return await _dbContext.Neighborhoods
             .AsNoTracking()
             .Include(neighborhood => neighborhood.Region)
-            .FirstOrDefaultAsync(neighborhood => neighborhood.SourceId == id, cancellationToken);
+            .FirstOrDefaultAsync(
+                neighborhood =>
+                    neighborhood.SourceId == sourceId,
+                cancellationToken);
     }
 }
