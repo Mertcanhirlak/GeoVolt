@@ -2,7 +2,7 @@
 // Kontrol edilen noktanın hangi bölgede ve mahallede olduğunu belirlemek için kullanılan DTO sınıfı
 public sealed class LocateRegionPointResponseDto
 {
-    // Kontrol edilen bölgenin kimliği
+    // Bölgenin kaynak kimliği.
     public int RegionId { get; set; }
 
     // Kontrol edilen bölgenin adı

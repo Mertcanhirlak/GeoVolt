@@ -2,12 +2,12 @@
 
 public sealed class RegionResponseDto
 {
-    // Bölgenin kimliği
+    // Bölgenin public kaynak kimliği.
     public int Id { get; set; }
 
     // Bölgenin adı
     public string Name { get; set; } = string.Empty;
-
+    // Bölgenin nüfusu.
     public int Population { get; set; }
 
     // React haritasında kullanılacak GeoJSON sınır verisi

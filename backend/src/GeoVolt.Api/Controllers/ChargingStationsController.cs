@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GeoVolt.Api.Controllers;
 
+// Şarj istasyonu endpointlerini yönetir.
 [ApiController]
 [Route("api/charging-stations")]
 [Authorize]
@@ -17,41 +18,30 @@ public sealed class ChargingStationsController : ControllerBase
         _chargingStationService = chargingStationService;
     }
 
+    // İstasyonları isteğe bağlı bölge ve mahalle filtreleriyle getirir.
     [HttpGet]
     public async Task<IActionResult> GetAllAsync(
         [FromQuery] int? regionId,
         [FromQuery] int? neighborhoodId,
         CancellationToken cancellationToken)
     {
-        // Tüm istasyonları veya bölge ve mahalleye göre
-        // filtrelenmiş istasyonları getirir
         var stations = await _chargingStationService.GetAllAsync(
-            regionId,
-            neighborhoodId,
-            cancellationToken);
+            regionSourceId: regionId,
+            neighborhoodSourceId: neighborhoodId,
+            cancellationToken: cancellationToken);
 
         return Ok(stations);
     }
 
+    // Internal veritabanı kimliğine göre istasyon detayını getirir.
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetByIdAsync(
         int id,
         CancellationToken cancellationToken)
     {
-        // Id değerine göre istasyon detayını getirir
         var station = await _chargingStationService.GetByIdAsync(
             id,
             cancellationToken);
-
-        // İstasyon bulunamazsa 404 döner
-        if (station is null)
-        {
-            return NotFound(new
-            {
-                success = false,
-                message = "Şarj istasyonu bulunamadı."
-            });
-        }
 
         return Ok(station);
     }

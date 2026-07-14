@@ -1,33 +1,36 @@
 ﻿namespace GeoVolt.Application.ChargingStations.Dtos;
-// Şarj istasyonlarının detaylı bilgilerini içeren DTO sınıfı
+
+// Şarj istasyonunun detay bilgisini taşır.
 public sealed class ChargingStationDetailResponseDto
 {
-    // İstasyonun kimliği
     public int Id { get; set; }
 
-    // İstasyonun adı
+    public string SourceStationNumber { get; set; } = string.Empty;
+
     public string Name { get; set; } = string.Empty;
 
-    // İstasyonu işleten firma adı
     public string OperatorName { get; set; } = string.Empty;
 
-    // İstasyonun bağlı olduğu bölge kimliği
+    public string? BrandName { get; set; }
+
     public int RegionId { get; set; }
-    // İstasyonun bağlı olduğu mahalle kimliği
+
+    public string RegionName { get; set; } = string.Empty;
+
     public int NeighborhoodId { get; set; }
-    // İstasyonun açık adresi
+
+    public string NeighborhoodName { get; set; } = string.Empty;
+
     public string Address { get; set; } = string.Empty;
 
-    // İstasyonun enlem bilgisi
     public double Latitude { get; set; }
 
-    // İstasyonun boylam bilgisi
     public double Longitude { get; set; }
 
-    // İstasyonun aktif olup olmadığını belirtir
     public bool IsActive { get; set; }
 
-    // İstasyondaki bağlantı noktalarını tutar
+    public bool? IsGreenStation { get; set; }
+
     public IReadOnlyList<ChargingConnectorResponseDto> Connectors { get; set; }
-        = Array.Empty<ChargingConnectorResponseDto>();
+        = [];
 }

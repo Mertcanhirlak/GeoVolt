@@ -1,17 +1,18 @@
 ﻿using GeoVolt.Application.ChargingStations.Dtos;
 
 namespace GeoVolt.Application.ChargingStations.Abstractions;
-//interface, şarj istasyonları ile ilgili iş mantığı işlemlerini tanımlar
+
+// Şarj istasyonlarıyla ilgili iş mantığı işlemlerini tanımlar.
 public interface IChargingStationService
 {
-    // Tüm istasyonları veya bölge ve mahalleye göre filtrelenmiş istasyonları getirir
+    // İstasyonları bölge ve mahalle kaynak kimliklerine göre getirir.
     Task<IReadOnlyList<ChargingStationResponseDto>> GetAllAsync(
-        int? regionId = null,
-        int? neighborhoodId = null,
+        int? regionSourceId = null,
+        int? neighborhoodSourceId = null,
         CancellationToken cancellationToken = default);
 
-    // Id değerine göre tek istasyonun detayını getirir
-    Task<ChargingStationDetailResponseDto?> GetByIdAsync(
+    // Internal veritabanı kimliğine göre istasyon detayını getirir.
+    Task<ChargingStationDetailResponseDto> GetByIdAsync(
         int id,
         CancellationToken cancellationToken = default);
 }
