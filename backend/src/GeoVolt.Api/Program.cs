@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using GeoVolt.Api.ExceptionHandling;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,7 +22,7 @@ builder.Services.AddDataProtection()
 builder.Services.AddControllers();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
-
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 var jwtOptions = GetJwtOptions(builder.Configuration);
 var frontendUrls = GetFrontendUrls(builder.Configuration);
 
@@ -131,7 +132,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
-
+app.UseExceptionHandler(_ => { });
 await SeedDefaultAdminAsync(app);
 
 if (app.Environment.IsDevelopment())

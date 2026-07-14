@@ -1,21 +1,22 @@
 ﻿using GeoVolt.Domain.Entities;
 
 namespace GeoVolt.Application.ChargingStations.Abstractions;
-//interface, şarj istasyonları ve bağlantı noktaları ile ilgili veri erişim işlemlerini tanımlar
+
+// Şarj istasyonu ve connector veri erişim işlemlerini tanımlar.
 public interface IChargingStationRepository
 {
-    // Tüm istasyonları veya bölge ve mahalleye göre filtrelenmiş istasyonları getirir
+    // İstasyonları bölge ve mahalle kaynak kimliklerine göre getirir.
     Task<IReadOnlyList<ChargingStation>> GetAllAsync(
-        int? regionId = null,
-        int? neighborhoodId = null,
+        int? regionSourceId = null,
+        int? neighborhoodSourceId = null,
         CancellationToken cancellationToken = default);
 
-    // Id değerine göre tek istasyonu getirir
+    // Internal veritabanı kimliğine göre istasyonu getirir.
     Task<ChargingStation?> GetByIdAsync(
         int id,
         CancellationToken cancellationToken = default);
 
-    // Belirtilen istasyona ait bağlantı noktalarını getirir
+    // Internal istasyon kimliğine bağlı connectorları getirir.
     Task<IReadOnlyList<ChargingConnector>> GetConnectorsByStationIdAsync(
         int chargingStationId,
         CancellationToken cancellationToken = default);

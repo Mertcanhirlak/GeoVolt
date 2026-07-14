@@ -2,27 +2,27 @@
 
 namespace GeoVolt.Application.Regions.Abstractions;
 
+// Bölgeyle ilgili iş mantığı işlemlerini tanımlar.
 public interface IRegionService
 {
-    // Tüm bölgeleri getirir
+    // Tüm bölgeleri getirir.
     Task<IReadOnlyList<RegionResponseDto>> GetAllAsync(
         CancellationToken cancellationToken = default);
 
-    // Id değerine göre tek bölgeyi getirir
-    Task<RegionResponseDto?> GetByIdAsync(
-        int id,
+    // Kaynak kimliğine göre tek bölgeyi getirir.
+    Task<RegionResponseDto> GetBySourceIdAsync(
+        int sourceId,
         CancellationToken cancellationToken = default);
 
-    // Bölgenin özet bilgilerini getirir
-    Task<RegionSummaryResponseDto?> GetSummaryAsync(
-        int id,
+    // Kaynak kimliğine göre bölge özetini getirir.
+    Task<RegionSummaryResponseDto> GetSummaryBySourceIdAsync(
+        int sourceId,
         CancellationToken cancellationToken = default);
 
-    
-    // Verilen noktanın seçilen bölge içinde olup olmadığını
-    // ve hangi mahalleye denk geldiğini bulur
-    Task<LocateRegionPointResponseDto?> LocatePointAsync(
-        int regionId,
-       RegionPointRequestDto request,
+    // Noktanın seçilen bölge içinde olup olmadığını
+    // ve hangi mahalleye denk geldiğini bulur.
+    Task<LocateRegionPointResponseDto> LocatePointAsync(
+        int regionSourceId,
+        RegionPointRequestDto request,
         CancellationToken cancellationToken = default);
 }

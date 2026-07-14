@@ -1,14 +1,15 @@
 ﻿using System.Text.Json;
 using GeoVolt.Application.ChargingStations.Abstractions;
+using GeoVolt.Application.Common.Exceptions;
+using GeoVolt.Application.Neighborhoods.Abstractions;
 using GeoVolt.Application.Regions.Abstractions;
 using GeoVolt.Application.Regions.Dtos;
 using GeoVolt.Domain.Entities;
 using NetTopologySuite.Geometries;
-using GeoVolt.Application.Neighborhoods.Abstractions;
 
-// Bölge ve istasyon verilerini yönetmek için servis sınıfı
 namespace GeoVolt.Application.Regions;
 
+// Bölge ve istasyon verilerini yönetir.
 public sealed class RegionService : IRegionService
 {
     private readonly IRegionRepository _regionRepository;
@@ -16,9 +17,9 @@ public sealed class RegionService : IRegionService
     private readonly INeighborhoodRepository _neighborhoodRepository;
 
     public RegionService(
-      IRegionRepository regionRepository,
-      IChargingStationRepository chargingStationRepository,
-      INeighborhoodRepository neighborhoodRepository)
+        IRegionRepository regionRepository,
+        IChargingStationRepository chargingStationRepository,
+        INeighborhoodRepository neighborhoodRepository)
     {
         _regionRepository = regionRepository;
         _chargingStationRepository = chargingStationRepository;
@@ -28,65 +29,58 @@ public sealed class RegionService : IRegionService
     public async Task<IReadOnlyList<RegionResponseDto>> GetAllAsync(
         CancellationToken cancellationToken = default)
     {
-        // Tüm bölgeleri repository üzerinden alır
+        // Tüm bölgeleri getirir.
         var regions = await _regionRepository.GetAllAsync(
             cancellationToken);
 
-        // Entity listesini DTO listesine dönüştürür
         return regions
             .Select(MapToResponseDto)
             .ToList();
     }
 
-    public async Task<RegionResponseDto?> GetByIdAsync(
-        int id,
+    public async Task<RegionResponseDto> GetBySourceIdAsync(
+        int sourceId,
         CancellationToken cancellationToken = default)
     {
-        // Id değerine göre bölgeyi getirir
-        var region = await _regionRepository.GetByIdAsync(
-            id,
+        // Kaynak kimliğine göre bölgeyi getirir.
+        var region = await _regionRepository.GetBySourceIdAsync(
+            sourceId,
             cancellationToken);
 
-        // Bölge bulunamazsa null döner
         if (region is null)
         {
-            return null;
+            throw new NotFoundException("Bölge bulunamadı.");
         }
 
-        // Entity nesnesini DTO'ya dönüştürür
         return MapToResponseDto(region);
     }
 
-    public async Task<RegionSummaryResponseDto?> GetSummaryAsync(
-        int id,
+    public async Task<RegionSummaryResponseDto> GetSummaryBySourceIdAsync(
+        int sourceId,
         CancellationToken cancellationToken = default)
     {
-        // Id değerine göre bölgeyi getirir
-        var region = await _regionRepository.GetByIdAsync(
-            id,
+        // Kaynak kimliğine göre bölgeyi getirir.
+        var region = await _regionRepository.GetBySourceIdAsync(
+            sourceId,
             cancellationToken);
 
-        // Bölge bulunamazsa null döner
         if (region is null)
         {
-            return null;
+            throw new NotFoundException("Bölge bulunamadı.");
         }
 
-        // Bölgenin statik özet verisini getirir
-        var summary = await _regionRepository.GetSummaryAsync(
-            id,
-            cancellationToken);
+     
 
-        // Seçilen bölgedeki tüm istasyonları getirir
-        // Mahalle filtresi uygulanmaz
-        var stations = await _chargingStationRepository.GetAllAsync(
-            regionId: id,
-            neighborhoodId: null,
-            cancellationToken: cancellationToken);
+        // Mahalle filtresi uygulamadan bölgedeki istasyonları getirir.
+        var stations =
+            await _chargingStationRepository.GetAllAsync(
+                regionSourceId: sourceId,
+                neighborhoodSourceId: null,
+                cancellationToken: cancellationToken);
 
-        // Her istasyona ait connector verilerini getirir
-        var connectorTasks = stations
-            .Select(station =>
+        // Her istasyona ait connectorları getirir.
+        var connectorTasks = stations.Select(
+            station =>
                 _chargingStationRepository
                     .GetConnectorsByStationIdAsync(
                         station.Id,
@@ -95,12 +89,10 @@ public sealed class RegionService : IRegionService
         var connectorLists = await Task.WhenAll(
             connectorTasks);
 
-        // Connector listelerini tek listede birleştirir
         var connectors = connectorLists
             .SelectMany(list => list)
             .ToList();
 
-        // Firmalara göre istasyon dağılımını hesaplar
         var companyDistribution = stations
             .GroupBy(station => station.OperatorName)
             .Select(group => new CompanyDistributionResponseDto
@@ -108,18 +100,16 @@ public sealed class RegionService : IRegionService
                 CompanyName = group.Key,
                 StationCount = group.Count()
             })
-            .OrderByDescending(company => company.StationCount)
-            .ThenBy(company => company.CompanyName)
+            .OrderByDescending(item => item.StationCount)
+            .ThenBy(item => item.CompanyName)
             .ToList();
 
-        // En yaygın soket tipini hesaplar
+        // Connector adedine göre en yaygın soket türünü bulur.
         var mostCommonSocketType = connectors
             .GroupBy(connector => connector.SocketType)
             .Select(group => new
             {
                 SocketType = group.Key,
-
-                // Connector adetlerini dikkate alır
                 TotalQuantity = group.Sum(
                     connector => connector.Quantity)
             })
@@ -128,14 +118,12 @@ public sealed class RegionService : IRegionService
             .Select(item => item.SocketType)
             .FirstOrDefault();
 
-        // En yaygın güç kapasitesini hesaplar
+        // Connector adedine göre en yaygın gücü bulur.
         var mostCommonPowerKw = connectors
             .GroupBy(connector => connector.PowerKw)
             .Select(group => new
             {
                 PowerKw = group.Key,
-
-                // Connector adetlerini dikkate alır
                 TotalQuantity = group.Sum(
                     connector => connector.Quantity)
             })
@@ -144,64 +132,50 @@ public sealed class RegionService : IRegionService
             .Select(item => (double?)item.PowerKw)
             .FirstOrDefault();
 
-        // Hesaplanan verileri response DTO'ya dönüştürür
         return new RegionSummaryResponseDto
         {
             RegionId = region.SourceId,
             RegionName = region.Name,
-
-            // İstasyon repository'sindeki gerçek mock sayıyı kullanır
             ChargingStationCount = stations.Count,
 
-            // Şimdilik statik bölge verisinden alınır
-            TrafficLevel = summary?.TrafficLevel
-                ?? "Veri bulunamadı",
+            
+            // Gerçek trafik verisi henüz sisteme bağlı değildir.
+            TrafficLevel = "Veri hazırlanıyor",
 
-            // Connector verilerinden hesaplanır
             MostCommonSocketType = mostCommonSocketType,
-
-            // Connector verilerinden hesaplanır
             MostCommonPowerKw = mostCommonPowerKw,
-
-            // İstasyon verilerinden hesaplanır
             CompanyDistribution = companyDistribution
         };
     }
 
-    
-    public async Task<LocateRegionPointResponseDto?> LocatePointAsync(
-    int regionId,
-    RegionPointRequestDto request,
-    CancellationToken cancellationToken = default)
+    public async Task<LocateRegionPointResponseDto> LocatePointAsync(
+        int regionSourceId,
+        RegionPointRequestDto request,
+        CancellationToken cancellationToken = default)
     {
-        // Id değerine göre seçilen bölgeyi getirir
-        var region = await _regionRepository.GetByIdAsync(
-            regionId,
+        // Kaynak kimliğine göre seçilen bölgeyi getirir.
+        var region = await _regionRepository.GetBySourceIdAsync(
+            regionSourceId,
             cancellationToken);
 
-        // Bölge bulunamazsa null döner
         if (region is null)
         {
-            return null;
+            throw new NotFoundException("Bölge bulunamadı.");
         }
 
-        // Enlem ve boylam bilgisinden Point oluşturur
+        // X = Longitude, Y = Latitude
         var point = region.Boundary.Factory.CreatePoint(
             new Coordinate(
                 request.Longitude,
                 request.Latitude));
 
-        // Noktanın seçilen bölge içinde veya sınır üzerinde
-        // olup olmadığını kontrol eder
-        var isInsideRegion = region.Boundary.Covers(
-            point);
+        var isInsideRegion = region.Boundary.Covers(point);
 
-        // Nokta bölge dışındaysa mahalle araması yapmadan döner
         if (!isInsideRegion)
         {
             return new LocateRegionPointResponseDto
             {
-                RegionId = region.Id,
+                RegionId = region.SourceId,
                 RegionName = region.Name,
                 IsInsideRegion = false,
                 NeighborhoodId = null,
@@ -211,31 +185,30 @@ public sealed class RegionService : IRegionService
             };
         }
 
-        // Seçilen bölgeye bağlı mahalleleri getirir
-        var neighborhoods = await _neighborhoodRepository.GetByRegionIdAsync(
-            regionId,
-            cancellationToken);
+        // Kaynak bölge kimliğine bağlı mahalleleri getirir.
+        var neighborhoods =
+            await _neighborhoodRepository.GetByRegionIdAsync(
+                regionSourceId,
+                cancellationToken);
 
-        // Noktanın hangi mahalle sınırı içinde olduğunu bulur
         var neighborhood = neighborhoods.FirstOrDefault(
             item => item.Boundary.Covers(point));
 
-        // Bölge ve varsa mahalle bilgisini döndürür
         return new LocateRegionPointResponseDto
         {
-            RegionId = region.Id,
+            RegionId = region.SourceId,
             RegionName = region.Name,
             IsInsideRegion = true,
-            NeighborhoodId = neighborhood?.Id,
+            NeighborhoodId = neighborhood?.SourceId,
             NeighborhoodName = neighborhood?.Name,
             Latitude = request.Latitude,
             Longitude = request.Longitude
         };
     }
+
     private static RegionResponseDto MapToResponseDto(
         Region region)
     {
-        // Region entity'sini response DTO'ya dönüştürür
         return new RegionResponseDto
         {
             Id = region.SourceId,
@@ -248,7 +221,6 @@ public sealed class RegionService : IRegionService
     private static string ToGeoJson(
         Geometry geometry)
     {
-        // Polygon geometrisini GeoJSON'a çevirir
         if (geometry is Polygon polygon)
         {
             return JsonSerializer.Serialize(new
@@ -258,7 +230,6 @@ public sealed class RegionService : IRegionService
             });
         }
 
-        // MultiPolygon geometrisini GeoJSON'a çevirir
         if (geometry is MultiPolygon multiPolygon)
         {
             var coordinates = Enumerable
@@ -275,7 +246,6 @@ public sealed class RegionService : IRegionService
             });
         }
 
-        // Desteklenmeyen geometri tipinde hata verir
         throw new NotSupportedException(
             $"Desteklenmeyen geometri tipi: {geometry.GeometryType}");
     }
@@ -283,14 +253,11 @@ public sealed class RegionService : IRegionService
     private static double[][][] GetPolygonCoordinates(
         Polygon polygon)
     {
-        var rings = new List<double[][]>();
+        var rings = new List<double[][]>
+        {
+            GetRingCoordinates(polygon.ExteriorRing)
+        };
 
-        // Polygon dış sınırını ekler
-        rings.Add(
-            GetRingCoordinates(
-                polygon.ExteriorRing));
-
-        // Varsa iç boşlukları ekler
         for (var i = 0; i < polygon.NumInteriorRings; i++)
         {
             rings.Add(
@@ -304,7 +271,7 @@ public sealed class RegionService : IRegionService
     private static double[][] GetRingCoordinates(
         LineString ring)
     {
-        // Koordinatları [longitude, latitude] formatına çevirir
+        // GeoJSON koordinat sırası: longitude, latitude
         return ring.Coordinates
             .Select(coordinate => new[]
             {

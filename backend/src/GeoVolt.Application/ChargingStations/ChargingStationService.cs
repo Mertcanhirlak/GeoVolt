@@ -1,10 +1,11 @@
 ﻿using GeoVolt.Application.ChargingStations.Abstractions;
 using GeoVolt.Application.ChargingStations.Dtos;
+using GeoVolt.Application.Common.Exceptions;
 using GeoVolt.Domain.Entities;
 
-//şarj istasyonları ile ilgili iş mantığı işlemlerini gerçekleştirir
 namespace GeoVolt.Application.ChargingStations;
 
+// Şarj istasyonlarıyla ilgili iş kurallarını yönetir.
 public sealed class ChargingStationService : IChargingStationService
 {
     private readonly IChargingStationRepository _chargingStationRepository;
@@ -16,70 +17,76 @@ public sealed class ChargingStationService : IChargingStationService
     }
 
     public async Task<IReadOnlyList<ChargingStationResponseDto>> GetAllAsync(
-    int? regionId = null,
-    int? neighborhoodId = null,
-    CancellationToken cancellationToken = default)
+        int? regionSourceId = null,
+        int? neighborhoodSourceId = null,
+        CancellationToken cancellationToken = default)
     {
-        // Tüm istasyonları veya bölge ve mahalleye göre filtrelenmiş
-        // istasyonları getirir
+        // İstasyonları bölge ve mahalle filtrelerine göre getirir.
         var stations = await _chargingStationRepository.GetAllAsync(
-            regionId,
-            neighborhoodId,
-            cancellationToken);
+            regionSourceId: regionSourceId,
+            neighborhoodSourceId: neighborhoodSourceId,
+            cancellationToken: cancellationToken);
 
-        // Entity listesini DTO listesine dönüştürür
         return stations
             .Select(MapToResponseDto)
             .ToList();
     }
-    public async Task<ChargingStationDetailResponseDto?> GetByIdAsync(
+
+    public async Task<ChargingStationDetailResponseDto> GetByIdAsync(
         int id,
         CancellationToken cancellationToken = default)
     {
-        // Id değerine göre istasyonu getirir
+        // İstasyonu internal veritabanı kimliğine göre getirir.
         var station = await _chargingStationRepository.GetByIdAsync(
             id,
             cancellationToken);
 
-        // İstasyon bulunamazsa null döner
         if (station is null)
         {
-            return null;
+            throw new NotFoundException(
+                "Şarj istasyonu bulunamadı.");
         }
 
-        // İstasyona ait bağlantı noktalarını getirir
+        // İstasyona ait connectorları getirir.
         var connectors =
-            await _chargingStationRepository.GetConnectorsByStationIdAsync(
-                station.Id,
-                cancellationToken);
+            await _chargingStationRepository
+                .GetConnectorsByStationIdAsync(
+                    station.Id,
+                    cancellationToken);
 
-        // İstasyon ve bağlantı bilgilerini detay DTO'suna dönüştürür
         return new ChargingStationDetailResponseDto
         {
             Id = station.Id,
+            SourceStationNumber = station.SourceStationNumber,
             Name = station.Name,
             OperatorName = station.OperatorName,
-            RegionId = station.RegionId,
-            NeighborhoodId = station.NeighborhoodId,
+            BrandName = station.BrandName,
+
+            // API bölge ve mahalle kaynak kimliklerini döndürür.
+            RegionId = station.Region.SourceId,
+            RegionName = station.Region.Name,
+            NeighborhoodId = station.Neighborhood.SourceId,
+            NeighborhoodName = station.Neighborhood.Name,
+
             Address = station.Address,
 
-            // Point.Y enlem bilgisidir
+            // NTS: X = Longitude, Y = Latitude
             Latitude = station.Location.Y,
-
-            // Point.X boylam bilgisidir
             Longitude = station.Location.X,
 
             IsActive = station.IsActive,
+            IsGreenStation = station.IsGreenStation,
 
-            // Connector listesini response DTO'ya dönüştürür
             Connectors = connectors
-                .Select(connector => new ChargingConnectorResponseDto
-                {
-                    Id = connector.Id,
-                    SocketType = connector.SocketType,
-                    PowerKw = connector.PowerKw,
-                    Quantity = connector.Quantity
-                })
+                .Select(connector =>
+                    new ChargingConnectorResponseDto
+                    {
+                        Id = connector.Id,
+                        SocketType = connector.SocketType,
+                        ConnectorType = connector.ConnectorType,
+                        PowerKw = connector.PowerKw,
+                        Quantity = connector.Quantity
+                    })
                 .ToList()
         };
     }
@@ -87,23 +94,28 @@ public sealed class ChargingStationService : IChargingStationService
     private static ChargingStationResponseDto MapToResponseDto(
         ChargingStation station)
     {
-        // İstasyon entity'sini response DTO'ya dönüştürür
         return new ChargingStationResponseDto
         {
             Id = station.Id,
+            SourceStationNumber = station.SourceStationNumber,
             Name = station.Name,
             OperatorName = station.OperatorName,
-            RegionId = station.RegionId,
-            NeighborhoodId = station.NeighborhoodId,
+            BrandName = station.BrandName,
+
+            // API bölge ve mahalle kaynak kimliklerini döndürür.
+            RegionId = station.Region.SourceId,
+            RegionName = station.Region.Name,
+            NeighborhoodId = station.Neighborhood.SourceId,
+            NeighborhoodName = station.Neighborhood.Name,
+
             Address = station.Address,
 
-            // Point.Y enlem bilgisidir
+            // NTS: X = Longitude, Y = Latitude
             Latitude = station.Location.Y,
-
-            // Point.X boylam bilgisidir
             Longitude = station.Location.X,
 
-            IsActive = station.IsActive
+            IsActive = station.IsActive,
+            IsGreenStation = station.IsGreenStation
         };
     }
 }
