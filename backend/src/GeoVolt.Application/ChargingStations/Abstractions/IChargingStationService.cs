@@ -6,12 +6,12 @@ public interface IChargingStationService
 {
     // Tüm istasyonları veya bölge ve mahalleye göre filtrelenmiş istasyonları getirir
     Task<IReadOnlyList<ChargingStationResponseDto>> GetAllAsync(
-        int? regionId = null,
-        int? neighborhoodId = null,
+        int? regionSourceId = null,
+        int? neighborhoodSourceId = null,
         CancellationToken cancellationToken = default);
 
     // Id değerine göre tek istasyonun detayını getirir
-    Task<ChargingStationDetailResponseDto?> GetByIdAsync(
+    Task<ChargingStationDetailResponseDto> GetByIdAsync(
         int id,
         CancellationToken cancellationToken = default);
 }

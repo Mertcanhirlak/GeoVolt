@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace GeoVolt.Api.Controllers;
 
 [ApiController]
-[Route("api/regions/{regionId:int}/neighborhoods")]
+[Route("api/regions/{regionSourceId:int}/neighborhoods")]
 [Authorize]
 public sealed class RegionNeighborhoodsController : ControllerBase
 {
@@ -18,14 +18,14 @@ public sealed class RegionNeighborhoodsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetByRegionIdAsync(
-        int regionId,
+    public async Task<IActionResult> GetByRegionSourceIdAsync(
+        int regionSourceId,
         CancellationToken cancellationToken)
     {
         // Seçilen bölgeye bağlı mahalleleri getirir
         var neighborhoods =
-            await _neighborhoodService.GetByRegionIdAsync(
-                regionId,
+            await _neighborhoodService.GetByRegionSourceIdAsync(
+                regionSourceId,
                 cancellationToken);
 
         return Ok(neighborhoods);

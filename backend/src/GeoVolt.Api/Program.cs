@@ -1,4 +1,5 @@
 using System.Text;
+using GeoVolt.Api.ExceptionHandling;
 using GeoVolt.Application;
 using GeoVolt.Application.Auth.Options;
 using GeoVolt.Domain.Constants;
@@ -21,6 +22,7 @@ builder.Services.AddDataProtection()
 builder.Services.AddControllers();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 var jwtOptions = GetJwtOptions(builder.Configuration);
 var frontendUrls = GetFrontendUrls(builder.Configuration);
@@ -131,6 +133,8 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
+
+app.UseExceptionHandler(_ => { });
 
 await SeedDefaultAdminAsync(app);
 

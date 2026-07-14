@@ -26,8 +26,8 @@ public sealed class ChargingStationsController : ControllerBase
         // Tüm istasyonları veya bölge ve mahalleye göre
         // filtrelenmiş istasyonları getirir
         var stations = await _chargingStationService.GetAllAsync(
-            regionId,
-            neighborhoodId,
+            regionSourceId: regionId,
+            neighborhoodSourceId: neighborhoodId,
             cancellationToken);
 
         return Ok(stations);
@@ -42,16 +42,6 @@ public sealed class ChargingStationsController : ControllerBase
         var station = await _chargingStationService.GetByIdAsync(
             id,
             cancellationToken);
-
-        // İstasyon bulunamazsa 404 döner
-        if (station is null)
-        {
-            return NotFound(new
-            {
-                success = false,
-                message = "Şarj istasyonu bulunamadı."
-            });
-        }
 
         return Ok(station);
     }

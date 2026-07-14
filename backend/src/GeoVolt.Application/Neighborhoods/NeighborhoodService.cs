@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using GeoVolt.Application.Common.Exceptions;
 using GeoVolt.Application.Neighborhoods.Abstractions;
 using GeoVolt.Application.Neighborhoods.Dtos;
 using GeoVolt.Domain.Entities;
@@ -27,14 +28,14 @@ public sealed class NeighborhoodService : INeighborhoodService
             .ToList();
     }
 
-    public async Task<IReadOnlyList<NeighborhoodResponseDto>> GetByRegionIdAsync(
-        int regionId,
+    public async Task<IReadOnlyList<NeighborhoodResponseDto>> GetByRegionSourceIdAsync(
+        int regionSourceId,
         CancellationToken cancellationToken = default)
     {
         // Belirtilen bölgeye bağlı mahalleleri getirir
         var neighborhoods =
-            await _neighborhoodRepository.GetByRegionIdAsync(
-                regionId,
+            await _neighborhoodRepository.GetByRegionSourceIdAsync(
+                regionSourceId,
                 cancellationToken);
 
         // Entity listesini DTO listesine dönüştürür
@@ -43,20 +44,20 @@ public sealed class NeighborhoodService : INeighborhoodService
             .ToList();
     }
 
-    public async Task<NeighborhoodDetailResponseDto?> GetByIdAsync(
-        int id,
+    public async Task<NeighborhoodDetailResponseDto> GetBySourceIdAsync(
+        int sourceId,
         CancellationToken cancellationToken = default)
     {
         // Id değerine göre mahalleyi getirir
         var neighborhood =
-            await _neighborhoodRepository.GetByIdAsync(
-                id,
+            await _neighborhoodRepository.GetBySourceIdAsync(
+                sourceId,
                 cancellationToken);
 
         // Mahalle bulunamazsa null döner
         if (neighborhood is null)
         {
-            return null;
+            throw new NotFoundException("Mahalle bulunamadı.");
         }
 
         // Entity nesnesini detay DTO'suna dönüştürür

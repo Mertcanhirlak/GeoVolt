@@ -1,4 +1,5 @@
-﻿using GeoVolt.Application.Regions.Abstractions;
+using GeoVolt.Application.Regions.Abstractions;
+using GeoVolt.Application.Regions.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -20,56 +21,38 @@ public sealed class RegionsController : ControllerBase
     public async Task<IActionResult> GetAllAsync(
         CancellationToken cancellationToken)
     {
-        // Tüm bölgeleri getirir
-        var regions = await _regionService.GetAllAsync(
-            cancellationToken);
-
-        return Ok(regions);
+        return Ok(await _regionService.GetAllAsync(cancellationToken));
     }
 
-    [HttpGet("{id:int}")]
-    public async Task<IActionResult> GetByIdAsync(
-        int id,
+    [HttpGet("{sourceId:int}")]
+    public async Task<IActionResult> GetBySourceIdAsync(
+        int sourceId,
         CancellationToken cancellationToken)
     {
-        // Id değerine göre bölgeyi getirir
-        var region = await _regionService.GetByIdAsync(
-            id,
-            cancellationToken);
-
-        // Bölge bulunamazsa 404 döner
-        if (region is null)
-        {
-            return NotFound(new
-            {
-                success = false,
-                message = "Bölge bulunamadı."
-            });
-        }
-
-        return Ok(region);
+        return Ok(await _regionService.GetBySourceIdAsync(
+            sourceId,
+            cancellationToken));
     }
 
-    [HttpGet("{id:int}/summary")]
+    [HttpGet("{sourceId:int}/summary")]
     public async Task<IActionResult> GetSummaryAsync(
-        int id,
+        int sourceId,
         CancellationToken cancellationToken)
     {
-        // Bölgenin özet bilgilerini getirir
-        var summary = await _regionService.GetSummaryAsync(
-            id,
-            cancellationToken);
+        return Ok(await _regionService.GetSummaryBySourceIdAsync(
+            sourceId,
+            cancellationToken));
+    }
 
-        // Bölge bulunamazsa 404 döner
-        if (summary is null)
-        {
-            return NotFound(new
-            {
-                success = false,
-                message = "Bölge özeti bulunamadı."
-            });
-        }
-
-        return Ok(summary);
+    [HttpPost("{sourceId:int}/locate-point")]
+    public async Task<IActionResult> LocatePointAsync(
+        int sourceId,
+        [FromBody] RegionPointRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await _regionService.LocatePointAsync(
+            sourceId,
+            request,
+            cancellationToken));
     }
 }

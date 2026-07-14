@@ -15,22 +15,22 @@ public sealed class ChargingStationRepository : IChargingStationRepository
     }
 
     public async Task<IReadOnlyList<ChargingStation>> GetAllAsync(
-        int? regionId = null,
-        int? neighborhoodId = null,
+        int? regionSourceId = null,
+        int? neighborhoodSourceId = null,
         CancellationToken cancellationToken = default)
     {
         var query = CreateReadQuery();
 
-        if (regionId.HasValue)
+        if (regionSourceId.HasValue)
         {
             query = query.Where(station =>
-                station.Region.SourceId == regionId.Value);
+                station.Region.SourceId == regionSourceId.Value);
         }
 
-        if (neighborhoodId.HasValue)
+        if (neighborhoodSourceId.HasValue)
         {
             query = query.Where(station =>
-                station.Neighborhood.SourceId == neighborhoodId.Value);
+                station.Neighborhood.SourceId == neighborhoodSourceId.Value);
         }
 
         return await query

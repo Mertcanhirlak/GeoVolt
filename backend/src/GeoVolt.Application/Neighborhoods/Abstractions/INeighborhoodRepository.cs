@@ -8,12 +8,12 @@ public interface INeighborhoodRepository
         CancellationToken cancellationToken = default);
 
     // Belirtilen bölgeye bağlı mahalleleri getirir
-    Task<IReadOnlyList<Neighborhood>> GetByRegionIdAsync(
-        int regionId,
+    Task<IReadOnlyList<Neighborhood>> GetByRegionSourceIdAsync(
+        int regionSourceId,
         CancellationToken cancellationToken = default);
 
     // Id değerine göre tek mahalleyi getirir
-    Task<Neighborhood?> GetByIdAsync(
-        int id,
+    Task<Neighborhood?> GetBySourceIdAsync(
+        int sourceId,
         CancellationToken cancellationToken = default);
 }

@@ -210,22 +210,43 @@ Frontend bu endpointi şu işlemler için kullanır:
 ```json
 [
   {
-    "id": 1,
-    "name": "Kızılay",
-    "stationCount": 12,
-    "trafficDensity": "Yüksek",
-    "commonPowerCapacity": "DC 50kW",
-    "commonSocketType": "CCS"
-  },
-  {
-    "id": 2,
-    "name": "Bahçelievler",
-    "stationCount": 8,
-    "trafficDensity": "Orta",
-    "commonPowerCapacity": "AC 22kW",
-    "commonSocketType": "Type 2"
+    "id": 6,
+    "name": "Balgat",
+    "population": 108832,
+    "boundaryGeoJson": "{\"type\":\"MultiPolygon\",...}"
   }
 ]
+```
+
+---
+
+## Bölge İçinde Nokta Bulma
+
+```http
+POST /api/regions/{regionId}/locate-point
+```
+
+Verilen koordinatın seçili bölgenin içinde olup olmadığını ve eşleşen mahalleyi
+PostGIS üzerinden bulur. `{regionId}`, bölge listesinden dönen kalıcı kaynak
+kimliğidir.
+
+```json
+{
+  "latitude": 39.892948,
+  "longitude": 32.819532
+}
+```
+
+```json
+{
+  "regionId": 6,
+  "regionName": "Balgat",
+  "isInsideRegion": true,
+  "neighborhoodId": 14122,
+  "neighborhoodName": "Ehlibeyt",
+  "latitude": 39.892948,
+  "longitude": 32.819532
+}
 ```
 
 ---
@@ -403,23 +424,18 @@ POST /api/manual-pin/evaluate
 
 ## Açıklama
 
-Kullanıcının harita üzerinde bıraktığı pin konumunu değerlendirir.
-
-Backend tarafında pin'in seçili bölge içinde olup olmadığı PostGIS ile kontrol edilecektir.
-
-Bu işlemde örnek olarak şu mantık kullanılabilir:
-
-```text
-ST_Contains(region_geometry, selected_point)
-```
+Kullanıcının harita üzerinde bıraktığı pinin seçili bölge içinde olup olmadığını
+ve hangi mahallede bulunduğunu PostGIS ile değerlendirir. Maliyet verisi henüz
+bağlı olmadığı için `estimatedCost` alanı `null`, `costSource` alanı
+`"NotAvailable"` döner.
 
 ## Request Body
 
 ```json
 {
-  "latitude": 39.9208,
-  "longitude": 32.8541,
-  "regionId": 1
+  "regionId": 6,
+  "latitude": 39.892948,
+  "longitude": 32.819532
 }
 ```
 
@@ -427,14 +443,16 @@ ST_Contains(region_geometry, selected_point)
 
 ```json
 {
-  "isInsideRegion": true,
-  "regionName": "Kızılay",
-  "estimatedAddress": "Çankaya / Kızılay",
-  "estimatedCost": 450000,
-  "costScore": 80,
-  "demandScore": 90,
-  "generalScore": 85,
-  "message": "Seçilen konum aday lokasyon olarak değerlendirilebilir."
+  "isValid": true,
+  "regionId": 6,
+  "regionName": "Balgat",
+  "neighborhoodId": 14122,
+  "neighborhoodName": "Ehlibeyt",
+  "latitude": 39.892948,
+  "longitude": 32.819532,
+  "estimatedCost": null,
+  "costSource": "NotAvailable",
+  "message": "Seçilen konum bölge sınırları içindedir."
 }
 ```
 
@@ -442,14 +460,16 @@ ST_Contains(region_geometry, selected_point)
 
 ```json
 {
-  "isInsideRegion": false,
-  "regionName": null,
-  "estimatedAddress": null,
+  "isValid": false,
+  "regionId": 6,
+  "regionName": "Balgat",
+  "neighborhoodId": null,
+  "neighborhoodName": null,
+  "latitude": 0,
+  "longitude": 0,
   "estimatedCost": null,
-  "costScore": null,
-  "demandScore": null,
-  "generalScore": null,
-  "message": "Seçilen konum belirlenen bölge sınırları dışındadır."
+  "costSource": "NotAvailable",
+  "message": "Seçilen konum bölge sınırları dışındadır."
 }
 ```
 

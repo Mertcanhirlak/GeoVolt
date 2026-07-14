@@ -6,8 +6,8 @@ public interface IChargingStationRepository
 {
     // Tüm istasyonları veya bölge ve mahalleye göre filtrelenmiş istasyonları getirir
     Task<IReadOnlyList<ChargingStation>> GetAllAsync(
-        int? regionId = null,
-        int? neighborhoodId = null,
+        int? regionSourceId = null,
+        int? neighborhoodSourceId = null,
         CancellationToken cancellationToken = default);
 
     // Id değerine göre tek istasyonu getirir

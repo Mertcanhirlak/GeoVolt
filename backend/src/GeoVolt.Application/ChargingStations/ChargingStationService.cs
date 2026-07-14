@@ -1,5 +1,6 @@
 ﻿using GeoVolt.Application.ChargingStations.Abstractions;
 using GeoVolt.Application.ChargingStations.Dtos;
+using GeoVolt.Application.Common.Exceptions;
 using GeoVolt.Domain.Entities;
 
 //şarj istasyonları ile ilgili iş mantığı işlemlerini gerçekleştirir
@@ -16,15 +17,15 @@ public sealed class ChargingStationService : IChargingStationService
     }
 
     public async Task<IReadOnlyList<ChargingStationResponseDto>> GetAllAsync(
-    int? regionId = null,
-    int? neighborhoodId = null,
+    int? regionSourceId = null,
+    int? neighborhoodSourceId = null,
     CancellationToken cancellationToken = default)
     {
         // Tüm istasyonları veya bölge ve mahalleye göre filtrelenmiş
         // istasyonları getirir
         var stations = await _chargingStationRepository.GetAllAsync(
-            regionId,
-            neighborhoodId,
+            regionSourceId,
+            neighborhoodSourceId,
             cancellationToken);
 
         // Entity listesini DTO listesine dönüştürür
@@ -32,7 +33,7 @@ public sealed class ChargingStationService : IChargingStationService
             .Select(MapToResponseDto)
             .ToList();
     }
-    public async Task<ChargingStationDetailResponseDto?> GetByIdAsync(
+    public async Task<ChargingStationDetailResponseDto> GetByIdAsync(
         int id,
         CancellationToken cancellationToken = default)
     {
@@ -44,7 +45,7 @@ public sealed class ChargingStationService : IChargingStationService
         // İstasyon bulunamazsa null döner
         if (station is null)
         {
-            return null;
+            throw new NotFoundException("Şarj istasyonu bulunamadı.");
         }
 
         var connectors = station.Connectors

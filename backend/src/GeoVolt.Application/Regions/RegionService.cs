@@ -1,5 +1,7 @@
 ﻿using System.Text.Json;
 using GeoVolt.Application.ChargingStations.Abstractions;
+using GeoVolt.Application.Common.Exceptions;
+using GeoVolt.Application.Neighborhoods.Abstractions;
 using GeoVolt.Application.Regions.Abstractions;
 using GeoVolt.Application.Regions.Dtos;
 using GeoVolt.Domain.Entities;
@@ -12,13 +14,16 @@ public sealed class RegionService : IRegionService
 {
     private readonly IRegionRepository _regionRepository;
     private readonly IChargingStationRepository _chargingStationRepository;
+    private readonly INeighborhoodRepository _neighborhoodRepository;
 
     public RegionService(
         IRegionRepository regionRepository,
-        IChargingStationRepository chargingStationRepository)
+        IChargingStationRepository chargingStationRepository,
+        INeighborhoodRepository neighborhoodRepository)
     {
         _regionRepository = regionRepository;
         _chargingStationRepository = chargingStationRepository;
+        _neighborhoodRepository = neighborhoodRepository;
     }
 
     public async Task<IReadOnlyList<RegionResponseDto>> GetAllAsync(
@@ -34,50 +39,45 @@ public sealed class RegionService : IRegionService
             .ToList();
     }
 
-    public async Task<RegionResponseDto?> GetByIdAsync(
-        int id,
+    public async Task<RegionResponseDto> GetBySourceIdAsync(
+        int sourceId,
         CancellationToken cancellationToken = default)
     {
         // Id değerine göre bölgeyi getirir
-        var region = await _regionRepository.GetByIdAsync(
-            id,
+        var region = await _regionRepository.GetBySourceIdAsync(
+            sourceId,
             cancellationToken);
 
         // Bölge bulunamazsa null döner
         if (region is null)
         {
-            return null;
+            throw new NotFoundException("Bölge bulunamadı.");
         }
 
         // Entity nesnesini DTO'ya dönüştürür
         return MapToResponseDto(region);
     }
 
-    public async Task<RegionSummaryResponseDto?> GetSummaryAsync(
-        int id,
+    public async Task<RegionSummaryResponseDto> GetSummaryBySourceIdAsync(
+        int sourceId,
         CancellationToken cancellationToken = default)
     {
         // Id değerine göre bölgeyi getirir
-        var region = await _regionRepository.GetByIdAsync(
-            id,
+        var region = await _regionRepository.GetBySourceIdAsync(
+            sourceId,
             cancellationToken);
 
         // Bölge bulunamazsa null döner
         if (region is null)
         {
-            return null;
+            throw new NotFoundException("Bölge bulunamadı.");
         }
-
-        // Bölgenin statik özet verisini getirir
-        var summary = await _regionRepository.GetSummaryAsync(
-            id,
-            cancellationToken);
 
         // Seçilen bölgedeki tüm istasyonları getirir
         // Mahalle filtresi uygulanmaz
         var stations = await _chargingStationRepository.GetAllAsync(
-            regionId: id,
-            neighborhoodId: null,
+            regionSourceId: sourceId,
+            neighborhoodSourceId: null,
             cancellationToken: cancellationToken);
 
         // Repository connector verilerini istasyonlarla birlikte topluca getirir.
@@ -138,9 +138,8 @@ public sealed class RegionService : IRegionService
             // PostGIS repository'sindeki gerçek istasyon sayısını kullanır
             ChargingStationCount = stations.Count,
 
-            // Şimdilik statik bölge verisinden alınır
-            TrafficLevel = summary?.TrafficLevel
-                ?? "Veri bulunamadı",
+            // Gerçek trafik veri seti henüz sisteme bağlı değildir.
+            TrafficLevel = "Veri hazırlanıyor",
 
             // Connector verilerinden hesaplanır
             MostCommonSocketType = mostCommonSocketType,
@@ -150,6 +149,49 @@ public sealed class RegionService : IRegionService
 
             // İstasyon verilerinden hesaplanır
             CompanyDistribution = companyDistribution
+        };
+    }
+
+    public async Task<LocateRegionPointResponseDto> LocatePointAsync(
+        int regionSourceId,
+        RegionPointRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        var region = await _regionRepository.GetBySourceIdAsync(
+            regionSourceId,
+            cancellationToken);
+
+        if (region is null)
+        {
+            throw new NotFoundException("Bölge bulunamadı.");
+        }
+
+        var point = region.Boundary.Factory.CreatePoint(
+            new Coordinate(request.Longitude, request.Latitude));
+        var isInsideRegion = region.Boundary.Covers(point);
+
+        Neighborhood? neighborhood = null;
+
+        if (isInsideRegion)
+        {
+            var neighborhoods =
+                await _neighborhoodRepository.GetByRegionSourceIdAsync(
+                    regionSourceId,
+                    cancellationToken);
+
+            neighborhood = neighborhoods.FirstOrDefault(
+                item => item.Boundary.Covers(point));
+        }
+
+        return new LocateRegionPointResponseDto
+        {
+            RegionId = region.SourceId,
+            RegionName = region.Name,
+            IsInsideRegion = isInsideRegion,
+            NeighborhoodId = neighborhood?.SourceId,
+            NeighborhoodName = neighborhood?.Name,
+            Latitude = request.Latitude,
+            Longitude = request.Longitude
         };
     }
 

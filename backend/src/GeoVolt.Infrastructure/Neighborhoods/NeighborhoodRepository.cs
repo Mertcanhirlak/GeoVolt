@@ -24,25 +24,25 @@ public sealed class NeighborhoodRepository : INeighborhoodRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Neighborhood>> GetByRegionIdAsync(
-        int regionId,
+    public async Task<IReadOnlyList<Neighborhood>> GetByRegionSourceIdAsync(
+        int regionSourceId,
         CancellationToken cancellationToken = default)
     {
         return await _dbContext.Neighborhoods
             .AsNoTracking()
             .Include(neighborhood => neighborhood.Region)
-            .Where(neighborhood => neighborhood.Region.SourceId == regionId)
+            .Where(neighborhood => neighborhood.Region.SourceId == regionSourceId)
             .OrderBy(neighborhood => neighborhood.Name)
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<Neighborhood?> GetByIdAsync(
-        int id,
+    public async Task<Neighborhood?> GetBySourceIdAsync(
+        int sourceId,
         CancellationToken cancellationToken = default)
     {
         return await _dbContext.Neighborhoods
             .AsNoTracking()
             .Include(neighborhood => neighborhood.Region)
-            .FirstOrDefaultAsync(neighborhood => neighborhood.SourceId == id, cancellationToken);
+            .FirstOrDefaultAsync(neighborhood => neighborhood.SourceId == sourceId, cancellationToken);
     }
 }
