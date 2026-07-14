@@ -47,20 +47,25 @@ public sealed class ChargingStationService : IChargingStationService
             return null;
         }
 
-        // İstasyona ait bağlantı noktalarını getirir
-        var connectors =
-            await _chargingStationRepository.GetConnectorsByStationIdAsync(
-                station.Id,
-                cancellationToken);
+        var connectors = station.Connectors
+            .OrderBy(connector => connector.SocketType)
+            .ThenByDescending(connector => connector.PowerKw)
+            .ThenBy(connector => connector.SourceSocketNumber)
+            .ToList();
 
         // İstasyon ve bağlantı bilgilerini detay DTO'suna dönüştürür
         return new ChargingStationDetailResponseDto
         {
             Id = station.Id,
+            SourceStationNumber = station.SourceStationNumber,
             Name = station.Name,
             OperatorName = station.OperatorName,
-            RegionId = station.RegionId,
-            NeighborhoodId = station.NeighborhoodId,
+            BrandName = station.BrandName,
+            AccessType = station.AccessType,
+            RegionId = station.Region.SourceId,
+            RegionName = station.Region.Name,
+            NeighborhoodId = station.Neighborhood.SourceId,
+            NeighborhoodName = station.Neighborhood.Name,
             Address = station.Address,
 
             // Point.Y enlem bilgisidir
@@ -70,13 +75,20 @@ public sealed class ChargingStationService : IChargingStationService
             Longitude = station.Location.X,
 
             IsActive = station.IsActive,
+            IsGreenStation = station.IsGreenStation,
+            SocketCount = connectors.Sum(connector => connector.Quantity),
+            MaxPowerKw = connectors.Count == 0
+                ? null
+                : connectors.Max(connector => connector.PowerKw),
 
             // Connector listesini response DTO'ya dönüştürür
             Connectors = connectors
                 .Select(connector => new ChargingConnectorResponseDto
                 {
                     Id = connector.Id,
+                    SourceSocketNumber = connector.SourceSocketNumber,
                     SocketType = connector.SocketType,
+                    ConnectorType = connector.ConnectorType,
                     PowerKw = connector.PowerKw,
                     Quantity = connector.Quantity
                 })
@@ -87,14 +99,21 @@ public sealed class ChargingStationService : IChargingStationService
     private static ChargingStationResponseDto MapToResponseDto(
         ChargingStation station)
     {
+        var connectors = station.Connectors.ToList();
+
         // İstasyon entity'sini response DTO'ya dönüştürür
         return new ChargingStationResponseDto
         {
             Id = station.Id,
+            SourceStationNumber = station.SourceStationNumber,
             Name = station.Name,
             OperatorName = station.OperatorName,
-            RegionId = station.RegionId,
-            NeighborhoodId = station.NeighborhoodId,
+            BrandName = station.BrandName,
+            AccessType = station.AccessType,
+            RegionId = station.Region.SourceId,
+            RegionName = station.Region.Name,
+            NeighborhoodId = station.Neighborhood.SourceId,
+            NeighborhoodName = station.Neighborhood.Name,
             Address = station.Address,
 
             // Point.Y enlem bilgisidir
@@ -103,7 +122,23 @@ public sealed class ChargingStationService : IChargingStationService
             // Point.X boylam bilgisidir
             Longitude = station.Location.X,
 
-            IsActive = station.IsActive
+            IsActive = station.IsActive,
+            IsGreenStation = station.IsGreenStation,
+            SocketCount = connectors.Sum(connector => connector.Quantity),
+            MaxPowerKw = connectors.Count == 0
+                ? null
+                : connectors.Max(connector => connector.PowerKw),
+            SocketTypes = connectors
+                .Select(connector => connector.SocketType)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(socketType => socketType)
+                .ToList(),
+            ConnectorTypes = connectors
+                .Where(connector => !string.IsNullOrWhiteSpace(connector.ConnectorType))
+                .Select(connector => connector.ConnectorType!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(connectorType => connectorType)
+                .ToList()
         };
     }
 }

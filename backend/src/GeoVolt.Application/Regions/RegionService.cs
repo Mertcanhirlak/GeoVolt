@@ -80,20 +80,9 @@ public sealed class RegionService : IRegionService
             neighborhoodId: null,
             cancellationToken: cancellationToken);
 
-        // Her istasyona ait connector verilerini getirir
-        var connectorTasks = stations
-            .Select(station =>
-                _chargingStationRepository
-                    .GetConnectorsByStationIdAsync(
-                        station.Id,
-                        cancellationToken));
-
-        var connectorLists = await Task.WhenAll(
-            connectorTasks);
-
-        // Connector listelerini tek listede birleştirir
-        var connectors = connectorLists
-            .SelectMany(list => list)
+        // Repository connector verilerini istasyonlarla birlikte topluca getirir.
+        var connectors = stations
+            .SelectMany(station => station.Connectors)
             .ToList();
 
         // Firmalara göre istasyon dağılımını hesaplar
@@ -146,7 +135,7 @@ public sealed class RegionService : IRegionService
             RegionId = region.SourceId,
             RegionName = region.Name,
 
-            // İstasyon repository'sindeki gerçek mock sayıyı kullanır
+            // PostGIS repository'sindeki gerçek istasyon sayısını kullanır
             ChargingStationCount = stations.Count,
 
             // Şimdilik statik bölge verisinden alınır

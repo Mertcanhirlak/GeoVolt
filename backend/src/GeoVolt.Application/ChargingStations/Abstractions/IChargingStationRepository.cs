@@ -14,9 +14,4 @@ public interface IChargingStationRepository
     Task<ChargingStation?> GetByIdAsync(
         int id,
         CancellationToken cancellationToken = default);
-
-    // Belirtilen istasyona ait bağlantı noktalarını getirir
-    Task<IReadOnlyList<ChargingConnector>> GetConnectorsByStationIdAsync(
-        int chargingStationId,
-        CancellationToken cancellationToken = default);
 }

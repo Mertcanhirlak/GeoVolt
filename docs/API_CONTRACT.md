@@ -59,7 +59,7 @@ VITE_API_BASE_URL=http://localhost:5000
 | Endpoint | Metot | Açıklama | Kullanacak Taraf |
 |---|---|---|---|
 | `/api/regions` | GET | Bölge listesini getirir. | Frontend harita ve bölge seçimi |
-| `/api/stations` | GET | Mevcut şarj istasyonlarını getirir. | Frontend harita markerları |
+| `/api/charging-stations` | GET | Mevcut şarj istasyonlarını getirir. | Frontend harita markerları |
 | `/api/candidate-points` | GET | Aday şarj istasyonu noktalarını getirir. | Frontend aday nokta ekranı |
 | `/api/candidate-points?minScore=70&maxScore=100` | GET | Skora göre filtrelenmiş aday noktaları getirir. | Frontend filtreleme ekranı |
 | `/api/manual-pin/evaluate` | POST | Haritada bırakılan pini değerlendirir. | Frontend manuel pin ekranı |
@@ -235,12 +235,16 @@ Frontend bu endpointi şu işlemler için kullanır:
 ## Endpoint
 
 ```http
-GET /api/stations
+GET /api/charging-stations
+GET /api/charging-stations?regionId=6
+GET /api/charging-stations?neighborhoodId=14122
+GET /api/charging-stations/{id}
 ```
 
 ## Açıklama
 
-Mevcut şarj istasyonlarını listeler.
+Mevcut şarj istasyonlarını PostGIS üzerinden listeler. `regionId` ve
+`neighborhoodId` filtreleri API'nin döndürdüğü kalıcı kaynak kimlikleridir.
 
 Frontend bu endpointten gelen verileri harita üzerinde marker olarak gösterecektir.
 
@@ -249,24 +253,44 @@ Frontend bu endpointten gelen verileri harita üzerinde marker olarak gösterece
 ```json
 [
   {
-    "id": 1,
-    "companyName": "ZES",
-    "latitude": 39.9208,
-    "longitude": 32.8541,
-    "powerCapacity": "DC 50kW",
-    "socketType": "CCS",
-    "address": "Çankaya / Kızılay"
-  },
-  {
-    "id": 2,
-    "companyName": "Eşarj",
-    "latitude": 39.9321,
-    "longitude": 32.8234,
-    "powerCapacity": "AC 22kW",
-    "socketType": "Type 2",
-    "address": "Çankaya / Bahçelievler"
+    "id": 519,
+    "sourceStationNumber": "ŞRJ/9187",
+    "name": "06-ÇANKAYA-EHLİBEYT-SARIBULUT",
+    "operatorName": "LUMHOUSE ENERJİ SANAYİ VE TİCARET ANONİM ŞİRKETİ",
+    "brandName": "Lumicle",
+    "accessType": "Public",
+    "regionId": 6,
+    "regionName": "Balgat",
+    "neighborhoodId": 14122,
+    "neighborhoodName": "Ehlibeyt",
+    "address": "Ehlibeyt Mahallesi Cevizlidere Caddesi No:8 Çankaya / ANKARA",
+    "latitude": 39.892948,
+    "longitude": 32.819532,
+    "isActive": true,
+    "isGreenStation": null,
+    "socketCount": 1,
+    "maxPowerKw": 60,
+    "socketTypes": ["DC"],
+    "connectorTypes": ["DC_CCS"]
   }
 ]
+```
+
+Detay endpoint'i yukarıdaki alanlara ek olarak `connectors` dizisini döndürür:
+
+```json
+{
+  "connectors": [
+    {
+      "id": 1677,
+      "sourceSocketNumber": "SKT/21484",
+      "socketType": "DC",
+      "connectorType": "DC_CCS",
+      "powerKw": 60,
+      "quantity": 1
+    }
+  ]
+}
 ```
 
 ---
