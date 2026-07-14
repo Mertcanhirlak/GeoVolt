@@ -11,6 +11,7 @@ out/
 .env.test.local
 .env.production.local
 AGENTS.md
+edu.md
 
 # Local backend configuration
 appsettings.Development.json

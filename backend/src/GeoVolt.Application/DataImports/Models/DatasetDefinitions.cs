@@ -6,7 +6,7 @@ public static class DatasetDefinitions
         new Dictionary<string, DatasetDefinition>(StringComparer.OrdinalIgnoreCase)
         {
             ["ARAC_SARJ.geojson"] = Create("charging-stations", "ARAC_SARJ.geojson", ["Point"],
-                ["ISTASYON_NO", "ISTASYON_ADI", "SARJ_AGI_ISLETMECISI", "ADRES", "SOKET_NO", "SOKET_TIPI", "SOKET_GUCU_KW"]),
+                ["ISTASYON_NO", "ISTASYON_ADI", "HIZMET_SEKLI", "SARJ_AGI_ISLETMECISI", "ADRES", "SOKET_NO", "SOKET_TIPI", "SOKET_TURU", "SOKET_GUCU_KW"]),
             ["POI.geojson"] = Create("poi", "POI.geojson", ["Point"], ["ID", "NAME", "CATEGORY"]),
             ["YOL.geojson"] = Create("roads", "YOL.geojson", ["LineString", "MultiLineString"], ["ID", "TYPES"]),
             ["TRAFO.geojson"] = Create("power-transformers", "TRAFO.geojson", ["Point"], ["ID", "CATEGORY", "SUB_CATEGORY"]),

@@ -141,7 +141,7 @@ public sealed class GeoJsonDataImportPromotionService : IDataImportPromotionServ
 
     private static bool IsSupported(string datasetName)
     {
-        return datasetName is "district" or "regions" or "neighborhoods";
+        return datasetName is "district" or "regions" or "neighborhoods" or "charging-stations";
     }
 
     private async Task<int> PromoteDatasetAsync(
@@ -154,8 +154,170 @@ public sealed class GeoJsonDataImportPromotionService : IDataImportPromotionServ
             "district" => await PromoteDistrictAsync(datasetImportId, cancellationToken),
             "regions" => await PromoteRegionsAsync(datasetImportId, cancellationToken),
             "neighborhoods" => await PromoteNeighborhoodsAsync(datasetImportId, cancellationToken),
+            "charging-stations" => await PromoteChargingStationsAsync(datasetImportId, cancellationToken),
             _ => 0
         };
+    }
+
+    private async Task<int> PromoteChargingStationsAsync(
+        int datasetImportId,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteCountAsync(
+            datasetImportId,
+            """
+            WITH raw_source AS (
+                SELECT
+                    NULLIF(btrim(f."PropertiesJson" ->> 'ISTASYON_NO'), '') AS source_station_number,
+                    NULLIF(btrim(f."PropertiesJson" ->> 'ISTASYON_ADI'), '') AS station_name,
+                    NULLIF(btrim(f."PropertiesJson" ->> 'SARJ_AGI_ISLETMECISI'), '') AS operator_name,
+                    NULLIF(btrim(f."PropertiesJson" ->> 'MARKAADI'), '') AS brand_name,
+                    NULLIF(btrim(f."PropertiesJson" ->> 'HIZMET_SEKLI'), '') AS service_type,
+                    NULLIF(btrim(f."PropertiesJson" ->> 'ADRES'), '') AS address,
+                    NULLIF(btrim(f."PropertiesJson" ->> 'YESIL_SARJ_ISTASYONU_MU'), '') AS green_station,
+                    NULLIF(btrim(f."PropertiesJson" ->> 'SOKET_NO'), '') AS source_socket_number,
+                    NULLIF(btrim(f."PropertiesJson" ->> 'SOKET_TIPI'), '') AS socket_type,
+                    NULLIF(btrim(f."PropertiesJson" ->> 'SOKET_TURU'), '') AS connector_type,
+                    NULLIF(btrim(f."PropertiesJson" ->> 'SOKET_GUCU_KW'), '') AS power_kw_text,
+                    f."GeometryJson"::text AS geometry_json
+                FROM staging.geojson_features f
+                WHERE f."DatasetImportId" = @datasetImportId
+            ),
+            station_groups AS (
+                SELECT
+                    source_station_number,
+                    min(station_name) AS station_name,
+                    min(operator_name) AS operator_name,
+                    min(brand_name) AS brand_name,
+                    CASE min(service_type)
+                        WHEN 'HALKA_ACIK' THEN 'Public'
+                        WHEN 'OZEL' THEN 'Private'
+                    END AS access_type,
+                    min(address) AS address,
+                    bool_or(green_station = 'Evet') AS is_green_station,
+                    ST_SetSRID(
+                        ST_Force2D(ST_GeomFromGeoJSON(min(geometry_json))),
+                        4326
+                    )::geometry(Point, 4326) AS location
+                FROM raw_source
+                WHERE source_station_number IS NOT NULL
+                GROUP BY source_station_number
+                HAVING count(DISTINCT station_name) = 1
+                   AND count(DISTINCT operator_name) = 1
+                   AND count(DISTINCT service_type) = 1
+                   AND count(DISTINCT address) = 1
+                   AND count(DISTINCT geometry_json) = 1
+            ),
+            spatially_matched AS (
+                SELECT
+                    station.*,
+                    neighborhood_match.neighborhood_id,
+                    neighborhood_match.region_id,
+                    neighborhood_match.match_count
+                FROM station_groups station
+                CROSS JOIN LATERAL (
+                    SELECT
+                        count(*)::integer AS match_count,
+                        min(neighborhood.id) AS neighborhood_id,
+                        min(neighborhood.region_id) AS region_id
+                    FROM gis.neighborhoods neighborhood
+                    WHERE ST_Covers(neighborhood.boundary, station.location)
+                ) neighborhood_match
+            ),
+            accepted_stations AS (
+                SELECT *
+                FROM spatially_matched
+                WHERE match_count = 1
+                  AND station_name IS NOT NULL
+                  AND operator_name IS NOT NULL
+                  AND access_type IS NOT NULL
+                  AND address IS NOT NULL
+                  AND location IS NOT NULL
+                  AND NOT ST_IsEmpty(location)
+                  AND ST_IsValid(location)
+            ),
+            upserted_stations AS (
+                INSERT INTO gis.charging_stations (
+                    source_station_number,
+                    name,
+                    operator_name,
+                    brand_name,
+                    access_type,
+                    region_id,
+                    neighborhood_id,
+                    address,
+                    location,
+                    is_active,
+                    is_green_station
+                )
+                SELECT
+                    source_station_number,
+                    station_name,
+                    operator_name,
+                    brand_name,
+                    access_type,
+                    region_id,
+                    neighborhood_id,
+                    address,
+                    location,
+                    true,
+                    is_green_station
+                FROM accepted_stations
+                ON CONFLICT (source_station_number) DO UPDATE SET
+                    name = EXCLUDED.name,
+                    operator_name = EXCLUDED.operator_name,
+                    brand_name = EXCLUDED.brand_name,
+                    access_type = EXCLUDED.access_type,
+                    region_id = EXCLUDED.region_id,
+                    neighborhood_id = EXCLUDED.neighborhood_id,
+                    address = EXCLUDED.address,
+                    location = EXCLUDED.location,
+                    is_active = EXCLUDED.is_active,
+                    is_green_station = EXCLUDED.is_green_station
+                RETURNING id, source_station_number
+            ),
+            valid_connectors AS (
+                SELECT
+                    station.id AS charging_station_id,
+                    source.source_socket_number,
+                    source.socket_type,
+                    source.connector_type,
+                    replace(source.power_kw_text, ',', '.')::double precision AS power_kw
+                FROM raw_source source
+                INNER JOIN upserted_stations station
+                    ON station.source_station_number = source.source_station_number
+                WHERE source.source_socket_number IS NOT NULL
+                  AND source.socket_type IS NOT NULL
+                  AND source.connector_type IS NOT NULL
+                  AND source.power_kw_text ~ '^[0-9]+([.,][0-9]+)?$'
+            ),
+            upserted_connectors AS (
+                INSERT INTO gis.charging_connectors (
+                    charging_station_id,
+                    source_socket_number,
+                    socket_type,
+                    connector_type,
+                    power_kw,
+                    quantity
+                )
+                SELECT
+                    charging_station_id,
+                    source_socket_number,
+                    socket_type,
+                    connector_type,
+                    power_kw,
+                    1
+                FROM valid_connectors
+                ON CONFLICT (charging_station_id, source_socket_number) DO UPDATE SET
+                    socket_type = EXCLUDED.socket_type,
+                    connector_type = EXCLUDED.connector_type,
+                    power_kw = EXCLUDED.power_kw,
+                    quantity = EXCLUDED.quantity
+                RETURNING id
+            )
+            SELECT count(*)::integer FROM upserted_connectors;
+            """,
+            cancellationToken);
     }
 
     private async Task<int> PromoteDistrictAsync(
@@ -403,6 +565,7 @@ public sealed class GeoJsonDataImportPromotionService : IDataImportPromotionServ
             "district" => "Bazı ilçe kayıtları geçerli PostGIS geometrisine dönüştürülemedi.",
             "regions" => "Bazı semt kayıtları dönüştürülemedi veya Çankaya ilçe kaydı bulunamadı.",
             "neighborhoods" => "Bazı mahalleler geçerli bir semtle en az yüzde 95 oranında eşleştirilemedi.",
+            "charging-stations" => "Bazı şarj soketleri geçerli bir istasyon veya mahalle ile eşleştirilemedi.",
             _ => "Bazı kayıtlar gerçek GIS tablosuna dönüştürülemedi."
         };
     }
@@ -414,6 +577,7 @@ public sealed class GeoJsonDataImportPromotionService : IDataImportPromotionServ
             "district" => "İlçe verisi gerçek PostGIS tablosuna aktarıldı.",
             "regions" => "Semt verisi gerçek PostGIS tablosuna aktarıldı.",
             "neighborhoods" => "Mahalleler semtlerle eşleştirilerek gerçek PostGIS tablosuna aktarıldı.",
+            "charging-stations" => "Şarj istasyonları ve soketleri gerçek PostGIS tablolarına aktarıldı.",
             _ => "Veri seti gerçek PostGIS tablosuna aktarıldı."
         };
     }

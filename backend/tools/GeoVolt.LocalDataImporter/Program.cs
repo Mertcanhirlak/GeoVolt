@@ -1,5 +1,8 @@
 using GeoVolt.Application.DataImports.Abstractions;
+using GeoVolt.Domain.Constants;
 using GeoVolt.Infrastructure;
+using GeoVolt.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -35,7 +38,8 @@ var datasets = new[]
 {
     new DatasetFile("ILCE.geojson", "Ilce"),
     new DatasetFile("Semttt.geojson", "Semt"),
-    new DatasetFile("MAHALLE.geojson", "Mahalle")
+    new DatasetFile("MAHALLE.geojson", "Mahalle"),
+    new DatasetFile("ARAC_SARJ.geojson", "Sarj istasyonu")
 };
 
 foreach (var dataset in datasets)
@@ -63,6 +67,21 @@ foreach (var dataset in datasets)
 
     Console.WriteLine($"  Tamam: {promotion.PromotedFeatureCount}/{promotion.SourceFeatureCount} kayıt ({promotion.Status}).");
 }
+
+var dbContext = scope.ServiceProvider.GetRequiredService<GeoVoltDbContext>();
+var stationCount = await dbContext.ChargingStations.CountAsync();
+var connectorCount = await dbContext.ChargingConnectors.CountAsync();
+var publicStationCount = await dbContext.ChargingStations.CountAsync(
+    station => station.AccessType == ChargingAccessTypes.Public);
+var privateStationCount = await dbContext.ChargingStations.CountAsync(
+    station => station.AccessType == ChargingAccessTypes.Private);
+var acConnectorCount = await dbContext.ChargingConnectors.CountAsync(connector => connector.SocketType == "AC");
+var dcConnectorCount = await dbContext.ChargingConnectors.CountAsync(connector => connector.SocketType == "DC");
+
+Console.WriteLine(
+    $"Sarj ozeti: {stationCount} istasyon " +
+    $"({publicStationCount} halka acik, {privateStationCount} ozel), " +
+    $"{connectorCount} soket ({acConnectorCount} AC, {dcConnectorCount} DC).");
 
 Console.WriteLine("Yerel GIS veri aktarımı başarıyla tamamlandı.");
 return 0;
