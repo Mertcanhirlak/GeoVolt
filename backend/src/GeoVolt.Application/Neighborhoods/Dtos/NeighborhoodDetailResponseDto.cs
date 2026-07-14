@@ -11,6 +11,10 @@ public sealed class NeighborhoodDetailResponseDto
     // Mahallenin bağlı olduğu bölge kimliği
     public int RegionId { get; set; }
 
+    public string RegionName { get; set; } = string.Empty;
+
+    public int Population { get; set; }
+
     // Haritada kullanılacak GeoJSON sınır verisi
     public string BoundaryGeoJson { get; set; } = string.Empty;
 }

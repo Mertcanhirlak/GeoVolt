@@ -21,7 +21,9 @@ public sealed class AdminService : IAdminService
         _passwordHasher = passwordHasher;
     }
 
-    public async Task<ApiResponse<CompanyResponse>> CreateCompanyAsync(CreateCompanyRequest request, CancellationToken cancellationToken)
+    public async Task<ApiResponse<CompanyResponse>> CreateCompanyAsync(
+        CreateCompanyRequest request,
+        CancellationToken cancellationToken)
     {
         var company = new Company
         {
@@ -44,7 +46,9 @@ public sealed class AdminService : IAdminService
         return ApiResponse<IReadOnlyList<CompanyResponse>>.Ok(response);
     }
 
-    public async Task<ApiResponse<UserResponse>> CreateCompanyUserAsync(CreateCompanyUserRequest request, CancellationToken cancellationToken)
+    public async Task<ApiResponse<UserResponse>> CreateCompanyUserAsync(
+        CreateCompanyUserRequest request,
+        CancellationToken cancellationToken)
     {
         var email = request.Email.Trim().ToLowerInvariant();
 
@@ -67,6 +71,13 @@ public sealed class AdminService : IAdminService
             return ApiResponse<UserResponse>.Fail("Bir firmaya en fazla 2 kullanıcı eklenebilir.");
         }
 
+        var companyUserRole = await _adminRepository.GetRoleByNameAsync(UserRoles.CompanyUser, cancellationToken);
+
+        if (companyUserRole is null)
+        {
+            return ApiResponse<UserResponse>.Fail("Firma Kullanıcısı rolü bulunamadı. Başlangıç verilerini kontrol edin.");
+        }
+
         var user = new User
         {
             FullName = request.FullName.Trim(),
@@ -76,6 +87,12 @@ public sealed class AdminService : IAdminService
             CompanyId = company.Id,
             CreatedAtUtc = DateTime.UtcNow
         };
+
+        user.UserRoles.Add(new UserRole
+        {
+            RoleId = companyUserRole.Id,
+            CreatedAtUtc = DateTime.UtcNow
+        });
 
         var createdUser = await _adminRepository.AddUserAsync(user, cancellationToken);
 
@@ -95,9 +112,9 @@ public sealed class AdminService : IAdminService
         UpdateUserRoleRequest request,
         CancellationToken cancellationToken)
     {
-        var role = request.Role.Trim();
+        var nextRole = await _adminRepository.GetRoleByNameAsync(request.Role.Trim(), cancellationToken);
 
-        if (!UserRoles.IsValid(role))
+        if (nextRole is null)
         {
             return ApiResponse<UserResponse>.Fail("Geçersiz rol.");
         }
@@ -109,19 +126,20 @@ public sealed class AdminService : IAdminService
             return ApiResponse<UserResponse>.Fail("Kullanıcı bulunamadı.");
         }
 
-        if (user.Role == UserRoles.Admin && role != UserRoles.Admin)
+        var currentRoleNames = GetRoleNames(user);
+
+        if (currentRoleNames.Contains(UserRoles.Admin) && nextRole.Name != UserRoles.Admin)
         {
             var adminCount = await _adminRepository.GetAdminUserCountAsync(cancellationToken);
 
             if (adminCount <= 1)
             {
-                return ApiResponse<UserResponse>.Fail("Son admin kullanıcının rolü değiştirilemez.");
+                return ApiResponse<UserResponse>.Fail("Son yönetici kullanıcının rolü değiştirilemez.");
             }
         }
 
-        if (role == UserRoles.Admin)
+        if (nextRole.Name == UserRoles.Admin)
         {
-            user.Role = UserRoles.Admin;
             user.CompanyId = null;
         }
         else
@@ -145,14 +163,20 @@ public sealed class AdminService : IAdminService
 
             if (companyUserCount >= MaxUsersPerCompany)
             {
-                return ApiResponse<UserResponse>.Fail("Bir firmaya en fazla 2 kullanici eklenebilir.");
+                return ApiResponse<UserResponse>.Fail("Bir firmaya en fazla 2 kullanıcı eklenebilir.");
             }
 
-            user.Role = UserRoles.CompanyUser;
             user.CompanyId = company.Id;
         }
 
-        var updatedUser = await _adminRepository.UpdateUserAsync(user, cancellationToken);
+        if (nextRole.Name == UserRoles.CompanyUser)
+        {
+            await _adminRepository.ReplaceUserPermissionsAsync(user, Array.Empty<Permission>(), cancellationToken);
+        }
+
+        await _adminRepository.ReplaceUserRolesAsync(user, new[] { nextRole }, cancellationToken);
+
+        var updatedUser = await _adminRepository.GetUserByIdAsync(user.Id, cancellationToken) ?? user;
 
         return ApiResponse<UserResponse>.Ok(ToUserResponse(updatedUser), "Kullanıcı rolü güncellendi.");
     }
@@ -164,7 +188,7 @@ public sealed class AdminService : IAdminService
     {
         if (userId == currentUserId)
         {
-            return ApiResponse<int>.Fail("Kendi admin kullanıcınızı silemezsiniz.");
+            return ApiResponse<int>.Fail("Kendi yönetici hesabınızı silemezsiniz.");
         }
 
         var user = await _adminRepository.GetUserByIdAsync(userId, cancellationToken);
@@ -174,13 +198,13 @@ public sealed class AdminService : IAdminService
             return ApiResponse<int>.Fail("Kullanıcı bulunamadı.");
         }
 
-        if (user.Role == UserRoles.Admin)
+        if (GetRoleNames(user).Contains(UserRoles.Admin))
         {
             var adminCount = await _adminRepository.GetAdminUserCountAsync(cancellationToken);
 
             if (adminCount <= 1)
             {
-                return ApiResponse<int>.Fail("Son admin kullanıcı silinemez.");
+                return ApiResponse<int>.Fail("Son yönetici kullanıcı silinemez.");
             }
         }
 
@@ -208,9 +232,263 @@ public sealed class AdminService : IAdminService
         return ApiResponse<int>.Ok(companyId, "Firma silindi.");
     }
 
+    public async Task<ApiResponse<IReadOnlyList<RoleResponse>>> GetRolesAsync(CancellationToken cancellationToken)
+    {
+        var roles = await _adminRepository.GetRolesAsync(cancellationToken);
+
+        return ApiResponse<IReadOnlyList<RoleResponse>>.Ok(roles.Select(ToRoleResponse).ToList());
+    }
+
+    public async Task<ApiResponse<RoleResponse>> CreateRoleAsync(
+        CreateRoleRequest request,
+        CancellationToken cancellationToken)
+    {
+        var name = NormalizeRequired(request.Name);
+
+        if (await _adminRepository.RoleNameExistsAsync(name, null, cancellationToken))
+        {
+            return ApiResponse<RoleResponse>.Fail("Bu rol adı zaten kullanılıyor.");
+        }
+
+        var role = new Role
+        {
+            Name = name,
+            Description = NormalizeOptional(request.Description),
+            IsSystem = false,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+
+        var createdRole = await _adminRepository.AddRoleAsync(role, cancellationToken);
+
+        return ApiResponse<RoleResponse>.Ok(ToRoleResponse(createdRole), "Rol oluşturuldu.");
+    }
+
+    public async Task<ApiResponse<RoleResponse>> UpdateRoleAsync(
+        int roleId,
+        UpdateRoleRequest request,
+        CancellationToken cancellationToken)
+    {
+        var role = await _adminRepository.GetRoleByIdAsync(roleId, cancellationToken);
+
+        if (role is null)
+        {
+            return ApiResponse<RoleResponse>.Fail("Rol bulunamadı.");
+        }
+
+        var name = NormalizeRequired(request.Name);
+
+        if (role.IsSystem && role.Name != name)
+        {
+            return ApiResponse<RoleResponse>.Fail("Sistem rolünün adı değiştirilemez.");
+        }
+
+        if (await _adminRepository.RoleNameExistsAsync(name, role.Id, cancellationToken))
+        {
+            return ApiResponse<RoleResponse>.Fail("Bu rol adı zaten kullanılıyor.");
+        }
+
+        role.Name = name;
+        role.Description = NormalizeOptional(request.Description);
+
+        var updatedRole = await _adminRepository.UpdateRoleAsync(role, cancellationToken);
+
+        return ApiResponse<RoleResponse>.Ok(ToRoleResponse(updatedRole), "Rol güncellendi.");
+    }
+
+    public async Task<ApiResponse<int>> DeleteRoleAsync(int roleId, CancellationToken cancellationToken)
+    {
+        var role = await _adminRepository.GetRoleByIdAsync(roleId, cancellationToken);
+
+        if (role is null)
+        {
+            return ApiResponse<int>.Fail("Rol bulunamadı.");
+        }
+
+        if (role.IsSystem)
+        {
+            return ApiResponse<int>.Fail("Sistem rolleri silinemez.");
+        }
+
+        if (role.UserRoles.Count > 0)
+        {
+            return ApiResponse<int>.Fail("Bu rol kullanıcılara atanmış. Önce rol atamalarını kaldırın.");
+        }
+
+        await _adminRepository.DeleteRoleAsync(role, cancellationToken);
+
+        return ApiResponse<int>.Ok(roleId, "Rol silindi.");
+    }
+
+    public async Task<ApiResponse<IReadOnlyList<PermissionResponse>>> GetPermissionsAsync(CancellationToken cancellationToken)
+    {
+        var permissions = await _adminRepository.GetPermissionsAsync(cancellationToken);
+
+        return ApiResponse<IReadOnlyList<PermissionResponse>>.Ok(permissions.Select(ToPermissionResponse).ToList());
+    }
+
+    public async Task<ApiResponse<RoleResponse>> AssignRolePermissionsAsync(
+        int roleId,
+        AssignRolePermissionsRequest request,
+        CancellationToken cancellationToken)
+    {
+        var role = await _adminRepository.GetRoleByIdAsync(roleId, cancellationToken);
+
+        if (role is null)
+        {
+            return ApiResponse<RoleResponse>.Fail("Rol bulunamadı.");
+        }
+
+        var permissionIds = request.PermissionIds.Distinct().ToList();
+
+        if (role.Name == UserRoles.CompanyUser && permissionIds.Count > 0)
+        {
+            return ApiResponse<RoleResponse>.Fail("Firma Kullanıcısı sistem rolüne yönetim yetkisi atanamaz.");
+        }
+
+        var permissions = await _adminRepository.GetPermissionsByIdsAsync(permissionIds, cancellationToken);
+
+        if (permissions.Count != permissionIds.Count)
+        {
+            return ApiResponse<RoleResponse>.Fail("Geçersiz yetki seçimi var.");
+        }
+
+        await _adminRepository.ReplaceRolePermissionsAsync(role, permissions, cancellationToken);
+
+        var updatedRole = await _adminRepository.GetRoleByIdAsync(role.Id, cancellationToken) ?? role;
+
+        return ApiResponse<RoleResponse>.Ok(ToRoleResponse(updatedRole), "Rol yetkileri güncellendi.");
+    }
+
+    public async Task<ApiResponse<UserResponse>> AssignUserRolesAsync(
+        int userId,
+        AssignUserRolesRequest request,
+        CancellationToken cancellationToken)
+    {
+        var user = await _adminRepository.GetUserByIdAsync(userId, cancellationToken);
+
+        if (user is null)
+        {
+            return ApiResponse<UserResponse>.Fail("Kullanıcı bulunamadı.");
+        }
+
+        var roleIds = request.RoleIds.Distinct().ToList();
+
+        if (roleIds.Count == 0)
+        {
+            return ApiResponse<UserResponse>.Fail("Kullanıcıya en az bir rol atanmalıdır.");
+        }
+
+        var roles = await _adminRepository.GetRolesByIdsAsync(roleIds, cancellationToken);
+
+        if (roles.Count != roleIds.Count)
+        {
+            return ApiResponse<UserResponse>.Fail("Geçersiz rol seçimi var.");
+        }
+
+        var currentRoleNames = GetRoleNames(user);
+        var nextRoleNames = roles.Select(role => role.Name).ToHashSet(StringComparer.Ordinal);
+
+        if (nextRoleNames.Contains(UserRoles.CompanyUser) && nextRoleNames.Count > 1)
+        {
+            return ApiResponse<UserResponse>.Fail("Firma Kullanıcısı rolü başka rollerle birlikte atanamaz.");
+        }
+
+        if (currentRoleNames.Contains(UserRoles.Admin) && !nextRoleNames.Contains(UserRoles.Admin))
+        {
+            var adminCount = await _adminRepository.GetAdminUserCountAsync(cancellationToken);
+
+            if (adminCount <= 1)
+            {
+                return ApiResponse<UserResponse>.Fail("Son yönetici kullanıcının rolü değiştirilemez.");
+            }
+        }
+
+        if (nextRoleNames.Contains(UserRoles.Admin))
+        {
+            user.CompanyId = null;
+        }
+
+        if (nextRoleNames.Contains(UserRoles.CompanyUser))
+        {
+            await _adminRepository.ReplaceUserPermissionsAsync(user, Array.Empty<Permission>(), cancellationToken);
+        }
+
+        await _adminRepository.ReplaceUserRolesAsync(user, roles, cancellationToken);
+
+        var updatedUser = await _adminRepository.GetUserByIdAsync(user.Id, cancellationToken) ?? user;
+
+        return ApiResponse<UserResponse>.Ok(ToUserResponse(updatedUser), "Kullanıcı rolleri güncellendi.");
+    }
+
+    public async Task<ApiResponse<IReadOnlyList<UserPermissionResponse>>> GetUserPermissionsAsync(
+        int userId,
+        CancellationToken cancellationToken)
+    {
+        var user = await _adminRepository.GetUserByIdAsync(userId, cancellationToken);
+
+        if (user is null)
+        {
+            return ApiResponse<IReadOnlyList<UserPermissionResponse>>.Fail("Kullanıcı bulunamadı.");
+        }
+
+        return ApiResponse<IReadOnlyList<UserPermissionResponse>>.Ok(ToUserPermissionResponses(user));
+    }
+
+    public async Task<ApiResponse<IReadOnlyList<UserPermissionResponse>>> AssignUserPermissionsAsync(
+        int userId,
+        AssignUserPermissionsRequest request,
+        CancellationToken cancellationToken)
+    {
+        var user = await _adminRepository.GetUserByIdAsync(userId, cancellationToken);
+
+        if (user is null)
+        {
+            return ApiResponse<IReadOnlyList<UserPermissionResponse>>.Fail("Kullanıcı bulunamadı.");
+        }
+
+        var permissionIds = request.PermissionIds.Distinct().ToList();
+
+        if (GetRoleNames(user).Contains(UserRoles.CompanyUser) && permissionIds.Count > 0)
+        {
+            return ApiResponse<IReadOnlyList<UserPermissionResponse>>.Fail(
+                "Firma Kullanıcısı rolündeki kullanıcıya doğrudan yönetim yetkisi atanamaz.");
+        }
+
+        var rolePermissionIds = user.UserRoles
+            .SelectMany(userRole => userRole.Role.RolePermissions)
+            .Select(rolePermission => rolePermission.PermissionId)
+            .ToHashSet();
+
+        if (permissionIds.Any(rolePermissionIds.Contains))
+        {
+            return ApiResponse<IReadOnlyList<UserPermissionResponse>>.Fail(
+                "Rolden gelen yetkiler kullanıcıya yeniden doğrudan atanamaz.");
+        }
+
+        var permissions = await _adminRepository.GetPermissionsByIdsAsync(permissionIds, cancellationToken);
+
+        if (permissions.Count != permissionIds.Count)
+        {
+            return ApiResponse<IReadOnlyList<UserPermissionResponse>>.Fail("Geçersiz yetki seçimi var.");
+        }
+
+        await _adminRepository.ReplaceUserPermissionsAsync(user, permissions, cancellationToken);
+
+        var updatedUser = await _adminRepository.GetUserByIdAsync(user.Id, cancellationToken) ?? user;
+
+        return ApiResponse<IReadOnlyList<UserPermissionResponse>>.Ok(
+            ToUserPermissionResponses(updatedUser),
+            "Kullanıcı yetkileri güncellendi.");
+    }
+
     private static string? NormalizeOptional(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static string NormalizeRequired(string value)
+    {
+        return value.Trim();
     }
 
     private static CompanyResponse ToCompanyResponse(Company company)
@@ -226,12 +504,114 @@ public sealed class AdminService : IAdminService
 
     private static UserResponse ToUserResponse(User user)
     {
+        var role = GetRoleNames(user).FirstOrDefault() ?? user.Role;
+
         return new UserResponse(
             user.Id,
             user.FullName,
             user.Email,
-            user.Role,
+            role,
             user.CompanyId,
-            user.Company?.Name);
+            user.Company?.Name,
+            GetPermissionNames(user));
     }
+
+    private static RoleResponse ToRoleResponse(Role role)
+    {
+        return new RoleResponse(
+            role.Id,
+            role.Name,
+            role.Description,
+            role.IsSystem,
+            role.UserRoles.Count,
+            role.RolePermissions
+                .Select(rolePermission => ToPermissionResponse(rolePermission.Permission))
+                .OrderBy(permission => permission.Category)
+                .ThenBy(permission => permission.Name)
+                .ToList());
+    }
+
+    private static PermissionResponse ToPermissionResponse(Permission permission)
+    {
+        return new PermissionResponse(
+            permission.Id,
+            permission.Name,
+            permission.Description,
+            permission.Category);
+    }
+
+    private static IReadOnlyList<UserPermissionResponse> ToUserPermissionResponses(User user)
+    {
+        var roleSourcesByPermissionId = user.UserRoles
+            .Where(userRole => userRole.Role is not null)
+            .SelectMany(userRole => userRole.Role!.RolePermissions.Select(rolePermission => new UserPermissionSource(
+                rolePermission.Permission,
+                userRole.Role!.Name)))
+            .GroupBy(item => item.Permission.Id)
+            .ToDictionary(group => group.Key, group => group.ToList());
+
+        var directPermissionsById = user.UserPermissions
+            .ToDictionary(userPermission => userPermission.PermissionId, userPermission => userPermission.Permission);
+
+        var permissionIds = roleSourcesByPermissionId.Keys
+            .Concat(directPermissionsById.Keys)
+            .Distinct()
+            .OrderBy(permissionId => permissionId)
+            .ToList();
+
+        return permissionIds.Select(permissionId =>
+        {
+            var roleSources = roleSourcesByPermissionId.GetValueOrDefault(permissionId) ?? new List<UserPermissionSource>();
+            var permission = roleSources.Count > 0
+                ? roleSources[0].Permission
+                : directPermissionsById[permissionId];
+            var sourceRoleNames = roleSources
+                .Select(item => item.RoleName)
+                .Distinct()
+                .OrderBy(name => name)
+                .ToList();
+            var hasDirectPermission = directPermissionsById.ContainsKey(permissionId);
+            var hasRolePermission = sourceRoleNames.Count > 0;
+
+            return new UserPermissionResponse(
+                permission.Id,
+                permission.Name,
+                permission.Description,
+                permission.Category,
+                hasRolePermission && hasDirectPermission ? "RoleAndUser" : hasRolePermission ? "Role" : "User",
+                sourceRoleNames,
+                !hasRolePermission);
+        }).ToList();
+    }
+
+    private static HashSet<string> GetRoleNames(User user)
+    {
+        var roleNames = user.UserRoles
+            .Select(userRole => userRole.Role?.Name)
+            .Where(roleName => !string.IsNullOrWhiteSpace(roleName))
+            .Select(roleName => roleName!)
+            .ToHashSet(StringComparer.Ordinal);
+
+        if (roleNames.Count == 0 && !string.IsNullOrWhiteSpace(user.Role))
+        {
+            roleNames.Add(user.Role);
+        }
+
+        return roleNames;
+    }
+
+    private static IReadOnlyList<string> GetPermissionNames(User user)
+    {
+        return user.UserRoles
+            .Where(userRole => userRole.Role is not null)
+            .SelectMany(userRole => userRole.Role!.RolePermissions)
+            .Select(rolePermission => rolePermission.Permission.Name)
+            .Concat(user.UserPermissions.Select(userPermission => userPermission.Permission.Name))
+            .Where(permissionName => !string.IsNullOrWhiteSpace(permissionName))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(permissionName => permissionName)
+            .ToList();
+    }
+
+    private sealed record UserPermissionSource(Permission Permission, string RoleName);
 }

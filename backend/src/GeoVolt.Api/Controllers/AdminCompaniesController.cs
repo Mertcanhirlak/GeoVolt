@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace GeoVolt.Api.Controllers;
 
 [ApiController]
-[Authorize(Roles = UserRoles.Admin)]
+[Authorize]
 [Route("api/admin/companies")]
 public sealed class AdminCompaniesController : ControllerBase
 {
@@ -20,6 +20,7 @@ public sealed class AdminCompaniesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = PermissionNames.UserCreate)]
     [ProducesResponseType(typeof(ApiResponse<CompanyResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<CompanyResponse>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -34,6 +35,7 @@ public sealed class AdminCompaniesController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = PermissionNames.UserRead)]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<CompanyResponse>>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -46,6 +48,7 @@ public sealed class AdminCompaniesController : ControllerBase
     }
 
     [HttpDelete("{companyId:int}")]
+    [Authorize(Policy = PermissionNames.UserDelete)]
     [ProducesResponseType(typeof(ApiResponse<int>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<int>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]

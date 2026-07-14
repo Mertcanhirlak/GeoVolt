@@ -1,43 +1,150 @@
-﻿import React, { useState } from "react";
+﻿import React, { useMemo, useState } from "react";
 
 export default function PersonalizationForm({
   candidates,
   regions,
+  neighborhoods,
   onResult,
-  onRegionChange
+  onRegionChange,
+  onSelectionChange
 }) {
   const [form, setForm] = useState({
     budgetMin: "",
     budgetMax: "",
-    systemType: "",
-    placeType: "",
-    region: "Tümü"
+    systemType: "Tümü",
+    placeType: "Tümü",
+    region: "Tümü",
+    neighborhood: "Tümü"
   });
 
   const [formMessage, setFormMessage] = useState("");
 
+  const regionOptions = useMemo(() => {
+    const cleanRegions = (regions || []).filter(
+      (region) => region.name && region.name !== "Tümü"
+    );
+
+    return [{ id: 0, name: "Tümü" }, ...cleanRegions];
+  }, [regions]);
+
+  const systemTypeOptions = useMemo(() => {
+    const values = new Set();
+
+    candidates.forEach((candidate) => {
+      if (candidate.systemType && candidate.systemType !== "Veri Eksik") {
+        values.add(candidate.systemType);
+      }
+    });
+
+    return ["Tümü", ...Array.from(values)];
+  }, [candidates]);
+
+  const placeTypeOptions = useMemo(() => {
+    const values = new Set();
+
+    candidates.forEach((candidate) => {
+      if (candidate.placeType && candidate.placeType !== "Veri Eksik") {
+        values.add(candidate.placeType);
+      }
+    });
+
+    return ["Tümü", ...Array.from(values)];
+  }, [candidates]);
+
+  const neighborhoodOptions = useMemo(() => {
+    const neighborhoodSet = new Set();
+
+    candidates.forEach((candidate) => {
+      const regionMatch =
+        form.region === "Tümü" || candidate.region === form.region;
+
+      if (
+        regionMatch &&
+        candidate.neighborhood &&
+        candidate.neighborhood !== "Mahalle bilgisi yok"
+      ) {
+        neighborhoodSet.add(candidate.neighborhood);
+      }
+    });
+
+    if (Array.isArray(neighborhoods) && neighborhoods.length > 0) {
+      neighborhoods.forEach((neighborhood) => {
+        const regionMatch =
+          form.region === "Tümü" || neighborhood.regionName === form.region;
+
+        if (regionMatch && neighborhood.name) {
+          neighborhoodSet.add(neighborhood.name);
+        }
+      });
+    }
+
+    return ["Tümü", ...Array.from(neighborhoodSet).sort((a, b) =>
+      a.localeCompare(b, "tr-TR")
+    )];
+  }, [candidates, neighborhoods, form.region]);
+
+  function notifySelectionChange(updatedForm) {
+    if (onSelectionChange) {
+      onSelectionChange({
+        region: updatedForm.region,
+        neighborhood: updatedForm.neighborhood,
+        systemType: updatedForm.systemType,
+        placeType: updatedForm.placeType,
+        budgetMin: updatedForm.budgetMin,
+        budgetMax: updatedForm.budgetMax
+      });
+    }
+  }
+
   function handleChange(event) {
     const { name, value } = event.target;
 
-    const updatedForm = {
+    let updatedForm = {
       ...form,
       [name]: value
     };
 
-    setForm(updatedForm);
+    if (name === "region") {
+      updatedForm = {
+        ...updatedForm,
+        neighborhood: "Tümü"
+      };
 
-    if (name === "region" && onRegionChange) {
-      const selectedRegion = regions.find((region) => region.name === value);
-      onRegionChange(selectedRegion?.id || 0);
+      if (onRegionChange) {
+        const selectedRegion = regions.find((region) => region.name === value);
+        onRegionChange(selectedRegion?.id || 0);
+      }
     }
+
+    setForm(updatedForm);
+    setFormMessage("");
+    notifySelectionChange(updatedForm);
+  }
+
+  function getTopCandidateSuggestions() {
+    return [...candidates]
+      .filter((candidate) => candidate.status !== "missing")
+      .sort((a, b) => {
+        const scoreA = a.generalScore ?? 0;
+        const scoreB = b.generalScore ?? 0;
+        return scoreB - scoreA;
+      })
+      .slice(0, 6);
   }
 
   function handleSubmit(event) {
     event.preventDefault();
 
+    notifySelectionChange(form);
+
     const budgetMin = form.budgetMin === "" ? 0 : Number(form.budgetMin);
     const budgetMax =
       form.budgetMax === "" ? Number.MAX_SAFE_INTEGER : Number(form.budgetMax);
+
+    if (Number.isNaN(budgetMin) || Number.isNaN(budgetMax)) {
+      setFormMessage("Bütçe alanlarına geçerli sayı giriniz.");
+      return;
+    }
 
     if (budgetMin < 0 || budgetMax < 0) {
       setFormMessage("Bütçe değerleri negatif olamaz.");
@@ -49,46 +156,42 @@ export default function PersonalizationForm({
       return;
     }
 
-    if (!form.systemType) {
-      setFormMessage("Lütfen sistem tipini seçiniz.");
-      return;
-    }
-
-    if (!form.placeType) {
-      setFormMessage("Lütfen mekân türünü seçiniz.");
-      return;
-    }
-
     const result = candidates.filter((candidate) => {
       const cost = candidate.estimatedCost ?? Number.MAX_SAFE_INTEGER;
 
       const budgetMatch = cost >= budgetMin && cost <= budgetMax;
-      const systemMatch = candidate.systemType === form.systemType;
-      const placeMatch = candidate.placeType === form.placeType;
+
+      const systemMatch =
+        form.systemType === "Tümü" || candidate.systemType === form.systemType;
+
+      const placeMatch =
+        form.placeType === "Tümü" || candidate.placeType === form.placeType;
+
       const regionMatch =
         form.region === "Tümü" || candidate.region === form.region;
 
-      return budgetMatch && systemMatch && placeMatch && regionMatch;
+      const neighborhoodMatch =
+        form.neighborhood === "Tümü" ||
+        candidate.neighborhood === form.neighborhood;
+
+      return (
+        budgetMatch &&
+        systemMatch &&
+        placeMatch &&
+        regionMatch &&
+        neighborhoodMatch
+      );
     });
 
     if (result.length === 0) {
-      const showLowScore = window.confirm(
-        "Uygun aday nokta bulunamadı. Orta ve düşük skorlu adaylar gösterilsin mi?"
+      const suggestions = getTopCandidateSuggestions();
+
+      onResult(suggestions);
+
+      setFormMessage(
+        "Seçilen gerçek mahalle için aday nokta bulunamadı. Demo için en yüksek skorlu aday noktalar listelendi."
       );
 
-      if (showLowScore) {
-        const fallbackResult = candidates.filter((candidate) => {
-          const score = candidate.generalScore ?? 0;
-          return score >= 20 && score <= 70;
-        });
-
-        onResult(fallbackResult);
-        setFormMessage("Orta ve düşük skorlu adaylar listelendi.");
-        return;
-      }
-
-      onResult([]);
-      setFormMessage("Uygun aday nokta bulunamadı.");
       return;
     }
 
@@ -143,9 +246,11 @@ export default function PersonalizationForm({
             value={form.systemType}
             onChange={handleChange}
           >
-            <option value="">Seçiniz</option>
-            <option value="AC">AC</option>
-            <option value="DC">DC</option>
+            {systemTypeOptions.map((systemType) => (
+              <option key={systemType} value={systemType}>
+                {systemType}
+              </option>
+            ))}
           </select>
         </label>
 
@@ -157,10 +262,11 @@ export default function PersonalizationForm({
             value={form.placeType}
             onChange={handleChange}
           >
-            <option value="">Seçiniz</option>
-            <option value="AVM">AVM</option>
-            <option value="İş Yeri">İş Yeri</option>
-            <option value="Otoyol">Otoyol</option>
+            {placeTypeOptions.map((placeType) => (
+              <option key={placeType} value={placeType}>
+                {placeType}
+              </option>
+            ))}
           </select>
         </label>
 
@@ -172,13 +278,27 @@ export default function PersonalizationForm({
             value={form.region}
             onChange={handleChange}
           >
-            {(regions.length > 0 ? regions : [{ id: 0, name: "Tümü" }]).map(
-              (region) => (
-                <option key={region.id} value={region.name}>
-                  {region.name}
-                </option>
-              )
-            )}
+            {regionOptions.map((region) => (
+              <option key={region.id} value={region.name}>
+                {region.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          Mahalle
+          <select
+            data-testid="personalization-neighborhood-select"
+            name="neighborhood"
+            value={form.neighborhood}
+            onChange={handleChange}
+          >
+            {neighborhoodOptions.map((neighborhood) => (
+              <option key={neighborhood} value={neighborhood}>
+                {neighborhood}
+              </option>
+            ))}
           </select>
         </label>
 
