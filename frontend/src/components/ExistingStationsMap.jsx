@@ -1,4 +1,4 @@
-import {
+﻿import {
   useEffect,
   useMemo,
   useRef,
@@ -674,77 +674,191 @@ function normalizeStation(
   station,
   regionLookup = new Map()
 ) {
+  const rawStation =
+    station?.data ??
+    station?.result ??
+    station ??
+    {};
+
+  const connectors =
+    Array.isArray(
+      rawStation.connectors
+    )
+      ? rawStation.connectors
+      : [];
+
+  const socketTypes =
+    Array.isArray(
+      rawStation.socketTypes
+    )
+      ? rawStation.socketTypes
+          .filter(Boolean)
+      : [];
+
+  const connectorTypes =
+    Array.isArray(
+      rawStation.connectorTypes
+    )
+      ? rawStation.connectorTypes
+          .filter(Boolean)
+      : [];
+
   const status =
-    station.status ??
-    (station.isActive === false
+    rawStation.status ??
+    (rawStation.isActive === false
       ? "Pasif"
       : "Aktif");
 
   const regionName =
-    station.regionName ||
+    rawStation.regionName ||
+    rawStation.region ||
     regionLookup.get(
-      station.regionId
-    );
+      rawStation.regionId
+    ) ||
+    "B\u00f6lge bilgisi yok";
+
+  const neighborhoodName =
+    rawStation.neighborhoodName ||
+    rawStation.neighborhood ||
+    "Mahalle bilgisi yok";
 
   const connectorText =
     formatConnectors(
-      station.connectors
+      connectors
+    );
+
+  const connectorPowerText =
+    formatPower(
+      connectors
+    );
+
+  const numericPower =
+    Number(
+      rawStation.maxPowerKw ??
+      rawStation.powerKw ??
+      rawStation.power
     );
 
   const powerText =
-    formatPower(
-      station.connectors
-    );
+    Number.isFinite(
+      numericPower
+    ) &&
+    numericPower > 0
+      ? String(numericPower) +
+        " kW"
+      : rawStation.power ||
+        connectorPowerText ||
+        "G\u00fc\u00e7 bilgisi yok";
+
+  const socketText =
+    socketTypes.join(" + ") ||
+    rawStation.socketType ||
+    connectorTypes.join(" + ") ||
+    rawStation.connectorType ||
+    connectorText ||
+    "Soket bilgisi yok";
+
+  const fallbackLocation =
+    neighborhoodName !==
+    "Mahalle bilgisi yok"
+      ? neighborhoodName
+      : regionName;
 
   return {
-    id: station.id,
+    ...rawStation,
+
+    id:
+      rawStation.id,
 
     name:
-      station.name ||
-      "Şarj İstasyonu",
+      rawStation.name ||
+      "\u015earj \u0130stasyonu",
 
     district:
-      station.district ||
-      "Çankaya",
+      rawStation.district ||
+      regionName,
+
+    regionId:
+      rawStation.regionId ??
+      null,
+
+    regionName,
+
+    neighborhoodId:
+      rawStation.neighborhoodId ??
+      null,
 
     neighborhood:
-      station.neighborhood ||
-      regionName ||
-      "Bölge bilgisi yok",
+      neighborhoodName,
+
+    neighborhoodName,
 
     address:
-      station.address ||
-      `${
-        station.neighborhood ||
-        regionName ||
-        "Çankaya"
-      }, Ankara`,
+      rawStation.address ||
+      fallbackLocation +
+        ", Ankara",
 
     latitude:
       Number(
-        station.latitude
+        rawStation.latitude
       ),
 
     longitude:
       Number(
-        station.longitude
+        rawStation.longitude
       ),
 
     socketType:
-      station.socketType ||
-      station.connectorType ||
-      connectorText ||
-      "Soket bilgisi yok",
-
-    status,
+      socketText,
 
     power:
-      station.power ||
-      powerText ||
-      station.operatorName ||
-      "Güç bilgisi yok",
+      powerText,
+
+    maxPowerKw:
+      Number.isFinite(
+        numericPower
+      )
+        ? numericPower
+        : null,
+
+    socketCount:
+      Number(
+        rawStation.socketCount
+      ) ||
+      connectors.reduce(
+        (
+          total,
+          connector
+        ) =>
+          total +
+          (Number(
+            connector.quantity
+          ) || 1),
+        0
+      ),
+
+    operatorName:
+      rawStation.operatorName ||
+      "\u0130\u015fletmeci bilgisi yok",
+
+    brandName:
+      rawStation.brandName ||
+      null,
+
+    sourceStationNumber:
+      rawStation.sourceStationNumber ||
+      null,
+
+    connectors,
+
+    socketTypes,
+
+    connectorTypes,
+
+    status,
   };
 }
+
 
 function createPinStyle(
   station,
@@ -2992,8 +3106,7 @@ export default function ExistingStationsMap({
         .stations
         .find(
           (item) =>
-            item.id ===
-            stationId
+            String(item.id) === String(stationId)
         );
 
     if (
@@ -3023,10 +3136,15 @@ export default function ExistingStationsMap({
     );
 
     try {
-      const detail =
+      const detailResponse =
         await getChargingStationDetail(
           stationId
         );
+
+      const detail =
+        detailResponse?.data ??
+        detailResponse?.result ??
+        detailResponse;
 
       const regionLookup =
         new Map(
@@ -3042,7 +3160,10 @@ export default function ExistingStationsMap({
 
       const normalizedDetail =
         normalizeStation(
-          detail,
+          {
+            ...station,
+            ...detail,
+          },
           regionLookup
         );
 
@@ -3052,8 +3173,7 @@ export default function ExistingStationsMap({
         ) =>
           currentStations.map(
             (item) =>
-              item.id ===
-              stationId
+              String(item.id) === String(stationId)
                 ? normalizedDetail
                 : item
           )
