@@ -8,6 +8,10 @@ const API_BASE_URL = RAW_API_BASE_URL
 
 const REQUEST_TIMEOUT_MS = 15000;
 
+const LOCAL_NEIGHBORHOOD_URL = "/data/MAHALLE.geojson";
+
+let localNeighborhoodsPromise = null;
+
 const allRegionOption = {
   id: 0,
   name: "Tümü",
@@ -691,6 +695,90 @@ async function getAllRegionsFromApi() {
   );
 }
 
+async function getLocalNeighborhoodsWithGeometry() {
+  if (!localNeighborhoodsPromise) {
+    localNeighborhoodsPromise = (async () => {
+      const response = await fetch(LOCAL_NEIGHBORHOOD_URL, {
+        method: "GET",
+        headers: {
+          Accept: "application/geo+json, application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `Yerel mahalle sınırları okunamadı. HTTP ${response.status}`,
+        );
+      }
+
+      const geoJson = await response.json();
+
+      const features = Array.isArray(geoJson?.features)
+        ? geoJson.features
+        : extractArray(geoJson);
+
+      if (!Array.isArray(features)) {
+        throw new Error(
+          "MAHALLE.geojson geçerli bir FeatureCollection içermiyor.",
+        );
+      }
+
+      return normalizeNeighborhoods(features);
+    })().catch((error) => {
+      localNeighborhoodsPromise = null;
+      throw error;
+    });
+  }
+
+  return localNeighborhoodsPromise;
+}
+
+function mergeNeighborhoodGeometry(
+  apiNeighborhoods,
+  localNeighborhoods,
+) {
+  const localByName = new Map();
+  const localById = new Map();
+
+  localNeighborhoods.forEach((neighborhood) => {
+    const nameKey = normalizeRelationKey(neighborhood.name);
+
+    if (nameKey && !localByName.has(nameKey)) {
+      localByName.set(nameKey, neighborhood);
+    }
+
+    const numericId = parsePositiveInteger(neighborhood.id);
+
+    if (numericId && !localById.has(String(numericId))) {
+      localById.set(String(numericId), neighborhood);
+    }
+  });
+
+  return apiNeighborhoods.map((neighborhood) => {
+    if (neighborhood.boundaryGeoJson) {
+      return neighborhood;
+    }
+
+    const nameKey = normalizeRelationKey(neighborhood.name);
+    const numericId = parsePositiveInteger(neighborhood.id);
+
+    const localMatch =
+      (nameKey ? localByName.get(nameKey) : null) ??
+      (numericId ? localById.get(String(numericId)) : null);
+
+    if (!localMatch?.boundaryGeoJson) {
+      return neighborhood;
+    }
+
+    return {
+      ...neighborhood,
+      boundaryGeoJson: localMatch.boundaryGeoJson,
+      population:
+        neighborhood.population || localMatch.population || 0,
+    };
+  });
+}
+
 async function getAllNeighborhoodsFromApi() {
   const result = await requestJson(
     `${API_BASE_URL}/api/neighborhoods`,
@@ -705,9 +793,27 @@ async function getAllNeighborhoodsFromApi() {
     );
   }
 
-  return normalizeNeighborhoods(
-    neighborhoodArray,
-  );
+  const apiNeighborhoods =
+    normalizeNeighborhoods(
+      neighborhoodArray,
+    );
+
+  try {
+    const localNeighborhoods =
+      await getLocalNeighborhoodsWithGeometry();
+
+    return mergeNeighborhoodGeometry(
+      apiNeighborhoods,
+      localNeighborhoods,
+    );
+  } catch (error) {
+    console.warn(
+      "Mahalle sınırları MAHALLE.geojson üzerinden zenginleştirilemedi:",
+      error,
+    );
+
+    return apiNeighborhoods;
+  }
 }
 
 export async function getRegions() {

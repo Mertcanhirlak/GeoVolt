@@ -1,4 +1,4 @@
-﻿import {
+import {
   useEffect,
   useMemo,
   useRef,
@@ -167,6 +167,9 @@ const poiClusterStyleCache =
   new Map();
 
 const trafoClusterStyleCache =
+  new Map();
+
+const stationClusterStyleCache =
   new Map();
 
 const singlePoiStyle = new Style({
@@ -674,191 +677,77 @@ function normalizeStation(
   station,
   regionLookup = new Map()
 ) {
-  const rawStation =
-    station?.data ??
-    station?.result ??
-    station ??
-    {};
-
-  const connectors =
-    Array.isArray(
-      rawStation.connectors
-    )
-      ? rawStation.connectors
-      : [];
-
-  const socketTypes =
-    Array.isArray(
-      rawStation.socketTypes
-    )
-      ? rawStation.socketTypes
-          .filter(Boolean)
-      : [];
-
-  const connectorTypes =
-    Array.isArray(
-      rawStation.connectorTypes
-    )
-      ? rawStation.connectorTypes
-          .filter(Boolean)
-      : [];
-
   const status =
-    rawStation.status ??
-    (rawStation.isActive === false
+    station.status ??
+    (station.isActive === false
       ? "Pasif"
       : "Aktif");
 
   const regionName =
-    rawStation.regionName ||
-    rawStation.region ||
+    station.regionName ||
     regionLookup.get(
-      rawStation.regionId
-    ) ||
-    "B\u00f6lge bilgisi yok";
-
-  const neighborhoodName =
-    rawStation.neighborhoodName ||
-    rawStation.neighborhood ||
-    "Mahalle bilgisi yok";
+      station.regionId
+    );
 
   const connectorText =
     formatConnectors(
-      connectors
-    );
-
-  const connectorPowerText =
-    formatPower(
-      connectors
-    );
-
-  const numericPower =
-    Number(
-      rawStation.maxPowerKw ??
-      rawStation.powerKw ??
-      rawStation.power
+      station.connectors
     );
 
   const powerText =
-    Number.isFinite(
-      numericPower
-    ) &&
-    numericPower > 0
-      ? String(numericPower) +
-        " kW"
-      : rawStation.power ||
-        connectorPowerText ||
-        "G\u00fc\u00e7 bilgisi yok";
-
-  const socketText =
-    socketTypes.join(" + ") ||
-    rawStation.socketType ||
-    connectorTypes.join(" + ") ||
-    rawStation.connectorType ||
-    connectorText ||
-    "Soket bilgisi yok";
-
-  const fallbackLocation =
-    neighborhoodName !==
-    "Mahalle bilgisi yok"
-      ? neighborhoodName
-      : regionName;
+    formatPower(
+      station.connectors
+    );
 
   return {
-    ...rawStation,
-
-    id:
-      rawStation.id,
+    id: station.id,
 
     name:
-      rawStation.name ||
-      "\u015earj \u0130stasyonu",
+      station.name ||
+      "Şarj İstasyonu",
 
     district:
-      rawStation.district ||
-      regionName,
-
-    regionId:
-      rawStation.regionId ??
-      null,
-
-    regionName,
-
-    neighborhoodId:
-      rawStation.neighborhoodId ??
-      null,
+      station.district ||
+      "Çankaya",
 
     neighborhood:
-      neighborhoodName,
-
-    neighborhoodName,
+      station.neighborhood ||
+      regionName ||
+      "Bölge bilgisi yok",
 
     address:
-      rawStation.address ||
-      fallbackLocation +
-        ", Ankara",
+      station.address ||
+      `${
+        station.neighborhood ||
+        regionName ||
+        "Çankaya"
+      }, Ankara`,
 
     latitude:
       Number(
-        rawStation.latitude
+        station.latitude
       ),
 
     longitude:
       Number(
-        rawStation.longitude
+        station.longitude
       ),
 
     socketType:
-      socketText,
-
-    power:
-      powerText,
-
-    maxPowerKw:
-      Number.isFinite(
-        numericPower
-      )
-        ? numericPower
-        : null,
-
-    socketCount:
-      Number(
-        rawStation.socketCount
-      ) ||
-      connectors.reduce(
-        (
-          total,
-          connector
-        ) =>
-          total +
-          (Number(
-            connector.quantity
-          ) || 1),
-        0
-      ),
-
-    operatorName:
-      rawStation.operatorName ||
-      "\u0130\u015fletmeci bilgisi yok",
-
-    brandName:
-      rawStation.brandName ||
-      null,
-
-    sourceStationNumber:
-      rawStation.sourceStationNumber ||
-      null,
-
-    connectors,
-
-    socketTypes,
-
-    connectorTypes,
+      station.socketType ||
+      station.connectorType ||
+      connectorText ||
+      "Soket bilgisi yok",
 
     status,
+
+    power:
+      station.power ||
+      powerText ||
+      station.operatorName ||
+      "Güç bilgisi yok",
   };
 }
-
 
 function createPinStyle(
   station,
@@ -948,6 +837,93 @@ function createStationFeature(
   );
 
   return feature;
+}
+
+function createStationClusterStyle(
+  feature
+) {
+  const clusteredFeatures =
+    feature.get(
+      "features"
+    ) || [];
+
+  const size =
+    clusteredFeatures.length;
+
+  if (size === 0) {
+    return null;
+  }
+
+  if (size === 1) {
+    return (
+      clusteredFeatures[0].getStyle?.() ||
+      null
+    );
+  }
+
+  if (
+    stationClusterStyleCache.has(
+      size
+    )
+  ) {
+    return stationClusterStyleCache.get(
+      size
+    );
+  }
+
+  const radius =
+    size >= 100
+      ? 21
+      : size >= 50
+        ? 19
+        : size >= 10
+          ? 17
+          : 15;
+
+  const style =
+    new Style({
+      image: new CircleStyle({
+        radius,
+
+        fill: new Fill({
+          color:
+            "rgba(37, 99, 235, 0.94)",
+        }),
+
+        stroke: new Stroke({
+          color: "#ffffff",
+          width: 3,
+        }),
+      }),
+
+      text: new Text({
+        text: String(size),
+
+        font:
+          size >= 100
+            ? "700 11px Arial"
+            : "700 12px Arial",
+
+        fill: new Fill({
+          color: "#ffffff",
+        }),
+
+        stroke: new Stroke({
+          color:
+            "rgba(15, 23, 42, 0.7)",
+          width: 2,
+        }),
+      }),
+
+      zIndex: 20,
+    });
+
+  stationClusterStyleCache.set(
+    size,
+    style
+  );
+
+  return style;
 }
 
 function getRegionLabelGeometry(
@@ -1100,26 +1076,44 @@ function createRegionStyle(feature) {
           text: regionName,
 
           font: isSelected
-            ? "700 13px Inter, system-ui, sans-serif"
-            : "600 12px Inter, system-ui, sans-serif",
+            ? "700 13px Arial"
+            : "700 11px Arial",
 
           fill: new Fill({
             color: isSelected
               ? "#ffffff"
-              : "#111827",
+              : "#0f172a",
           }),
 
           stroke: new Stroke({
             color: isSelected
-              ? "rgba(15, 23, 42, 0.96)"
-              : "rgba(255, 255, 255, 0.96)",
-            width: isSelected
-              ? 4
-              : 3.5,
+              ? "rgba(15, 23, 42, 0.9)"
+              : "rgba(255, 255, 255, 0.98)",
+            width: 3,
           }),
 
-          textAlign: "center",
-          textBaseline: "middle",
+          backgroundFill:
+            new Fill({
+              color: isSelected
+                ? "rgba(30, 41, 59, 0.88)"
+                : "rgba(255, 255, 255, 0.78)",
+            }),
+
+          backgroundStroke:
+            new Stroke({
+              color: isSelected
+                ? "rgba(255, 255, 255, 0.75)"
+                : "rgba(15, 23, 42, 0.28)",
+              width: 1,
+            }),
+
+          padding: [
+            3,
+            5,
+            3,
+            5,
+          ],
+
           overflow: true,
         }),
       })
@@ -1672,6 +1666,16 @@ export default function ExistingStationsMap({
       new VectorSource()
     );
 
+  const stationClusterSourceRef =
+    useRef(
+      new Cluster({
+        distance: 58,
+        minDistance: 22,
+        source:
+          stationSourceRef.current,
+      })
+    );
+
   const regionSourceRef =
     useRef(
       new VectorSource()
@@ -1915,7 +1919,12 @@ export default function ExistingStationsMap({
     const stationLayer =
       new VectorLayer({
         source:
-          stationSourceRef.current,
+          stationClusterSourceRef.current,
+
+        style:
+          createStationClusterStyle,
+
+        renderBuffer: 120,
 
         zIndex: 6,
       });
@@ -1955,6 +1964,22 @@ export default function ExistingStationsMap({
     map.on(
       "moveend",
       () => {
+        const currentZoom =
+          map.getView().getZoom() ??
+          12;
+
+        const clusterDistance =
+          currentZoom >= 16
+            ? 0
+            : currentZoom >= 14.5
+              ? 34
+              : 58;
+
+        stationClusterSourceRef.current
+          .setDistance(
+            clusterDistance
+          );
+
         const station =
           latestRef.current
             .stations
@@ -1998,6 +2023,71 @@ export default function ExistingStationsMap({
           return;
         }
 
+        const clusteredFeatures =
+          feature.get(
+            "features"
+          );
+
+        if (
+          Array.isArray(
+            clusteredFeatures
+          )
+        ) {
+          if (
+            clusteredFeatures.length ===
+            1
+          ) {
+            const singleFeature =
+              clusteredFeatures[0];
+
+            if (
+              singleFeature.get(
+                "featureType"
+              ) === "station"
+            ) {
+              selectStation(
+                singleFeature.get(
+                  "station"
+                )?.id
+              );
+            }
+
+            return;
+          }
+
+          if (
+            clusteredFeatures.length >
+            1
+          ) {
+            const extent =
+              getClusterExtent(
+                clusteredFeatures
+              );
+
+            if (extent) {
+              map
+                .getView()
+                .fit(
+                  extent,
+                  {
+                    padding: [
+                      90,
+                      90,
+                      90,
+                      90,
+                    ],
+
+                    duration: 350,
+
+                    maxZoom: 17,
+                  }
+                );
+            }
+
+            return;
+          }
+        }
+
         const featureType =
           feature.get(
             "featureType"
@@ -2027,46 +2117,6 @@ export default function ExistingStationsMap({
               "regionId"
             )
           );
-
-          return;
-        }
-
-        const clusteredFeatures =
-          feature.get(
-            "features"
-          );
-
-        if (
-          Array.isArray(
-            clusteredFeatures
-          ) &&
-          clusteredFeatures.length >
-            1
-        ) {
-          const extent =
-            getClusterExtent(
-              clusteredFeatures
-            );
-
-          if (extent) {
-            map
-              .getView()
-              .fit(
-                extent,
-                {
-                  padding: [
-                    90,
-                    90,
-                    90,
-                    90,
-                  ],
-
-                  duration: 350,
-
-                  maxZoom: 17,
-                }
-              );
-          }
         }
       }
     );
@@ -3106,7 +3156,8 @@ export default function ExistingStationsMap({
         .stations
         .find(
           (item) =>
-            String(item.id) === String(stationId)
+            item.id ===
+            stationId
         );
 
     if (
@@ -3136,15 +3187,10 @@ export default function ExistingStationsMap({
     );
 
     try {
-      const detailResponse =
+      const detail =
         await getChargingStationDetail(
           stationId
         );
-
-      const detail =
-        detailResponse?.data ??
-        detailResponse?.result ??
-        detailResponse;
 
       const regionLookup =
         new Map(
@@ -3160,10 +3206,7 @@ export default function ExistingStationsMap({
 
       const normalizedDetail =
         normalizeStation(
-          {
-            ...station,
-            ...detail,
-          },
+          detail,
           regionLookup
         );
 
@@ -3173,7 +3216,8 @@ export default function ExistingStationsMap({
         ) =>
           currentStations.map(
             (item) =>
-              String(item.id) === String(stationId)
+              item.id ===
+              stationId
                 ? normalizedDetail
                 : item
           )

@@ -3970,7 +3970,7 @@ export default function CandidatePointsMap({
               aria-label="Detay penceresini kapat"
               data-testid={`${layerDetailTestIdBase}-close-button`}
             >
-              ×
+
             </button>
 
             <div className="candidate-layer-detail-header">

@@ -83,6 +83,74 @@ const defaultDataFilter = {
   budgetMax: "",
 };
 
+function normalizeLocationKey(value) {
+  return String(value ?? "")
+    .trim()
+    .toLocaleLowerCase("tr-TR")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ı/g, "i")
+    .replace(/[^a-z0-9]/g, "")
+    .replace(/(mahallesi|mahalle|mah|mh)$/g, "");
+}
+
+function getLocationId(item) {
+  const value =
+    item?.id ??
+    item?.Id ??
+    item?.ID ??
+    item?.regionId ??
+    item?.RegionId ??
+    item?.neighborhoodId ??
+    item?.NeighborhoodId;
+
+  const numericValue = Number(value);
+
+  return Number.isInteger(numericValue) && numericValue > 0
+    ? numericValue
+    : null;
+}
+
+function getLocationName(item) {
+  return String(
+    item?.name ??
+      item?.Name ??
+      item?.NAME ??
+      item?.regionName ??
+      item?.RegionName ??
+      item?.neighborhoodName ??
+      item?.NeighborhoodName ??
+      "",
+  ).trim();
+}
+
+function findSelectedLocation(items, selectedId, selectedName) {
+  const safeItems = Array.isArray(items) ? items : [];
+  const numericSelectedId = Number(selectedId);
+
+  if (Number.isInteger(numericSelectedId) && numericSelectedId > 0) {
+    const idMatch = safeItems.find(
+      (item) => getLocationId(item) === numericSelectedId,
+    );
+
+    if (idMatch) {
+      return idMatch;
+    }
+  }
+
+  const selectedNameKey = normalizeLocationKey(selectedName);
+
+  if (!selectedNameKey) {
+    return null;
+  }
+
+  return (
+    safeItems.find(
+      (item) => normalizeLocationKey(getLocationName(item)) === selectedNameKey,
+    ) ?? null
+  );
+}
+
 function getNumberOrDefault(
   value,
   defaultValue,
@@ -520,6 +588,17 @@ export default function CandidatePointsPage() {
     setNeighborhoods,
   ] = useState([]);
 
+
+  const [
+    summaryNeighborhoods,
+    setSummaryNeighborhoods,
+  ] = useState([]);
+
+  const [
+    summaryBoundaryLoading,
+    setSummaryBoundaryLoading,
+  ] = useState(false);
+
   const [
     selectedRegionSummary,
     setSelectedRegionSummary,
@@ -805,6 +884,63 @@ export default function CandidatePointsPage() {
       regions,
     ]);
 
+  const summarySpatialFilter = useMemo(() => {
+    const selectedRegion = findSelectedLocation(
+      regions,
+      selectedDataFilter.regionId,
+      selectedDataFilter.region,
+    );
+
+    const selectedNeighborhood = findSelectedLocation(
+      summaryNeighborhoods,
+      selectedDataFilter.neighborhoodId,
+      selectedDataFilter.neighborhood,
+    );
+
+    const neighborhoodRequested =
+      Number(selectedDataFilter.neighborhoodId) > 0 ||
+      normalizeLocationKey(selectedDataFilter.neighborhood) !==
+        normalizeLocationKey("Tümü");
+
+    if (neighborhoodRequested) {
+      return {
+        level: "neighborhood",
+        label: selectedDataFilter.neighborhood || "Seçili mahalle",
+        boundaryGeoJson: selectedNeighborhood?.boundaryGeoJson || "",
+        loading: summaryBoundaryLoading,
+      };
+    }
+
+    const regionRequested =
+      Number(selectedDataFilter.regionId) > 0 ||
+      normalizeLocationKey(selectedDataFilter.region) !==
+        normalizeLocationKey("Tümü");
+
+    if (regionRequested) {
+      return {
+        level: "region",
+        label: selectedDataFilter.region || "Seçili bölge",
+        boundaryGeoJson: selectedRegion?.boundaryGeoJson || "",
+        loading: false,
+      };
+    }
+
+    return {
+      level: "all",
+      label: "Tümü",
+      boundaryGeoJson: "",
+      loading: false,
+    };
+  }, [
+    regions,
+    selectedDataFilter.neighborhood,
+    selectedDataFilter.neighborhoodId,
+    selectedDataFilter.region,
+    selectedDataFilter.regionId,
+    summaryBoundaryLoading,
+    summaryNeighborhoods,
+  ]);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -886,6 +1022,75 @@ export default function CandidatePointsPage() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const selectedRegion = findSelectedLocation(
+      regions,
+      selectedDataFilter.regionId,
+      selectedDataFilter.region,
+    );
+
+    const numericRegionId =
+      getLocationId(selectedRegion) ?? Number(selectedDataFilter.regionId);
+
+    const neighborhoodRequested =
+      Number(selectedDataFilter.neighborhoodId) > 0 ||
+      normalizeLocationKey(selectedDataFilter.neighborhood) !==
+        normalizeLocationKey("Tümü");
+
+    if (
+      !Number.isInteger(numericRegionId) ||
+      numericRegionId <= 0 ||
+      !neighborhoodRequested
+    ) {
+      setSummaryNeighborhoods([]);
+      setSummaryBoundaryLoading(false);
+
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    setSummaryBoundaryLoading(true);
+
+    getNeighborhoods(
+      numericRegionId,
+      selectedDataFilter.region,
+    )
+      .then((result) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setSummaryNeighborhoods(
+          Array.isArray(result.data) ? result.data : [],
+        );
+      })
+      .catch(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        setSummaryNeighborhoods([]);
+      })
+      .finally(() => {
+        if (isMounted) {
+          setSummaryBoundaryLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    regions,
+    selectedDataFilter.neighborhood,
+    selectedDataFilter.neighborhoodId,
+    selectedDataFilter.region,
+    selectedDataFilter.regionId,
+  ]);
 
   useEffect(() => {
     if (!selectedCandidate) {
@@ -3960,9 +4165,30 @@ export default function CandidatePointsPage() {
                     marginTop: "18px",
                   }}
                 >
-                  <PoiSummary />
-                  <TrafoSummary />
-                  <RoadSummary />
+                  <PoiSummary
+                    filterBoundaryGeoJson={
+                      summarySpatialFilter.boundaryGeoJson
+                    }
+                    filterLabel={summarySpatialFilter.label}
+                    filterLevel={summarySpatialFilter.level}
+                    filterLoading={summarySpatialFilter.loading}
+                  />
+                  <TrafoSummary
+                    filterBoundaryGeoJson={
+                      summarySpatialFilter.boundaryGeoJson
+                    }
+                    filterLabel={summarySpatialFilter.label}
+                    filterLevel={summarySpatialFilter.level}
+                    filterLoading={summarySpatialFilter.loading}
+                  />
+                  <RoadSummary
+                    filterBoundaryGeoJson={
+                      summarySpatialFilter.boundaryGeoJson
+                    }
+                    filterLabel={summarySpatialFilter.label}
+                    filterLevel={summarySpatialFilter.level}
+                    filterLoading={summarySpatialFilter.loading}
+                  />
                 </div>
               )}
             </section>
