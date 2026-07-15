@@ -9,6 +9,7 @@ import Feature from "ol/Feature";
 import OlMap from "ol/Map";
 import View from "ol/View";
 import GeoJSON from "ol/format/GeoJSON";
+import { union } from "@turf/union";
 import Point from "ol/geom/Point";
 import TileLayer from "ol/layer/Tile";
 import VectorLayer from "ol/layer/Vector";
@@ -60,8 +61,6 @@ const GEOJSON_URLS = {
   road: "/data/YOL.geojson",
 };
 
-const REGION_LABEL_MAX_RESOLUTION =
-  24;
 
 const PLACE_SEARCH_PRESETS = [
   {
@@ -222,6 +221,295 @@ function normalizeText(value) {
     )
     .replace(/\s+/g, " ")
     .trim();
+}
+
+
+function getRegionRecordName(
+  region
+) {
+  return String(
+    region?.name ??
+      region?.Name ??
+      region?.regionName ??
+      region?.RegionName ??
+      "Bilinmeyen Bölge"
+  ).trim();
+}
+
+function getRegionRecordId(
+  region
+) {
+  return (
+    region?.id ??
+    region?.Id ??
+    region?.regionId ??
+    region?.RegionId ??
+    null
+  );
+}
+
+function getRegionBoundary(
+  region
+) {
+  const possibleValues = [
+    region?.boundaryGeoJson,
+    region?.boundaryGeoJSON,
+    region?.BoundaryGeoJson,
+    region?.BoundaryGeoJSON,
+    region?.boundary,
+    region?.Boundary,
+    region?.geometry,
+    region?.Geometry,
+    region?.geoJson,
+    region?.geoJSON,
+    region?.GeoJson,
+    region?.GeoJSON,
+  ];
+
+  for (
+    const value
+    of possibleValues
+  ) {
+    if (!value) {
+      continue;
+    }
+
+    if (
+      typeof value ===
+      "object"
+    ) {
+      return value;
+    }
+
+    if (
+      typeof value ===
+      "string"
+    ) {
+      try {
+        return JSON.parse(value);
+      } catch {
+        continue;
+      }
+    }
+  }
+
+  return null;
+}
+
+function getRegionGroupKey(
+  region,
+  index
+) {
+  const regionId =
+    getRegionRecordId(region);
+
+  if (
+    regionId !== null &&
+    regionId !== undefined &&
+    String(regionId).trim() !== ""
+  ) {
+    return `id:${regionId}`;
+  }
+
+  const normalizedName =
+    normalizeText(
+      getRegionRecordName(region)
+    );
+
+  return `name:${
+    normalizedName || index
+  }`;
+}
+
+function extractPolygonFeatures(
+  geoJsonValue
+) {
+  if (!geoJsonValue) {
+    return [];
+  }
+
+  if (
+    geoJsonValue.type ===
+    "FeatureCollection"
+  ) {
+    return geoJsonValue.features.flatMap(
+      extractPolygonFeatures
+    );
+  }
+
+  if (geoJsonValue.type === "Feature") {
+    return extractPolygonFeatures(
+      geoJsonValue.geometry
+    );
+  }
+
+  if (
+    geoJsonValue.type ===
+    "GeometryCollection"
+  ) {
+    return geoJsonValue.geometries.flatMap(
+      extractPolygonFeatures
+    );
+  }
+
+  if (geoJsonValue.type === "Polygon") {
+    return [
+      {
+        type: "Feature",
+        properties: {},
+        geometry: {
+          type: "Polygon",
+          coordinates:
+            geoJsonValue.coordinates,
+        },
+      },
+    ];
+  }
+
+  if (
+    geoJsonValue.type ===
+    "MultiPolygon"
+  ) {
+    return geoJsonValue.coordinates.map(
+      (polygonCoordinates) => ({
+        type: "Feature",
+        properties: {},
+        geometry: {
+          type: "Polygon",
+          coordinates:
+            polygonCoordinates,
+        },
+      })
+    );
+  }
+
+  return [];
+}
+
+function createFallbackMultiPolygon(
+  polygonFeatures
+) {
+  return {
+    type: "Feature",
+    properties: {},
+    geometry: {
+      type: "MultiPolygon",
+      coordinates:
+        polygonFeatures.map(
+          (polygonFeature) =>
+            polygonFeature.geometry
+              .coordinates
+        ),
+    },
+  };
+}
+
+function dissolvePolygonFeatures(
+  polygonFeatures,
+  regionName
+) {
+  if (
+    !Array.isArray(polygonFeatures) ||
+    polygonFeatures.length === 0
+  ) {
+    return null;
+  }
+
+  if (polygonFeatures.length === 1) {
+    return polygonFeatures[0];
+  }
+
+  try {
+    return (
+      union({
+        type: "FeatureCollection",
+        features: polygonFeatures,
+      }) ||
+      createFallbackMultiPolygon(
+        polygonFeatures
+      )
+    );
+  } catch (error) {
+    console.error(
+      `${regionName} polygon parçaları birleştirilemedi:`,
+      error
+    );
+
+    return createFallbackMultiPolygon(
+      polygonFeatures
+    );
+  }
+}
+
+function mergeRegionsByName(
+  regions
+) {
+  const groupedRegions =
+    new Map();
+
+  regions.forEach(
+    (region, index) => {
+      const groupKey =
+        getRegionGroupKey(
+          region,
+          index
+        );
+
+      const regionId =
+        getRegionRecordId(region);
+
+      const existingGroup =
+        groupedRegions.get(
+          groupKey
+        );
+
+      if (existingGroup) {
+        if (
+          regionId !== null &&
+          regionId !== undefined &&
+          !existingGroup.regionIds.some(
+            (currentId) =>
+              String(currentId) ===
+              String(regionId)
+          )
+        ) {
+          existingGroup.regionIds.push(
+            regionId
+          );
+        }
+
+        existingGroup.sourceRegions.push(
+          region
+        );
+
+        return;
+      }
+
+      groupedRegions.set(
+        groupKey,
+        {
+          ...region,
+          id: regionId,
+          name:
+            getRegionRecordName(
+              region
+            ),
+          regionIds:
+            regionId === null ||
+            regionId === undefined
+              ? []
+              : [regionId],
+          sourceRegions: [
+            region,
+          ],
+        }
+      );
+    }
+  );
+
+  return Array.from(
+    groupedRegions.values()
+  );
 }
 
 function getSearchMatchScore(
@@ -548,43 +836,109 @@ function createStationFeature(
   return feature;
 }
 
-function createRegionStyle(
-  feature,
-  resolution
+function getRegionLabelGeometry(
+  feature
 ) {
-  const index =
+  const geometry =
+    feature.getGeometry();
+
+  if (!geometry) {
+    return undefined;
+  }
+
+  if (
+    geometry.getType() ===
+    "Polygon"
+  ) {
+    return geometry.getInteriorPoint();
+  }
+
+  if (
+    geometry.getType() ===
+    "MultiPolygon"
+  ) {
+    const polygons =
+      geometry.getPolygons();
+
+    const largestPolygon =
+      polygons.reduce(
+        (largest, polygon) =>
+          !largest ||
+          polygon.getArea() >
+            largest.getArea()
+            ? polygon
+            : largest,
+        null
+      );
+
+    return largestPolygon
+      ?.getInteriorPoint();
+  }
+
+  return new Point(
+    getCenter(
+      geometry.getExtent()
+    )
+  );
+}
+
+function getRegionColor(
+  regionIndex,
+  isSelected
+) {
+  const hue = Math.round(
+    (Number(regionIndex) *
+      137.508) %
+      360
+  );
+
+  return isSelected
+    ? `hsla(${hue}, 88%, 47%, 0.66)`
+    : `hsla(${hue}, 74%, 57%, 0.5)`;
+}
+
+function getRegionStrokeColor(
+  regionIndex,
+  isSelected
+) {
+  const hue = Math.round(
+    (Number(regionIndex) *
+      137.508) %
+      360
+  );
+
+  return isSelected
+    ? `hsl(${hue}, 92%, 30%)`
+    : `hsl(${hue}, 82%, 38%)`;
+}
+
+function createRegionStyle(feature) {
+  const regionIndex =
     feature.get(
       "regionIndex"
     ) ?? 0;
+
+  const regionId =
+    feature.get(
+      "regionId"
+    ) ?? regionIndex;
+
+  const regionName = String(
+    feature.get("name") ?? ""
+  ).trim();
 
   const isSelected =
     feature.get(
       "selected"
     ) === true;
 
-  const regionName =
-    feature.get("name") ||
-    feature.get("region")?.name ||
-    "";
-
-  const showLabel =
-    isSelected ||
-    resolution <=
-      REGION_LABEL_MAX_RESOLUTION;
-
   const cacheKey = [
-    index %
-      regionColors.length,
-
+    "region",
+    regionId,
+    regionName,
     isSelected
       ? "selected"
       : "default",
-
-    showLabel
-      ? "label"
-      : "no-label",
-
-    regionName,
   ].join("-");
 
   if (
@@ -597,65 +951,73 @@ function createRegionStyle(
     );
   }
 
-  const style = new Style({
-    fill: new Fill({
-      color: isSelected
-        ? "rgba(132, 255, 80, 0.52)"
-        : regionColors[
-            index %
-              regionColors.length
-          ],
-    }),
+  const polygonStyle =
+    new Style({
+      fill: new Fill({
+        color: getRegionColor(
+          regionIndex,
+          isSelected
+        ),
+      }),
 
-    stroke: new Stroke({
-      color: isSelected
-        ? "#dc2626"
-        : "rgba(239, 68, 68, 0.85)",
+      stroke: new Stroke({
+        color: getRegionStrokeColor(
+          regionIndex,
+          isSelected
+        ),
 
-      width: isSelected
-        ? 5
-        : 3.5,
-    }),
+        width: isSelected
+          ? 5
+          : 2.8,
+      }),
+    });
 
-    text: showLabel
-      ? new Text({
+  const styles = [
+    polygonStyle,
+  ];
+
+  if (regionName) {
+    styles.push(
+      new Style({
+        geometry:
+          getRegionLabelGeometry,
+
+        text: new Text({
           text: regionName,
 
-          overflow: false,
-
           font: isSelected
-            ? "bold 14px Arial"
-            : "bold 10px Arial",
+            ? "700 13px Inter, system-ui, sans-serif"
+            : "600 12px Inter, system-ui, sans-serif",
 
           fill: new Fill({
-            color: "#0f172a",
+            color: isSelected
+              ? "#ffffff"
+              : "#111827",
           }),
 
           stroke: new Stroke({
-            color:
-              "rgba(255, 255, 255, 0.92)",
-
+            color: isSelected
+              ? "rgba(15, 23, 42, 0.96)"
+              : "rgba(255, 255, 255, 0.96)",
             width: isSelected
               ? 4
-              : 3,
+              : 3.5,
           }),
 
-          padding: [
-            0,
-            0,
-            0,
-            0,
-          ],
-        })
-      : undefined,
-  });
+          textAlign: "center",
+          textBaseline: "middle",
+          overflow: true,
+        }),
+      })
+    );
+  }
 
   regionStyleCache.set(
     cacheKey,
-    style
+    styles
   );
 
-  return style;
+  return styles;
 }
 
 function createRegionFeatures(
@@ -664,77 +1026,176 @@ function createRegionFeatures(
   const parser =
     new GeoJSON();
 
-  return regions.flatMap(
+  const groupedRegions =
+    new Map();
+
+  regions.forEach(
     (region, index) => {
+      const boundary =
+        getRegionBoundary(region);
+
+      if (!boundary) {
+        return;
+      }
+
+      const polygonFeatures =
+        extractPolygonFeatures(
+          boundary
+        );
+
       if (
-        !region.boundaryGeoJson
+        polygonFeatures.length ===
+        0
       ) {
-        return [];
+        return;
       }
 
-      try {
-        const geoJson =
-          JSON.parse(
-            region.boundaryGeoJson
-          );
-
-        const features =
-          parser.readFeatures(
-            geoJson,
-            {
-              dataProjection:
-                "EPSG:4326",
-
-              featureProjection:
-                "EPSG:3857",
-            }
-          );
-
-        return features.map(
-          (feature) => {
-            feature.set(
-              "featureType",
-              "region"
-            );
-
-            feature.set(
-              "region",
-              region
-            );
-
-            feature.set(
-              "regionId",
-              region.id
-            );
-
-            feature.set(
-              "name",
-              region.name
-            );
-
-            feature.set(
-              "regionIndex",
-              index
-            );
-
-            feature.set(
-              "selected",
-              false
-            );
-
-            return feature;
-          }
-        );
-      } catch (error) {
-        console.error(
-          `${region.name} bölge GeoJSON verisi okunamadı:`,
-          error
+      const groupKey =
+        getRegionGroupKey(
+          region,
+          index
         );
 
-        return [];
+      const regionId =
+        getRegionRecordId(region);
+
+      const regionName =
+        getRegionRecordName(region);
+
+      const existingGroup =
+        groupedRegions.get(
+          groupKey
+        );
+
+      if (existingGroup) {
+        existingGroup.polygonFeatures.push(
+          ...polygonFeatures
+        );
+
+        if (
+          regionId !== null &&
+          regionId !== undefined &&
+          !existingGroup.regionIds.some(
+            (currentId) =>
+              String(currentId) ===
+              String(regionId)
+          )
+        ) {
+          existingGroup.regionIds.push(
+            regionId
+          );
+        }
+
+        existingGroup.sourceRegions.push(
+          region
+        );
+
+        return;
       }
+
+      groupedRegions.set(
+        groupKey,
+        {
+          region,
+          regionId,
+          regionIds:
+            regionId === null ||
+            regionId === undefined
+              ? []
+              : [regionId],
+          regionName,
+          regionIndex: index,
+          polygonFeatures: [
+            ...polygonFeatures,
+          ],
+          sourceRegions: [
+            region,
+          ],
+        }
+      );
     }
   );
+
+  return Array.from(
+    groupedRegions.values()
+  ).flatMap((group) => {
+    const dissolvedGeoJson =
+      dissolvePolygonFeatures(
+        group.polygonFeatures,
+        group.regionName
+      );
+
+    if (!dissolvedGeoJson) {
+      return [];
+    }
+
+    try {
+      const feature =
+        parser.readFeature(
+          dissolvedGeoJson,
+          {
+            dataProjection:
+              "EPSG:4326",
+            featureProjection:
+              "EPSG:3857",
+          }
+        );
+
+      const mergedRegion = {
+        ...group.region,
+        id: group.regionId,
+        name: group.regionName,
+        regionIds:
+          group.regionIds,
+        sourceRegions:
+          group.sourceRegions,
+      };
+
+      feature.set(
+        "featureType",
+        "region"
+      );
+
+      feature.set(
+        "region",
+        mergedRegion
+      );
+
+      feature.set(
+        "regionId",
+        group.regionId
+      );
+
+      feature.set(
+        "regionIds",
+        group.regionIds
+      );
+
+      feature.set(
+        "name",
+        group.regionName
+      );
+
+      feature.set(
+        "regionIndex",
+        group.regionIndex
+      );
+
+      feature.set(
+        "selected",
+        false
+      );
+
+      return [feature];
+    } catch (error) {
+      console.error(
+        `${group.regionName} birleştirilmiş geometrisi okunamadı:`,
+        error
+      );
+
+      return [];
+    }
+  });
 }
 
 async function loadGeoJsonFeatures(
@@ -1569,18 +2030,47 @@ export default function ExistingStationsMap({
             ? stationData
             : [];
 
+        const mergedRegions =
+          mergeRegionsByName(
+            safeRegions
+          );
+
         const regionLookup =
           new Map(
-            safeRegions.map(
-              (region) => [
-                region.id,
-                region.name,
-              ]
+            safeRegions.flatMap(
+              (region) => {
+                const regionName =
+                  getRegionRecordName(
+                    region
+                  );
+
+                const regionIds = [
+                  getRegionRecordId(
+                    region
+                  ),
+                  ...(Array.isArray(
+                    region.regionIds
+                  )
+                    ? region.regionIds
+                    : []),
+                ].filter(
+                  (regionId) =>
+                    regionId !== null &&
+                    regionId !== undefined
+                );
+
+                return regionIds.map(
+                  (regionId) => [
+                    regionId,
+                    regionName,
+                  ]
+                );
+              }
             )
           );
 
         setRegions(
-          safeRegions
+          mergedRegions
         );
 
         setStations(
