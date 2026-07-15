@@ -1,17 +1,15 @@
-﻿using GeoVolt.Application.ChargingStations.Abstractions;
+using GeoVolt.Application.ChargingStations.Abstractions;
 using GeoVolt.Domain.Entities;
 using GeoVolt.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace GeoVolt.Infrastructure.ChargingStations;
 
-// Şarj istasyonlarının veri erişim işlemlerini gerçekleştirir.
 public sealed class ChargingStationRepository : IChargingStationRepository
 {
     private readonly GeoVoltDbContext _dbContext;
 
-    public ChargingStationRepository(
-        GeoVoltDbContext dbContext)
+    public ChargingStationRepository(GeoVoltDbContext dbContext)
     {
         _dbContext = dbContext;
     }
@@ -21,30 +19,23 @@ public sealed class ChargingStationRepository : IChargingStationRepository
         int? neighborhoodSourceId = null,
         CancellationToken cancellationToken = default)
     {
-        // İstasyonları ilişkili bölge ve mahalle bilgileriyle sorgular.
-        var query = _dbContext.ChargingStations
-            .AsNoTracking()
-            .Include(station => station.Region)
-            .Include(station => station.Neighborhood)
-            .AsQueryable();
+        var query = CreateReadQuery();
 
-        // Bölgenin public kaynak kimliğine göre filtreler.
         if (regionSourceId.HasValue)
         {
             query = query.Where(station =>
                 station.Region.SourceId == regionSourceId.Value);
         }
 
-        // Mahallenin public kaynak kimliğine göre filtreler.
         if (neighborhoodSourceId.HasValue)
         {
             query = query.Where(station =>
-                station.Neighborhood.SourceId ==
-                neighborhoodSourceId.Value);
+                station.Neighborhood.SourceId == neighborhoodSourceId.Value);
         }
 
         return await query
             .OrderBy(station => station.Name)
+            .ThenBy(station => station.SourceStationNumber)
             .ToListAsync(cancellationToken);
     }
 
@@ -52,27 +43,19 @@ public sealed class ChargingStationRepository : IChargingStationRepository
         int id,
         CancellationToken cancellationToken = default)
     {
-        // İstasyonu internal veritabanı kimliğine göre getirir.
-        return await _dbContext.ChargingStations
-            .AsNoTracking()
-            .Include(station => station.Region)
-            .Include(station => station.Neighborhood)
+        return await CreateReadQuery()
             .FirstOrDefaultAsync(
                 station => station.Id == id,
                 cancellationToken);
     }
 
-    public async Task<IReadOnlyList<ChargingConnector>>
-        GetConnectorsByStationIdAsync(
-            int chargingStationId,
-            CancellationToken cancellationToken = default)
+    private IQueryable<ChargingStation> CreateReadQuery()
     {
-        // İstasyona bağlı connectorları getirir.
-        return await _dbContext.ChargingConnectors
+        return _dbContext.ChargingStations
             .AsNoTracking()
-            .Where(connector =>
-                connector.ChargingStationId == chargingStationId)
-            .OrderBy(connector => connector.Id)
-            .ToListAsync(cancellationToken);
+            .Include(station => station.Region)
+            .Include(station => station.Neighborhood)
+            .Include(station => station.Connectors)
+            .AsSplitQuery();
     }
 }

@@ -1,20 +1,20 @@
 ﻿namespace GeoVolt.Application.ChargingStations.Dtos;
-
-// Şarj istasyonundaki bağlantı tipi bilgilerini içerir.
+// Şarj istasyonlarındaki bağlantı noktalarının temel bilgilerini içeren DTO sınıfı
 public sealed class ChargingConnectorResponseDto
 {
-    // Connector kaydının internal veritabanı kimliği.
+    // Bağlantı noktasının kimliği
     public int Id { get; set; }
 
-    // Soket türü.
+    public string SourceSocketNumber { get; set; } = string.Empty;
+
+    // Soket tipi
     public string SocketType { get; set; } = string.Empty;
 
-    // Fiziksel bağlantı türü.
     public string? ConnectorType { get; set; }
 
-    // Şarj gücü, kW cinsindendir.
+    // Şarj gücü
     public double PowerKw { get; set; }
 
-    // Aynı özelliklere sahip connector adedi.
+    // Bu bağlantı tipinden kaç adet olduğunu belirtir
     public int Quantity { get; set; }
 }

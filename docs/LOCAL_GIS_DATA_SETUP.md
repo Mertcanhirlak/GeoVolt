@@ -8,10 +8,11 @@ Bu kurulum her geliştiricinin kendi bilgisayarındaki PostgreSQL/PostGIS verita
 - EF Core aracı (bir kez kurulur): `dotnet tool install --global dotnet-ef --version 10.*`
 - PostgreSQL ve PostGIS kurulu/çalışır durumda
 - Proje kökünde `Data/data_1/Data` klasörü
-- Bu klasörde şu üç dosya:
+- Bu klasörde şu dört dosya:
   - `ILCE.geojson`
   - `Semttt.geojson`
   - `MAHALLE.geojson`
+  - `ARAC_SARJ.geojson`
 
 Veritabanı bağlantısını kendi bilgisayarına göre `backend/src/GeoVolt.Api/appsettings.Development.json` içinde ayarla. İstersen `DATABASE_CONNECTION_STRING` ortam değişkeni de kullanabilirsin; bu değer dosyadaki ayarın önüne geçer.
 
@@ -29,6 +30,7 @@ Komut otomatik olarak:
 2. `ILCE.geojson` dosyasını aktarır.
 3. `Semttt.geojson` dosyasından 28 semti aktarır.
 4. `MAHALLE.geojson` dosyasından 124 mahalleyi aktarır, alan çakışmasına göre semte bağlar ve semt nüfuslarını mahallelerden hesaplar.
+5. `ARAC_SARJ.geojson` dosyasını istasyon ve soket tablolarına ayırır, istasyonları mahalle ve semtlerle eşleştirir.
 
 Veri klasörü başka konumdaysa:
 
@@ -52,5 +54,7 @@ Frontend varsayılan olarak `http://localhost:5000` adresindeki API'ye bağlanı
 - `GET /api/regions/{id}/neighborhoods` — ilgili semtin mahalleleri
 - `GET /api/neighborhoods` — 124 mahalle
 - `GET /api/neighborhoods/{id}` — mahalle ayrıntısı ve sınırı
+- `GET /api/charging-stations` — mevcut şarj istasyonları
+- `GET /api/charging-stations/{id}` — istasyon ve soket ayrıntıları
 
-Şarj istasyonu ve aday nokta verileri bu komutun kapsamı dışındadır; bu alanlar gerçek veri dönüşümü tamamlanana kadar mock/eksik kabul edilmelidir.
+Aday nokta verileri bu komutun kapsamı dışındadır; bu alan gerçek veri dönüşümü tamamlanana kadar mock/eksik kabul edilmelidir.

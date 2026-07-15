@@ -25,26 +25,16 @@ public sealed class NeighborhoodsController : ControllerBase
         return Ok(neighborhoods);
     }
 
-    [HttpGet("{id:int}")]
-    public async Task<IActionResult> GetByIdAsync(
-        int id,
+    [HttpGet("{sourceId:int}")]
+    public async Task<IActionResult> GetBySourceIdAsync(
+        int sourceId,
         CancellationToken cancellationToken)
     {
         // Id değerine göre mahalle detayını getirir
         var neighborhood =
-            await _neighborhoodService.GetByIdAsync(
-                id,
+            await _neighborhoodService.GetBySourceIdAsync(
+                sourceId,
                 cancellationToken);
-
-        // Mahalle bulunamazsa 404 döner
-        if (neighborhood is null)
-        {
-            return NotFound(new
-            {
-                success = false,
-                message = "Mahalle bulunamadı."
-            });
-        }
 
         return Ok(neighborhood);
     }

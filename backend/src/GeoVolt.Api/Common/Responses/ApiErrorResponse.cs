@@ -1,5 +1,5 @@
-﻿namespace GeoVolt.Api.Common.Responses;
-//beklenmeyen bir hata oluştuğunda döndürülecek olan response modelidir.
+namespace GeoVolt.Api.Common.Responses;
+
 public sealed class ApiErrorResponse
 {
     public bool Success { get; set; }

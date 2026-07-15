@@ -8,12 +8,12 @@ public interface INeighborhoodService
         CancellationToken cancellationToken = default);
 
     // Belirtilen bölgeye bağlı mahalleleri getirir
-    Task<IReadOnlyList<NeighborhoodResponseDto>> GetByRegionIdAsync(
-        int regionId,
+    Task<IReadOnlyList<NeighborhoodResponseDto>> GetByRegionSourceIdAsync(
+        int regionSourceId,
         CancellationToken cancellationToken = default);
 
     // Id değerine göre tek mahallenin detayını getirir
-    Task<NeighborhoodDetailResponseDto?> GetByIdAsync(
-        int id,
+    Task<NeighborhoodDetailResponseDto> GetBySourceIdAsync(
+        int sourceId,
         CancellationToken cancellationToken = default);
 }

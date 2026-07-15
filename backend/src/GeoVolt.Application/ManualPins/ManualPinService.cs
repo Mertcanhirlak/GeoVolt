@@ -1,4 +1,3 @@
-﻿using GeoVolt.Application.Common.Exceptions;
 using GeoVolt.Application.ManualPins.Abstractions;
 using GeoVolt.Application.ManualPins.Dtos;
 using GeoVolt.Application.Regions.Abstractions;
@@ -10,17 +9,15 @@ public sealed class ManualPinService : IManualPinService
 {
     private readonly IRegionService _regionService;
 
-    public ManualPinService(
-        IRegionService regionService)
+    public ManualPinService(IRegionService regionService)
     {
         _regionService = regionService;
     }
 
     public async Task<ManualPinEvaluateResponseDto> EvaluateAsync(
-     ManualPinEvaluateRequestDto request,
-     CancellationToken cancellationToken = default)
+        ManualPinEvaluateRequestDto request,
+        CancellationToken cancellationToken = default)
     {
-        // Mevcut locate-point mantığını kullanır.
         var location = await _regionService.LocatePointAsync(
             request.RegionId,
             new RegionPointRequestDto
@@ -30,33 +27,9 @@ public sealed class ManualPinService : IManualPinService
             },
             cancellationToken);
 
-        if (location is null)
-        {
-            throw new NotFoundException("Bölge bulunamadı.");
-        }
-
-        // Pin seçilen bölgenin dışındadır.
-        if (!location.IsInsideRegion)
-        {
-            return new ManualPinEvaluateResponseDto
-            {
-                IsValid = false,
-                RegionId = location.RegionId,
-                RegionName = location.RegionName,
-                NeighborhoodId = null,
-                NeighborhoodName = null,
-                Latitude = location.Latitude,
-                Longitude = location.Longitude,
-                EstimatedCost = null,
-                CostSource = "not_available",
-                Message = "Seçilen nokta bölge sınırları dışında."
-            };
-        }
-
-        // Gerçek maliyet verisi henüz bulunmuyor.
         return new ManualPinEvaluateResponseDto
         {
-            IsValid = true,
+            IsValid = location.IsInsideRegion,
             RegionId = location.RegionId,
             RegionName = location.RegionName,
             NeighborhoodId = location.NeighborhoodId,
@@ -65,9 +38,19 @@ public sealed class ManualPinService : IManualPinService
             Longitude = location.Longitude,
             EstimatedCost = null,
             CostSource = "not_available",
-            Message = location.NeighborhoodId.HasValue
-                ? "Manuel pin bölge ve mahalle sınırları içinde."
-                : "Manuel pin bölge içinde ancak mahalle bilgisi bulunamadı."
+            Message = GetMessage(location)
         };
+    }
+
+    private static string GetMessage(LocateRegionPointResponseDto location)
+    {
+        if (!location.IsInsideRegion)
+        {
+            return "Seçilen nokta bölge sınırları dışında.";
+        }
+
+        return location.NeighborhoodId.HasValue
+            ? "Manuel pin bölge ve mahalle sınırları içinde."
+            : "Manuel pin bölge içinde ancak mahalle bilgisi bulunamadı.";
     }
 }

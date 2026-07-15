@@ -15,6 +15,7 @@ public sealed class ChargingStationConfiguration : IEntityTypeConfiguration<Char
         builder.Property(station => station.Name).HasColumnName("name").HasMaxLength(240).IsRequired();
         builder.Property(station => station.OperatorName).HasColumnName("operator_name").HasMaxLength(180).IsRequired();
         builder.Property(station => station.BrandName).HasColumnName("brand_name").HasMaxLength(180);
+        builder.Property(station => station.AccessType).HasColumnName("access_type").HasMaxLength(20).IsRequired();
         builder.Property(station => station.RegionId).HasColumnName("region_id");
         builder.Property(station => station.NeighborhoodId).HasColumnName("neighborhood_id");
         builder.Property(station => station.Address).HasColumnName("address").HasMaxLength(500).IsRequired();
@@ -24,6 +25,7 @@ public sealed class ChargingStationConfiguration : IEntityTypeConfiguration<Char
 
         builder.HasIndex(station => station.SourceStationNumber).IsUnique();
         builder.HasIndex(station => station.OperatorName);
+        builder.HasIndex(station => station.AccessType);
         builder.HasIndex(station => station.RegionId);
         builder.HasIndex(station => station.NeighborhoodId);
         builder.HasIndex(station => station.Location).HasMethod("gist");

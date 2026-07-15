@@ -16,6 +16,8 @@ public sealed class ChargingStation
 
     public string? BrandName { get; set; }
 
+    public string AccessType { get; set; } = string.Empty;
+
     // İstasyonun bağlı olduğu bölge kimliği
     public int RegionId { get; set; }
 
