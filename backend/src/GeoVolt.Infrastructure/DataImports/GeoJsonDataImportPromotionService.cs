@@ -141,7 +141,14 @@ public sealed class GeoJsonDataImportPromotionService : IDataImportPromotionServ
 
     private static bool IsSupported(string datasetName)
     {
-        return datasetName is "district" or "regions" or "neighborhoods" or "charging-stations";
+        return datasetName is
+            "district"
+            or "regions"
+            or "neighborhoods"
+            or "charging-stations"
+            or "poi"
+            or "power-transformers"
+            or "roads";
     }
 
     private async Task<int> PromoteDatasetAsync(
@@ -155,8 +162,197 @@ public sealed class GeoJsonDataImportPromotionService : IDataImportPromotionServ
             "regions" => await PromoteRegionsAsync(datasetImportId, cancellationToken),
             "neighborhoods" => await PromoteNeighborhoodsAsync(datasetImportId, cancellationToken),
             "charging-stations" => await PromoteChargingStationsAsync(datasetImportId, cancellationToken),
+            "poi" => await PromotePoisAsync(datasetImportId, cancellationToken),
+            "power-transformers" => await PromotePowerTransformersAsync(datasetImportId, cancellationToken),
+            "roads" => await PromoteRoadsAsync(datasetImportId, cancellationToken),
             _ => 0
         };
+    }
+
+    private async Task<int> PromotePoisAsync(
+        int datasetImportId,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteCountAsync(
+            datasetImportId,
+            """
+            WITH source AS (
+                SELECT
+                    (f."PropertiesJson" ->> 'ID')::numeric::bigint AS source_id,
+                    NULLIF(btrim(f."PropertiesJson" ->> 'NAME'), '') AS name,
+                    NULLIF(btrim(f."PropertiesJson" ->> 'CATEGORY'), '') AS category,
+                    NULLIF(btrim(f."PropertiesJson" ->> 'SUB_CATEGORY'), '') AS sub_category,
+                    NULLIF(btrim(f."PropertiesJson" ->> 'PHONE'), '') AS phone,
+                    NULLIF(btrim(f."PropertiesJson" ->> 'EMAIL'), '') AS email,
+                    NULLIF(btrim(f."PropertiesJson" ->> 'WEB'), '') AS website,
+                    ST_SetSRID(
+                        ST_Force2D(ST_GeomFromGeoJSON(f."GeometryJson"::text)),
+                        4326
+                    )::geometry(Point, 4326) AS location
+                FROM staging.geojson_features f
+                WHERE f."DatasetImportId" = @datasetImportId
+            ),
+            valid_source AS (
+                SELECT *
+                FROM source
+                WHERE source_id IS NOT NULL
+                  AND name IS NOT NULL
+                  AND category IS NOT NULL
+                  AND location IS NOT NULL
+                  AND NOT ST_IsEmpty(location)
+                  AND ST_IsValid(location)
+            ),
+            upserted AS (
+                INSERT INTO gis.pois (
+                    "SourceId",
+                    "Name",
+                    "Category",
+                    "SubCategory",
+                    "Phone",
+                    "Email",
+                    "Website",
+                    "Location"
+                )
+                SELECT
+                    source_id,
+                    name,
+                    category,
+                    sub_category,
+                    phone,
+                    email,
+                    website,
+                    location
+                FROM valid_source
+                ON CONFLICT ("SourceId") DO UPDATE SET
+                    "Name" = EXCLUDED."Name",
+                    "Category" = EXCLUDED."Category",
+                    "SubCategory" = EXCLUDED."SubCategory",
+                    "Phone" = EXCLUDED."Phone",
+                    "Email" = EXCLUDED."Email",
+                    "Website" = EXCLUDED."Website",
+                    "Location" = EXCLUDED."Location"
+                RETURNING "Id"
+            )
+            SELECT count(*)::integer FROM upserted;
+            """,
+            cancellationToken);
+    }
+
+    private async Task<int> PromotePowerTransformersAsync(
+        int datasetImportId,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteCountAsync(
+            datasetImportId,
+            """
+            WITH source AS (
+                SELECT
+                    (f."PropertiesJson" ->> 'ID')::numeric::bigint AS source_id,
+                    NULLIF(btrim(f."PropertiesJson" ->> 'NAME'), '') AS name,
+                    COALESCE(
+                        NULLIF(btrim(f."PropertiesJson" ->> 'SUB_CATEGORY'), ''),
+                        NULLIF(btrim(f."PropertiesJson" ->> 'CATEGORY'), '')
+                    ) AS transformer_type,
+                    ST_SetSRID(
+                        ST_Force2D(ST_GeomFromGeoJSON(f."GeometryJson"::text)),
+                        4326
+                    )::geometry(Point, 4326) AS location
+                FROM staging.geojson_features f
+                WHERE f."DatasetImportId" = @datasetImportId
+            ),
+            valid_source AS (
+                SELECT *
+                FROM source
+                WHERE source_id IS NOT NULL
+                  AND location IS NOT NULL
+                  AND NOT ST_IsEmpty(location)
+                  AND ST_IsValid(location)
+            ),
+            upserted AS (
+                INSERT INTO gis.power_transformers (
+                    "SourceId",
+                    "Name",
+                    "TransformerType",
+                    "Location"
+                )
+                SELECT source_id, name, transformer_type, location
+                FROM valid_source
+                ON CONFLICT ("SourceId") DO UPDATE SET
+                    "Name" = EXCLUDED."Name",
+                    "TransformerType" = EXCLUDED."TransformerType",
+                    "Location" = EXCLUDED."Location"
+                RETURNING "Id"
+            )
+            SELECT count(*)::integer FROM upserted;
+            """,
+            cancellationToken);
+    }
+
+    private async Task<int> PromoteRoadsAsync(
+        int datasetImportId,
+        CancellationToken cancellationToken)
+    {
+        return await ExecuteCountAsync(
+            datasetImportId,
+            """
+            WITH source AS (
+                SELECT
+                    (f."PropertiesJson" ->> 'ID')::numeric::bigint AS source_id,
+                    NULLIF(btrim(f."PropertiesJson" ->> 'NAME'), '') AS name,
+                    NULLIF(btrim(f."PropertiesJson" ->> 'TYPES'), '') AS road_type,
+                    NULLIF(replace(btrim(f."PropertiesJson" ->> 'SPEED'), ',', '.'), '')::double precision AS speed,
+                    NULLIF(replace(btrim(f."PropertiesJson" ->> 'SPEED_AVG'), ',', '.'), '')::double precision AS average_speed,
+                    ST_Multi(
+                        ST_CollectionExtract(
+                            ST_MakeValid(
+                                ST_SetSRID(
+                                    ST_Force2D(ST_GeomFromGeoJSON(f."GeometryJson"::text)),
+                                    4326
+                                )
+                            ),
+                            2
+                        )
+                    )::geometry(MultiLineString, 4326) AS geometry
+                FROM staging.geojson_features f
+                WHERE f."DatasetImportId" = @datasetImportId
+            ),
+            valid_source AS (
+                SELECT *
+                FROM source
+                WHERE source_id IS NOT NULL
+                  AND road_type IS NOT NULL
+                  AND geometry IS NOT NULL
+                  AND NOT ST_IsEmpty(geometry)
+                  AND ST_IsValid(geometry)
+            ),
+            upserted AS (
+                INSERT INTO gis.roads (
+                    "SourceId",
+                    "Name",
+                    "RoadType",
+                    "Speed",
+                    "AverageSpeed",
+                    "Geometry"
+                )
+                SELECT
+                    source_id,
+                    name,
+                    road_type,
+                    speed,
+                    average_speed,
+                    geometry
+                FROM valid_source
+                ON CONFLICT ("SourceId") DO UPDATE SET
+                    "Name" = EXCLUDED."Name",
+                    "RoadType" = EXCLUDED."RoadType",
+                    "Speed" = EXCLUDED."Speed",
+                    "AverageSpeed" = EXCLUDED."AverageSpeed",
+                    "Geometry" = EXCLUDED."Geometry"
+                RETURNING "Id"
+            )
+            SELECT count(*)::integer FROM upserted;
+            """,
+            cancellationToken);
     }
 
     private async Task<int> PromoteChargingStationsAsync(
@@ -566,6 +762,9 @@ public sealed class GeoJsonDataImportPromotionService : IDataImportPromotionServ
             "regions" => "Bazı semt kayıtları dönüştürülemedi veya Çankaya ilçe kaydı bulunamadı.",
             "neighborhoods" => "Bazı mahalleler geçerli bir semtle en az yüzde 95 oranında eşleştirilemedi.",
             "charging-stations" => "Bazı şarj soketleri geçerli bir istasyon veya mahalle ile eşleştirilemedi.",
+            "poi" => "Bazı POI kayıtları geçerli bir PostGIS noktasına dönüştürülemedi.",
+            "power-transformers" => "Bazı trafo kayıtları geçerli bir PostGIS noktasına dönüştürülemedi.",
+            "roads" => "Bazı yol kayıtları geçerli bir PostGIS çizgisine dönüştürülemedi.",
             _ => "Bazı kayıtlar gerçek GIS tablosuna dönüştürülemedi."
         };
     }
@@ -578,6 +777,9 @@ public sealed class GeoJsonDataImportPromotionService : IDataImportPromotionServ
             "regions" => "Semt verisi gerçek PostGIS tablosuna aktarıldı.",
             "neighborhoods" => "Mahalleler semtlerle eşleştirilerek gerçek PostGIS tablosuna aktarıldı.",
             "charging-stations" => "Şarj istasyonları ve soketleri gerçek PostGIS tablolarına aktarıldı.",
+            "poi" => "POI verileri gerçek PostGIS tablosuna aktarıldı.",
+            "power-transformers" => "Trafo verileri gerçek PostGIS tablosuna aktarıldı.",
+            "roads" => "Yol verileri gerçek PostGIS tablosuna aktarıldı.",
             _ => "Veri seti gerçek PostGIS tablosuna aktarıldı."
         };
     }
