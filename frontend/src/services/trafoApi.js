@@ -1,5 +1,7 @@
 const LOCAL_TRAFO_URL = "/data/TRAFO.geojson";
 
+let localTrafosPromise = null;
+
 const fallbackTrafos = [
   {
     id: 1,
@@ -116,20 +118,29 @@ function normalizeTrafos(trafos) {
 }
 
 async function getTrafosFromLocalGeoJson() {
-  const response = await fetch(LOCAL_TRAFO_URL);
+  if (!localTrafosPromise) {
+    localTrafosPromise = (async () => {
+      const response = await fetch(LOCAL_TRAFO_URL);
 
-  if (!response.ok) {
-    throw new Error("Yerel TRAFO.geojson dosyası yüklenemedi.");
+      if (!response.ok) {
+        throw new Error("Yerel TRAFO.geojson dosyası yüklenemedi.");
+      }
+
+      const result = await response.json();
+      const trafoArray = extractArray(result);
+
+      if (!trafoArray) {
+        throw new Error("Yerel TRAFO.geojson yanıtı geçersiz.");
+      }
+
+      return normalizeTrafos(trafoArray);
+    })().catch((error) => {
+      localTrafosPromise = null;
+      throw error;
+    });
   }
 
-  const result = await response.json();
-  const trafoArray = extractArray(result);
-
-  if (!trafoArray) {
-    throw new Error("Yerel TRAFO.geojson yanıtı geçersiz.");
-  }
-
-  return normalizeTrafos(trafoArray);
+  return localTrafosPromise;
 }
 
 export async function getTrafos() {

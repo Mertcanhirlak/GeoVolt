@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { getRoads } from "../services/roadApi";
+import {
+  createSpatialBoundary,
+  doesGeometryIntersectBoundary,
+} from "../utils/geoSpatialFilter";
 
 function getTypeDistribution(roads) {
   const typeMap = new Map();
@@ -12,7 +16,7 @@ function getTypeDistribution(roads) {
   return Array.from(typeMap.entries())
     .map(([roadType, count]) => ({
       roadType,
-      count
+      count,
     }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 8);
@@ -47,17 +51,33 @@ function getAverageTrafficSpeed(roads) {
 function getTopRoadType(roads) {
   const distribution = getTypeDistribution(roads);
 
-  if (distribution.length === 0) {
-    return null;
-  }
-
-  return distribution[0];
+  return distribution.length > 0 ? distribution[0] : null;
 }
 
-export default function RoadSummary() {
+function createSourceMessage(source, filterLabel, isFilterRequested) {
+  let sourceMessage = "";
+
+  if (source === "local-geojson") {
+    sourceMessage = "YOL.geojson verisi kullanılıyor.";
+  } else if (source === "local-mock") {
+    sourceMessage = "Yerel yol deneme verileri kullanılıyor.";
+  }
+
+  if (sourceMessage && isFilterRequested && filterLabel) {
+    return `${sourceMessage} Seçili alan: ${filterLabel}.`;
+  }
+
+  return sourceMessage;
+}
+
+export default function RoadSummary({
+  filterBoundaryGeoJson = "",
+  filterLabel = "Tümü",
+  filterLevel = "all",
+  filterLoading = false,
+}) {
   const [roads, setRoads] = useState([]);
   const [source, setSource] = useState("");
-  const [message, setMessage] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -70,19 +90,7 @@ export default function RoadSummary() {
       }
 
       setRoads(result.data || []);
-      setSource(result.source);
-
-      if (result.source === "local-geojson") {
-        setMessage("YOL.geojson verisi kullanılıyor.");
-        return;
-      }
-
-      if (result.source === "local-mock") {
-        setMessage("Yerel yol deneme verileri kullanılıyor.");
-        return;
-      }
-
-      setMessage("");
+      setSource(result.source || "");
     }
 
     loadRoads();
@@ -92,13 +100,55 @@ export default function RoadSummary() {
     };
   }, []);
 
-  const typeDistribution = useMemo(() => getTypeDistribution(roads), [roads]);
-  const averageSpeedLimit = useMemo(() => getAverageSpeedLimit(roads), [roads]);
-  const averageTrafficSpeed = useMemo(
-    () => getAverageTrafficSpeed(roads),
-    [roads]
+  const isFilterRequested = filterLevel !== "all";
+
+  const spatialBoundary = useMemo(
+    () => createSpatialBoundary(filterBoundaryGeoJson),
+    [filterBoundaryGeoJson],
   );
-  const topRoadType = useMemo(() => getTopRoadType(roads), [roads]);
+
+  const visibleRoads = useMemo(() => {
+    if (!isFilterRequested) {
+      return roads;
+    }
+
+    if (filterLoading || !spatialBoundary) {
+      return [];
+    }
+
+    return roads.filter((road) =>
+      doesGeometryIntersectBoundary(road.geometry, spatialBoundary),
+    );
+  }, [filterLoading, isFilterRequested, roads, spatialBoundary]);
+
+  const typeDistribution = useMemo(
+    () => getTypeDistribution(visibleRoads),
+    [visibleRoads],
+  );
+
+  const averageSpeedLimit = useMemo(
+    () => getAverageSpeedLimit(visibleRoads),
+    [visibleRoads],
+  );
+
+  const averageTrafficSpeed = useMemo(
+    () => getAverageTrafficSpeed(visibleRoads),
+    [visibleRoads],
+  );
+
+  const topRoadType = useMemo(
+    () => getTopRoadType(visibleRoads),
+    [visibleRoads],
+  );
+
+  const message = createSourceMessage(
+    source,
+    filterLabel,
+    isFilterRequested,
+  );
+
+  const boundaryMissing =
+    isFilterRequested && !filterLoading && !spatialBoundary;
 
   return (
     <div className="road-summary-card" data-testid="road-summary-card">
@@ -121,26 +171,30 @@ export default function RoadSummary() {
       <div className="road-summary-grid">
         <div>
           <span>Toplam Yol Kaydı</span>
-          <strong>{roads.length}</strong>
+          <strong>{filterLoading ? "Yükleniyor..." : visibleRoads.length}</strong>
         </div>
 
         <div>
           <span>En Yaygın Yol Tipi</span>
           <strong>
-            {topRoadType
-              ? `${topRoadType.roadType} (${topRoadType.count})`
-              : "Veri Eksik"}
+            {filterLoading
+              ? "Yükleniyor..."
+              : topRoadType
+                ? `${topRoadType.roadType} (${topRoadType.count})`
+                : "Veri Eksik"}
           </strong>
         </div>
 
         <div>
           <span>Ortalama Hız Limiti</span>
-          <strong>{averageSpeedLimit}</strong>
+          <strong>{filterLoading ? "Yükleniyor..." : averageSpeedLimit}</strong>
         </div>
 
         <div>
           <span>Ortalama Trafik Hızı</span>
-          <strong>{averageTrafficSpeed}</strong>
+          <strong>
+            {filterLoading ? "Yükleniyor..." : averageTrafficSpeed}
+          </strong>
         </div>
 
         <div>
@@ -150,11 +204,19 @@ export default function RoadSummary() {
       </div>
 
       <div className="road-insight-card" data-testid="road-accessibility-note">
-        <strong>Erişilebilirlik skoru için hazır.</strong>
+        <strong>
+          {boundaryMissing
+            ? "Seçilen alanın sınırı bulunamadı."
+            : isFilterRequested
+              ? `${filterLabel} için erişilebilirlik özeti hazır.`
+              : "Erişilebilirlik skoru için hazır."}
+        </strong>
         <p>
-          YOL.geojson içinden yol tipi ve hız bilgileri okunuyor. Bu veriler
-          ileride aday noktanın ana yol/cadde yakınlığı ve ulaşım kolaylığı
-          skoruna bağlanabilir.
+          {boundaryMissing
+            ? "Bölge veya mahalle geometrisi gelmediği için yol verileri yanlış bir toplamla gösterilmedi."
+            : isFilterRequested
+              ? "Seçilen alanla kesişen yol segmentleri, yol tipi ve hız bilgileri üzerinden özetlendi."
+              : "YOL.geojson içinden yol tipi ve hız bilgileri okunuyor. Bir bölge veya mahalle seçildiğinde yalnızca o alanla kesişen yollar hesaplanır."}
         </p>
       </div>
 
@@ -162,16 +224,24 @@ export default function RoadSummary() {
         <h3>Yol Tipi Dağılımı</h3>
 
         <div className="road-type-list">
-          {typeDistribution.map((item) => (
-            <div
-              key={item.roadType}
-              className="road-list-row"
-              data-testid={`road-type-row-${item.roadType}`}
-            >
-              <span>{item.roadType}</span>
-              <strong>{item.count}</strong>
-            </div>
-          ))}
+          {filterLoading ? (
+            <p>Seçilen alanın sınırı yükleniyor.</p>
+          ) : boundaryMissing ? (
+            <p>Seçilen alanın sınır geometrisi bulunamadı.</p>
+          ) : typeDistribution.length === 0 ? (
+            <p>Seçilen alanda yol kaydı bulunamadı.</p>
+          ) : (
+            typeDistribution.map((item) => (
+              <div
+                key={item.roadType}
+                className="road-list-row"
+                data-testid={`road-type-row-${item.roadType}`}
+              >
+                <span>{item.roadType}</span>
+                <strong>{item.count}</strong>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

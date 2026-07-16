@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { getPois } from "../services/poiApi";
+import {
+  createSpatialBoundary,
+  isPointInsideBoundary,
+} from "../utils/geoSpatialFilter";
 
 function getTopCategory(pois) {
   const categoryMap = new Map();
@@ -15,7 +19,7 @@ function getTopCategory(pois) {
     if (!topCategory || count > topCategory.count) {
       topCategory = {
         category,
-        count
+        count,
       };
     }
   });
@@ -34,7 +38,7 @@ function getCategoryDistribution(pois) {
   return Array.from(categoryMap.entries())
     .map(([category, count]) => ({
       category,
-      count
+      count,
     }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 8);
@@ -51,7 +55,7 @@ function getRegionDistribution(pois) {
   return Array.from(regionMap.entries())
     .map(([region, count]) => ({
       region,
-      count
+      count,
     }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 8);
@@ -68,10 +72,30 @@ function hasUsefulRegionData(regionDistribution) {
   );
 }
 
-export default function PoiSummary() {
+function createSourceMessage(source, filterLabel, isFilterRequested) {
+  let sourceMessage = "";
+
+  if (source === "local-geojson") {
+    sourceMessage = "POI.geojson verisi kullanılıyor.";
+  } else if (source === "local-mock") {
+    sourceMessage = "Yerel POI deneme verileri kullanılıyor.";
+  }
+
+  if (sourceMessage && isFilterRequested && filterLabel) {
+    return `${sourceMessage} Seçili alan: ${filterLabel}.`;
+  }
+
+  return sourceMessage;
+}
+
+export default function PoiSummary({
+  filterBoundaryGeoJson = "",
+  filterLabel = "Tümü",
+  filterLevel = "all",
+  filterLoading = false,
+}) {
   const [pois, setPois] = useState([]);
   const [source, setSource] = useState("");
-  const [message, setMessage] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -84,19 +108,7 @@ export default function PoiSummary() {
       }
 
       setPois(result.data || []);
-      setSource(result.source);
-
-      if (result.source === "local-geojson") {
-        setMessage("POI.geojson verisi kullanılıyor.");
-        return;
-      }
-
-      if (result.source === "local-mock") {
-        setMessage("Yerel POI deneme verileri kullanılıyor.");
-        return;
-      }
-
-      setMessage("");
+      setSource(result.source || "");
     }
 
     loadPois();
@@ -106,19 +118,67 @@ export default function PoiSummary() {
     };
   }, []);
 
-  const topCategory = useMemo(() => getTopCategory(pois), [pois]);
+  const isFilterRequested = filterLevel !== "all";
+
+  const spatialBoundary = useMemo(
+    () => createSpatialBoundary(filterBoundaryGeoJson),
+    [filterBoundaryGeoJson],
+  );
+
+  const visiblePois = useMemo(() => {
+    if (!isFilterRequested) {
+      return pois;
+    }
+
+    if (filterLoading || !spatialBoundary) {
+      return [];
+    }
+
+    return pois.filter((poi) =>
+      isPointInsideBoundary(
+        poi.longitude,
+        poi.latitude,
+        spatialBoundary,
+      ),
+    );
+  }, [filterLoading, isFilterRequested, pois, spatialBoundary]);
+
+  const topCategory = useMemo(
+    () => getTopCategory(visiblePois),
+    [visiblePois],
+  );
 
   const categoryDistribution = useMemo(
-    () => getCategoryDistribution(pois),
-    [pois]
+    () => getCategoryDistribution(visiblePois),
+    [visiblePois],
   );
 
-  const regionDistribution = useMemo(
-    () => getRegionDistribution(pois),
-    [pois]
+  const regionDistribution = useMemo(() => {
+    if (isFilterRequested && spatialBoundary && filterLabel) {
+      return [
+        {
+          region: filterLabel,
+          count: visiblePois.length,
+        },
+      ];
+    }
+
+    return getRegionDistribution(visiblePois);
+  }, [filterLabel, isFilterRequested, spatialBoundary, visiblePois]);
+
+  const showRegionDistribution =
+    isFilterRequested && spatialBoundary
+      ? true
+      : hasUsefulRegionData(regionDistribution);
+
+  const message = createSourceMessage(
+    source,
+    filterLabel,
+    isFilterRequested,
   );
 
-  const showRegionDistribution = hasUsefulRegionData(regionDistribution);
+  const boundaryMissing =
+    isFilterRequested && !filterLoading && !spatialBoundary;
 
   return (
     <div className="poi-summary-card" data-testid="poi-summary-card">
@@ -141,15 +201,17 @@ export default function PoiSummary() {
       <div className="poi-summary-grid">
         <div>
           <span>Toplam POI</span>
-          <strong>{pois.length}</strong>
+          <strong>{filterLoading ? "Yükleniyor..." : visiblePois.length}</strong>
         </div>
 
         <div>
           <span>En Yoğun Kategori</span>
           <strong>
-            {topCategory
-              ? `${topCategory.category} (${topCategory.count})`
-              : "Veri Eksik"}
+            {filterLoading
+              ? "Yükleniyor..."
+              : topCategory
+                ? `${topCategory.category} (${topCategory.count})`
+                : "Veri Eksik"}
           </strong>
         </div>
 
@@ -163,8 +225,18 @@ export default function PoiSummary() {
         <div>
           <h3>Kategori Dağılımı</h3>
 
-          {categoryDistribution.length === 0 ? (
-            <p className="poi-empty">Kategori verisi bulunamadı.</p>
+          {filterLoading ? (
+            <p className="poi-empty">Seçilen alanın sınırı yükleniyor.</p>
+          ) : boundaryMissing ? (
+            <div className="poi-data-note">
+              <strong>Seçilen alanın sınırı bulunamadı.</strong>
+              <p>
+                Bölge veya mahalle geometrisi gelmediği için POI verileri yanlış
+                bir toplamla gösterilmedi.
+              </p>
+            </div>
+          ) : categoryDistribution.length === 0 ? (
+            <p className="poi-empty">Seçilen alanda POI bulunamadı.</p>
           ) : (
             categoryDistribution.map((item) => (
               <div
@@ -182,7 +254,17 @@ export default function PoiSummary() {
         <div>
           <h3>Bölge Dağılımı</h3>
 
-          {showRegionDistribution ? (
+          {filterLoading ? (
+            <p className="poi-empty">Seçilen alanın sınırı yükleniyor.</p>
+          ) : boundaryMissing ? (
+            <div className="poi-data-note" data-testid="poi-region-note">
+              <strong>Seçilen alanın sınırı bulunamadı.</strong>
+              <p>
+                Bölge veya mahalle geometrisi olmadan mekânsal dağılım
+                hesaplanamaz.
+              </p>
+            </div>
+          ) : showRegionDistribution ? (
             regionDistribution.map((item) => (
               <div
                 key={item.region}
@@ -197,9 +279,9 @@ export default function PoiSummary() {
             <div className="poi-data-note" data-testid="poi-region-note">
               <strong>Bölge bilgisi bulunamadı.</strong>
               <p>
-                POI.geojson dosyasında kategori bilgileri okunuyor; ancak bölge
-                veya mahalle alanı bulunamadığı için bölgesel dağılım
-                hesaplanamıyor.
+                Genel görünümde POI.geojson içinde bölge veya mahalle alanı
+                bulunmadığından dağılım hesaplanamıyor. Bir bölge ya da mahalle
+                seçildiğinde koordinatlar sınır poligonu ile eşleştirilir.
               </p>
             </div>
           )}

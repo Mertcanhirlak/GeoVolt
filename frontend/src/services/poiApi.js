@@ -1,5 +1,7 @@
 const LOCAL_POI_URL = "/data/POI.geojson";
 
+let localPoisPromise = null;
+
 const fallbackPois = [
   {
     id: 1,
@@ -175,20 +177,29 @@ function normalizePois(pois) {
 }
 
 async function getPoisFromLocalGeoJson() {
-  const response = await fetch(LOCAL_POI_URL);
+  if (!localPoisPromise) {
+    localPoisPromise = (async () => {
+      const response = await fetch(LOCAL_POI_URL);
 
-  if (!response.ok) {
-    throw new Error("Yerel POI.geojson dosyası yüklenemedi.");
+      if (!response.ok) {
+        throw new Error("Yerel POI.geojson dosyası yüklenemedi.");
+      }
+
+      const result = await response.json();
+      const poiArray = extractArray(result);
+
+      if (!poiArray) {
+        throw new Error("Yerel POI.geojson yanıtı geçersiz.");
+      }
+
+      return normalizePois(poiArray);
+    })().catch((error) => {
+      localPoisPromise = null;
+      throw error;
+    });
   }
 
-  const result = await response.json();
-  const poiArray = extractArray(result);
-
-  if (!poiArray) {
-    throw new Error("Yerel POI.geojson yanıtı geçersiz.");
-  }
-
-  return normalizePois(poiArray);
+  return localPoisPromise;
 }
 
 export async function getPois() {

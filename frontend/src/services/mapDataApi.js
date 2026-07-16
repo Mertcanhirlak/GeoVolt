@@ -24,7 +24,7 @@ async function getJson(path) {
   });
 
   if (!response.ok) {
-    throw new Error(`${path} isteği başarısız oldu: ${response.status}`);
+    throw new Error(`${path} isteÄŸi baÅŸarÄ±sÄ±z oldu: ${response.status}`);
   }
 
   return response.json();
@@ -120,172 +120,482 @@ function getCoordinates(item) {
   };
 }
 
-function normalizeChargingStation(station, index) {
-  const properties = station.properties ?? station;
-  const coordinates = getCoordinates(station);
+function normalizeChargingStation(
+  station,
+  index
+) {
+  const source =
+    station?.data ??
+    station?.result ??
+    station ??
+    {};
 
-  return {
-    id:
-      getProperty(properties, [
-        "id",
-        "ID",
-        "stationId",
-        "sarjId",
-        "objectId",
-        "OBJECTID"
-      ]) ?? index + 1,
+  const properties =
+    source.properties ??
+    source;
 
-    name:
-      normalizeText(
-        getProperty(properties, [
-          "name",
-          "NAME",
-          "stationName",
-          "istasyonAdi",
-          "ISTASYON_ADI",
-          "adi",
-          "ADI",
-          "title"
-        ])
-      ) || `Mevcut Şarj İstasyonu ${index + 1}`,
+  const coordinates =
+    getCoordinates(source);
 
-    operatorName:
-      normalizeText(
-        getProperty(properties, [
-          "operatorName",
-          "companyName",
-          "company",
-          "firma",
-          "FIRMA",
-          "firmaAdi",
-          "FIRMA_ADI",
-          "marka",
-          "MARKA"
-        ])
-      ) || "Firma bilgisi yok",
+  const connectors =
+    Array.isArray(
+      properties.connectors
+    )
+      ? properties.connectors
+      : [];
 
-    companyName:
-      normalizeText(
-        getProperty(properties, [
-          "companyName",
-          "operatorName",
-          "company",
-          "firma",
-          "FIRMA",
-          "firmaAdi",
-          "FIRMA_ADI",
-          "marka",
-          "MARKA"
-        ])
-      ) || "Firma bilgisi yok",
+  function normalizeArray(value) {
+    if (Array.isArray(value)) {
+      return value
+        .map((item) =>
+          normalizeText(item)
+        )
+        .filter(Boolean);
+    }
 
-    address:
-      normalizeText(
-        getProperty(properties, [
-          "address",
-          "adres",
-          "ADRES",
-          "fullAddress",
-          "estimatedAddress"
-        ])
-      ) || "Adres bilgisi yok",
+    const text =
+      normalizeText(value);
 
-    district:
-      normalizeText(
-        getProperty(properties, [
-          "district",
-          "region",
-          "regionName",
-          "ilce",
-          "ILCE",
-          "ilceAdi",
-          "ILCE_ADI"
-        ])
-      ) || "Ankara",
+    if (!text) {
+      return [];
+    }
 
-    neighborhood:
-      normalizeText(
-        getProperty(properties, [
+    return text
+      .split(/[,+]/)
+      .map((item) =>
+        item.trim()
+      )
+      .filter(Boolean);
+  }
+
+  const directSocketTypes =
+    normalizeArray(
+      getProperty(
+        properties,
+        [
+          "socketTypes",
+          "SocketTypes",
+        ]
+      )
+    );
+
+  const directConnectorTypes =
+    normalizeArray(
+      getProperty(
+        properties,
+        [
+          "connectorTypes",
+          "ConnectorTypes",
+        ]
+      )
+    );
+
+  const connectorSocketTypes =
+    connectors
+      .map((connector) =>
+        normalizeText(
+          getProperty(
+            connector,
+            [
+              "socketType",
+              "SocketType",
+            ]
+          )
+        )
+      )
+      .filter(Boolean);
+
+  const connectorTypeValues =
+    connectors
+      .map((connector) =>
+        normalizeText(
+          getProperty(
+            connector,
+            [
+              "connectorType",
+              "ConnectorType",
+            ]
+          )
+        )
+      )
+      .filter(Boolean);
+
+  const socketTypes = [
+    ...new Set([
+      ...directSocketTypes,
+      ...connectorSocketTypes,
+    ]),
+  ];
+
+  const connectorTypes = [
+    ...new Set([
+      ...directConnectorTypes,
+      ...connectorTypeValues,
+    ]),
+  ];
+
+  const neighborhoodName =
+    normalizeText(
+      getProperty(
+        properties,
+        [
+          "neighborhoodName",
+          "NeighborhoodName",
           "neighborhood",
+          "Neighborhood",
           "mahalle",
           "MAHALLE",
           "mahalleAdi",
-          "MAHALLE_ADI"
-        ])
-      ) || "Mahalle bilgisi yok",
+          "MAHALLE_ADI",
+        ]
+      )
+    ) ||
+    "Mahalle bilgisi yok";
 
-    regionId:
-      getProperty(properties, ["regionId", "REGION_ID", "region_id"]) ?? null,
-
-    regionName:
-      normalizeText(
-        getProperty(properties, [
+  const regionName =
+    normalizeText(
+      getProperty(
+        properties,
+        [
           "regionName",
+          "RegionName",
           "region",
+          "Region",
           "district",
+          "District",
           "ilce",
           "ILCE",
           "ilceAdi",
-          "ILCE_ADI"
-        ])
-      ) || "",
+          "ILCE_ADI",
+        ]
+      )
+    ) ||
+    "Ankara";
 
-    socketType:
-      normalizeText(
-        getProperty(properties, [
-          "socketType",
-          "connectorType",
-          "soketTipi",
-          "SOKET_TIPI",
-          "socket",
-          "connector"
-        ])
-      ) || "Soket bilgisi yok",
-
-    connectorType:
-      normalizeText(
-        getProperty(properties, [
-          "connectorType",
-          "socketType",
-          "soketTipi",
-          "SOKET_TIPI",
-          "socket",
-          "connector"
-        ])
-      ) || "Soket bilgisi yok",
-
-    power:
-      normalizeText(
-        getProperty(properties, [
-          "power",
-          "powerKw",
-          "guc",
-          "GUC",
-          "kw",
-          "KW",
-          "power_kW"
-        ])
-      ) || "Güç bilgisi yok",
-
-    powerKw: normalizeNumber(
-      getProperty(properties, [
+  const directPowerValue =
+    getProperty(
+      properties,
+      [
+        "maxPowerKw",
+        "MaxPowerKw",
         "powerKw",
+        "PowerKw",
         "power",
+        "Power",
         "guc",
         "GUC",
         "kw",
         "KW",
-        "power_kW"
-      ])
-    ),
+        "power_kW",
+      ]
+    );
 
-    latitude: normalizeNumber(coordinates.latitude),
-    longitude: normalizeNumber(coordinates.longitude),
+  const connectorPowerValues =
+    connectors
+      .map((connector) =>
+        normalizeNumber(
+          getProperty(
+            connector,
+            [
+              "powerKw",
+              "PowerKw",
+              "power",
+              "Power",
+            ]
+          )
+        )
+      )
+      .filter(
+        (value) =>
+          value !== null &&
+          Number.isFinite(value)
+      );
+
+  const directPower =
+    normalizeNumber(
+      directPowerValue
+    );
+
+  const maxPowerKw =
+    directPower !== null
+      ? directPower
+      : connectorPowerValues.length > 0
+        ? Math.max(
+            ...connectorPowerValues
+          )
+        : null;
+
+  const directSocketType =
+    normalizeText(
+      getProperty(
+        properties,
+        [
+          "socketType",
+          "SocketType",
+          "connectorType",
+          "ConnectorType",
+          "soketTipi",
+          "SOKET_TIPI",
+          "socket",
+          "connector",
+        ]
+      )
+    );
+
+  const socketType =
+    socketTypes.join(" + ") ||
+    directSocketType ||
+    connectorTypes.join(" + ") ||
+    "Soket bilgisi yok";
+
+  const power =
+    maxPowerKw !== null &&
+    Number.isFinite(maxPowerKw)
+      ? String(maxPowerKw) +
+        " kW"
+      : "G\u00fc\u00e7 bilgisi yok";
+
+  const socketCountValue =
+    normalizeNumber(
+      getProperty(
+        properties,
+        [
+          "socketCount",
+          "SocketCount",
+        ]
+      )
+    );
+
+  const calculatedSocketCount =
+    connectors.reduce(
+      (total, connector) =>
+        total +
+        (normalizeNumber(
+          connector.quantity
+        ) || 1),
+      0
+    );
+
+  return {
+    ...properties,
+
+    id:
+      getProperty(
+        properties,
+        [
+          "id",
+          "Id",
+          "ID",
+          "stationId",
+          "StationId",
+          "sarjId",
+          "objectId",
+          "OBJECTID",
+        ]
+      ) ??
+      index + 1,
+
+    sourceStationNumber:
+      normalizeText(
+        getProperty(
+          properties,
+          [
+            "sourceStationNumber",
+            "SourceStationNumber",
+            "ISTASYON_NO",
+          ]
+        )
+      ) ||
+      null,
+
+    name:
+      normalizeText(
+        getProperty(
+          properties,
+          [
+            "name",
+            "Name",
+            "NAME",
+            "stationName",
+            "StationName",
+            "istasyonAdi",
+            "ISTASYON_ADI",
+            "adi",
+            "ADI",
+            "title",
+          ]
+        )
+      ) ||
+      `Mevcut \u015earj \u0130stasyonu ${index + 1}`,
+
+    operatorName:
+      normalizeText(
+        getProperty(
+          properties,
+          [
+            "operatorName",
+            "OperatorName",
+            "companyName",
+            "CompanyName",
+            "company",
+            "firma",
+            "FIRMA",
+            "SARJ_AGI_ISLETMECISI",
+          ]
+        )
+      ) ||
+      "\u0130\u015fletmeci bilgisi yok",
+
+    companyName:
+      normalizeText(
+        getProperty(
+          properties,
+          [
+            "companyName",
+            "CompanyName",
+            "operatorName",
+            "OperatorName",
+            "company",
+            "firma",
+            "FIRMA",
+            "SARJ_AGI_ISLETMECISI",
+          ]
+        )
+      ) ||
+      "Firma bilgisi yok",
+
+    brandName:
+      normalizeText(
+        getProperty(
+          properties,
+          [
+            "brandName",
+            "BrandName",
+            "brand",
+            "marka",
+            "MARKA",
+          ]
+        )
+      ) ||
+      null,
+
+    accessType:
+      normalizeText(
+        getProperty(
+          properties,
+          [
+            "accessType",
+            "AccessType",
+          ]
+        )
+      ) ||
+      null,
+
+    address:
+      normalizeText(
+        getProperty(
+          properties,
+          [
+            "address",
+            "Address",
+            "adres",
+            "ADRES",
+            "fullAddress",
+            "estimatedAddress",
+          ]
+        )
+      ) ||
+      "Adres bilgisi yok",
+
+    district:
+      regionName,
+
+    regionId:
+      getProperty(
+        properties,
+        [
+          "regionId",
+          "RegionId",
+          "REGION_ID",
+          "region_id",
+        ]
+      ) ??
+      null,
+
+    regionName,
+
+    neighborhoodId:
+      getProperty(
+        properties,
+        [
+          "neighborhoodId",
+          "NeighborhoodId",
+          "NEIGHBORHOOD_ID",
+          "neighborhood_id",
+        ]
+      ) ??
+      null,
+
+    neighborhood:
+      neighborhoodName,
+
+    neighborhoodName,
+
+    socketType,
+
+    connectorType:
+      connectorTypes.join(" + ") ||
+      directSocketType ||
+      "Soket bilgisi yok",
+
+    socketTypes,
+
+    connectorTypes,
+
+    socketCount:
+      socketCountValue ??
+      calculatedSocketCount,
+
+    power,
+
+    powerKw:
+      maxPowerKw,
+
+    maxPowerKw,
+
+    latitude:
+      normalizeNumber(
+        coordinates.latitude
+      ),
+
+    longitude:
+      normalizeNumber(
+        coordinates.longitude
+      ),
+
+    isActive:
+      properties.isActive ??
+      properties.IsActive ??
+      true,
 
     status:
-      getProperty(properties, ["status", "STATUS", "durum", "DURUM"]) ?? "Aktif",
+      getProperty(
+        properties,
+        [
+          "status",
+          "Status",
+          "STATUS",
+          "durum",
+          "DURUM",
+        ]
+      ) ??
+      (
+        properties.isActive === false
+          ? "Pasif"
+          : "Aktif"
+      ),
 
-    connectors: Array.isArray(properties.connectors) ? properties.connectors : []
+    connectors,
   };
 }
 
@@ -305,7 +615,7 @@ async function getChargingStationsFromLocalGeoJson() {
   const response = await fetch(LOCAL_ARAC_SARJ_URL);
 
   if (!response.ok) {
-    throw new Error("ARAC_SARJ.geojson yüklenemedi.");
+    throw new Error("ARAC_SARJ.geojson yÃ¼klenemedi.");
   }
 
   const result = await response.json();
@@ -335,7 +645,7 @@ function getRegionName(properties, index) {
         "district",
         "districtName"
       ])
-    ) || `Bölge ${index + 1}`
+    ) || `BÃ¶lge ${index + 1}`
   );
 }
 
@@ -384,12 +694,12 @@ function normalizeApiRegion(region, index) {
     return {
       ...region,
       id: region.id ?? index + 1,
-      name: region.name ?? region.regionName ?? `Bölge ${index + 1}`,
+      name: region.name ?? region.regionName ?? `BÃ¶lge ${index + 1}`,
       boundaryGeoJson: JSON.stringify({
         type: "Feature",
         properties: {
           id: region.id ?? index + 1,
-          name: region.name ?? region.regionName ?? `Bölge ${index + 1}`
+          name: region.name ?? region.regionName ?? `BÃ¶lge ${index + 1}`
         },
         geometry: region.geometry
       })
@@ -399,7 +709,7 @@ function normalizeApiRegion(region, index) {
   return {
     ...region,
     id: region.id ?? index + 1,
-    name: region.name ?? region.regionName ?? `Bölge ${index + 1}`,
+    name: region.name ?? region.regionName ?? `BÃ¶lge ${index + 1}`,
     boundaryGeoJson: region.boundaryGeoJson ?? null
   };
 }
@@ -415,7 +725,7 @@ async function getRegionsFromLocalGeoJson() {
   const response = await fetch(LOCAL_MAHALLE_URL);
 
   if (!response.ok) {
-    throw new Error("MAHALLE.geojson yüklenemedi.");
+    throw new Error("MAHALLE.geojson yÃ¼klenemedi.");
   }
 
   const result = await response.json();
@@ -470,7 +780,7 @@ export async function getRegionSummary(id) {
   } catch {
     return {
       regionId: id,
-      regionName: "Bölge bilgisi",
+      regionName: "BÃ¶lge bilgisi",
       chargingStationCount: 0,
       trafficLevel: "Veri Eksik",
       mostCommonSocketType: "Veri Eksik",

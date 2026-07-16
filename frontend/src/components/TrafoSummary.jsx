@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { getTrafos } from "../services/trafoApi";
+import {
+  createSpatialBoundary,
+  isPointInsideBoundary,
+} from "../utils/geoSpatialFilter";
 
 function getCategoryDistribution(trafos) {
   const categoryMap = new Map();
@@ -12,7 +16,7 @@ function getCategoryDistribution(trafos) {
   return Array.from(categoryMap.entries())
     .map(([category, count]) => ({
       category,
-      count
+      count,
     }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 8);
@@ -29,7 +33,7 @@ function getSubCategoryDistribution(trafos) {
   return Array.from(subCategoryMap.entries())
     .map(([subCategory, count]) => ({
       subCategory,
-      count
+      count,
     }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 8);
@@ -38,17 +42,33 @@ function getSubCategoryDistribution(trafos) {
 function getTopSubCategory(trafos) {
   const distribution = getSubCategoryDistribution(trafos);
 
-  if (distribution.length === 0) {
-    return null;
-  }
-
-  return distribution[0];
+  return distribution.length > 0 ? distribution[0] : null;
 }
 
-export default function TrafoSummary() {
+function createSourceMessage(source, filterLabel, isFilterRequested) {
+  let sourceMessage = "";
+
+  if (source === "local-geojson") {
+    sourceMessage = "TRAFO.geojson verisi kullanılıyor.";
+  } else if (source === "local-mock") {
+    sourceMessage = "Yerel trafo deneme verileri kullanılıyor.";
+  }
+
+  if (sourceMessage && isFilterRequested && filterLabel) {
+    return `${sourceMessage} Seçili alan: ${filterLabel}.`;
+  }
+
+  return sourceMessage;
+}
+
+export default function TrafoSummary({
+  filterBoundaryGeoJson = "",
+  filterLabel = "Tümü",
+  filterLevel = "all",
+  filterLoading = false,
+}) {
   const [trafos, setTrafos] = useState([]);
   const [source, setSource] = useState("");
-  const [message, setMessage] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -61,19 +81,7 @@ export default function TrafoSummary() {
       }
 
       setTrafos(result.data || []);
-      setSource(result.source);
-
-      if (result.source === "local-geojson") {
-        setMessage("TRAFO.geojson verisi kullanılıyor.");
-        return;
-      }
-
-      if (result.source === "local-mock") {
-        setMessage("Yerel trafo deneme verileri kullanılıyor.");
-        return;
-      }
-
-      setMessage("");
+      setSource(result.source || "");
     }
 
     loadTrafos();
@@ -83,17 +91,54 @@ export default function TrafoSummary() {
     };
   }, []);
 
+  const isFilterRequested = filterLevel !== "all";
+
+  const spatialBoundary = useMemo(
+    () => createSpatialBoundary(filterBoundaryGeoJson),
+    [filterBoundaryGeoJson],
+  );
+
+  const visibleTrafos = useMemo(() => {
+    if (!isFilterRequested) {
+      return trafos;
+    }
+
+    if (filterLoading || !spatialBoundary) {
+      return [];
+    }
+
+    return trafos.filter((trafo) =>
+      isPointInsideBoundary(
+        trafo.longitude,
+        trafo.latitude,
+        spatialBoundary,
+      ),
+    );
+  }, [filterLoading, isFilterRequested, spatialBoundary, trafos]);
+
   const categoryDistribution = useMemo(
-    () => getCategoryDistribution(trafos),
-    [trafos]
+    () => getCategoryDistribution(visibleTrafos),
+    [visibleTrafos],
   );
 
   const subCategoryDistribution = useMemo(
-    () => getSubCategoryDistribution(trafos),
-    [trafos]
+    () => getSubCategoryDistribution(visibleTrafos),
+    [visibleTrafos],
   );
 
-  const topSubCategory = useMemo(() => getTopSubCategory(trafos), [trafos]);
+  const topSubCategory = useMemo(
+    () => getTopSubCategory(visibleTrafos),
+    [visibleTrafos],
+  );
+
+  const message = createSourceMessage(
+    source,
+    filterLabel,
+    isFilterRequested,
+  );
+
+  const boundaryMissing =
+    isFilterRequested && !filterLoading && !spatialBoundary;
 
   return (
     <div className="trafo-summary-card" data-testid="trafo-summary-card">
@@ -116,15 +161,19 @@ export default function TrafoSummary() {
       <div className="trafo-summary-grid">
         <div>
           <span>Toplam Trafo</span>
-          <strong>{trafos.length}</strong>
+          <strong>
+            {filterLoading ? "Yükleniyor..." : visibleTrafos.length}
+          </strong>
         </div>
 
         <div>
           <span>En Yaygın Trafo Tipi</span>
           <strong>
-            {topSubCategory
-              ? `${topSubCategory.subCategory} (${topSubCategory.count})`
-              : "Veri Eksik"}
+            {filterLoading
+              ? "Yükleniyor..."
+              : topSubCategory
+                ? `${topSubCategory.subCategory} (${topSubCategory.count})`
+                : "Veri Eksik"}
           </strong>
         </div>
 
@@ -134,37 +183,59 @@ export default function TrafoSummary() {
         </div>
       </div>
 
-      <div className="trafo-lists">
-        <div>
-          <h3>Kategori Dağılımı</h3>
-
-          {categoryDistribution.map((item) => (
-            <div
-              key={item.category}
-              className="trafo-list-row"
-              data-testid={`trafo-category-row-${item.category}`}
-            >
-              <span>{item.category}</span>
-              <strong>{item.count}</strong>
-            </div>
-          ))}
+      {boundaryMissing ? (
+        <div className="poi-data-note">
+          <strong>Seçilen alanın sınırı bulunamadı.</strong>
+          <p>
+            Bölge veya mahalle geometrisi gelmediği için trafo verileri yanlış
+            bir toplamla gösterilmedi.
+          </p>
         </div>
+      ) : (
+        <div className="trafo-lists">
+          <div>
+            <h3>Kategori Dağılımı</h3>
 
-        <div>
-          <h3>Alt Kategori Dağılımı</h3>
+            {filterLoading ? (
+              <p>Seçilen alanın sınırı yükleniyor.</p>
+            ) : categoryDistribution.length === 0 ? (
+              <p>Seçilen alanda trafo bulunamadı.</p>
+            ) : (
+              categoryDistribution.map((item) => (
+                <div
+                  key={item.category}
+                  className="trafo-list-row"
+                  data-testid={`trafo-category-row-${item.category}`}
+                >
+                  <span>{item.category}</span>
+                  <strong>{item.count}</strong>
+                </div>
+              ))
+            )}
+          </div>
 
-          {subCategoryDistribution.map((item) => (
-            <div
-              key={item.subCategory}
-              className="trafo-list-row"
-              data-testid={`trafo-sub-category-row-${item.subCategory}`}
-            >
-              <span>{item.subCategory}</span>
-              <strong>{item.count}</strong>
-            </div>
-          ))}
+          <div>
+            <h3>Alt Kategori Dağılımı</h3>
+
+            {filterLoading ? (
+              <p>Seçilen alanın sınırı yükleniyor.</p>
+            ) : subCategoryDistribution.length === 0 ? (
+              <p>Seçilen alanda trafo tipi bulunamadı.</p>
+            ) : (
+              subCategoryDistribution.map((item) => (
+                <div
+                  key={item.subCategory}
+                  className="trafo-list-row"
+                  data-testid={`trafo-sub-category-row-${item.subCategory}`}
+                >
+                  <span>{item.subCategory}</span>
+                  <strong>{item.count}</strong>
+                </div>
+              ))
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
