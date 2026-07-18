@@ -65,3 +65,24 @@ durumlarda sonuç `INSUFFICIENT_DATA` olarak değerlendirilir.
 Uygunluk hücresi üretimine geçmeden önce analizde kullanılacak her veri setinin
 kapsama ve bütünlük durumu açıkça atanmış olmalıdır. `Unknown` durumundaki bir
 katman kesin uygunluk veya uygunsuzluk kararı üretemez.
+
+## Analiz Kalıcılık Modeli
+
+`analysis.analysis_runs`, her çalışmanın tekrarlanabilirlik bilgilerini saklar:
+
+- Çalışma alanı ilçesi ve opsiyonel puan profili
+- Algoritma sürümü
+- Varsayılan 200 metre grid kenar uzunluğu
+- Metre tabanlı işlemler için EPSG:32636, API/depolama için EPSG:4326
+- Kullanılan veri importlarının JSON anlık görüntüsü
+- Çalıştırma parametreleri, zamanları ve hücre sayıları
+
+`analysis.suitability_cells`, her çalışmaya ait bağımsız analiz hücrelerini
+saklar. Hücre geometrisi EPSG:4326 `MultiPolygon`, temsil noktası EPSG:4326
+`Point` olarak tutulur. Metre tabanlı alan ve mesafe hesapları hücre üretilirken
+EPSG:32636 üzerinde yapılır.
+
+Bir hücre ilk üretildiğinde varsayılan karar `INSUFFICIENT_DATA` olur. Gerçek
+metrikler hesaplanmadan `CANDIDATE` veya `HARD_EXCLUSION` durumuna geçirilemez.
+Analiz çalışması silinirse ona bağlı hücreler silinir; semt veya mahalle kaydı
+değişirse geçmiş analiz hücresi korunur ve ilgili bağlantı `NULL` yapılır.

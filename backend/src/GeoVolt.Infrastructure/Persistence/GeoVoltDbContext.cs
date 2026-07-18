@@ -53,6 +53,10 @@ public sealed class GeoVoltDbContext : DbContext
 
     public DbSet<ScoringProfile> ScoringProfiles => Set<ScoringProfile>();
 
+    public DbSet<SuitabilityAnalysisRun> SuitabilityAnalysisRuns => Set<SuitabilityAnalysisRun>();
+
+    public DbSet<SuitabilityCell> SuitabilityCells => Set<SuitabilityCell>();
+
     public DbSet<CostModelSetting> CostModelSettings => Set<CostModelSetting>();
 
     public DbSet<CostProfile> CostProfiles => Set<CostProfile>();
@@ -86,6 +90,8 @@ public sealed class GeoVoltDbContext : DbContext
         modelBuilder.ApplyConfiguration(new ScoringProfileConfiguration());
         modelBuilder.ApplyConfiguration(new SlopeCostBandConfiguration());
         modelBuilder.ApplyConfiguration(new StagedGeoJsonFeatureConfiguration());
+        modelBuilder.ApplyConfiguration(new SuitabilityAnalysisRunConfiguration());
+        modelBuilder.ApplyConfiguration(new SuitabilityCellConfiguration());
         modelBuilder.ApplyConfiguration(new UserConfiguration());
         modelBuilder.ApplyConfiguration(new UserPermissionConfiguration());
         modelBuilder.ApplyConfiguration(new UserRoleConfiguration());
