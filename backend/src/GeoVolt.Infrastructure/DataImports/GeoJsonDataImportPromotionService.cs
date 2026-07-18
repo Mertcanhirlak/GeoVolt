@@ -1,6 +1,7 @@
 using GeoVolt.Application.DataImports.Abstractions;
 using GeoVolt.Application.DataImports.Models;
 using GeoVolt.Domain.Constants;
+using GeoVolt.Domain.Entities;
 using GeoVolt.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -86,6 +87,7 @@ public sealed class GeoJsonDataImportPromotionService : IDataImportPromotionServ
 
             datasetImport.Status = DatasetImportStatuses.Promoted;
             datasetImport.ErrorMessage = null;
+            await EnsureCoverageMetadataAsync(datasetImport.Id, cancellationToken);
             await _dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
@@ -137,6 +139,27 @@ public sealed class GeoJsonDataImportPromotionService : IDataImportPromotionServ
                 status,
                 message);
         }
+    }
+
+    private async Task EnsureCoverageMetadataAsync(
+        int datasetImportId,
+        CancellationToken cancellationToken)
+    {
+        var coverageExists = await _dbContext.DatasetCoverages
+            .AnyAsync(
+                coverage => coverage.DatasetImportId == datasetImportId,
+                cancellationToken);
+
+        if (coverageExists)
+        {
+            return;
+        }
+
+        _dbContext.DatasetCoverages.Add(new DatasetCoverage
+        {
+            DatasetImportId = datasetImportId,
+            Notes = "Promotion completed; geographic coverage and completeness have not been verified."
+        });
     }
 
     private static bool IsSupported(string datasetName)

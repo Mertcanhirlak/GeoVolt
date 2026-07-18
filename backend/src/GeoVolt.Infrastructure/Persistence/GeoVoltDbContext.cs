@@ -47,6 +47,8 @@ public sealed class GeoVoltDbContext : DbContext
 
     public DbSet<DatasetImport> DatasetImports => Set<DatasetImport>();
 
+    public DbSet<DatasetCoverage> DatasetCoverages => Set<DatasetCoverage>();
+
     public DbSet<StagedGeoJsonFeature> StagedGeoJsonFeatures => Set<StagedGeoJsonFeature>();
 
     public DbSet<ScoringProfile> ScoringProfiles => Set<ScoringProfile>();
@@ -69,6 +71,7 @@ public sealed class GeoVoltDbContext : DbContext
         modelBuilder.ApplyConfiguration(new CompanyConfiguration());
         modelBuilder.ApplyConfiguration(new CostModelSettingConfiguration());
         modelBuilder.ApplyConfiguration(new CostProfileConfiguration());
+        modelBuilder.ApplyConfiguration(new DatasetCoverageConfiguration());
         modelBuilder.ApplyConfiguration(new DatasetImportConfiguration());
         modelBuilder.ApplyConfiguration(new DistrictConfiguration());
         modelBuilder.ApplyConfiguration(new NeighborhoodConfiguration());
