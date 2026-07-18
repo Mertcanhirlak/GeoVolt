@@ -221,6 +221,39 @@ function showScore(value) {
   return value;
 }
 
+function hasCompleteCandidateAnalysis(
+  candidate,
+) {
+  if (!candidate) {
+    return false;
+  }
+
+  const requiredValues = [
+    candidate.estimatedCost,
+    candidate.costScore,
+    candidate.demandScore,
+    candidate.generalScore,
+  ];
+
+  const hasAllNumericValues =
+    requiredValues.every(
+      (value) =>
+        value !== null &&
+        value !== undefined &&
+        value !== "" &&
+        Number.isFinite(
+          Number(value),
+        ),
+    );
+
+  return (
+    hasAllNumericValues &&
+    candidate.status !==
+      "calculating" &&
+    candidate.status !== "missing"
+  );
+}
+
 function normalizeSearchText(value) {
   return String(value ?? "")
     .trim()
@@ -374,6 +407,7 @@ function mergeCandidateLists(
 function createManualCandidate(
   evaluation,
   locateResult,
+  preferences = {},
 ) {
   const regionName =
     evaluation.regionName ||
@@ -443,11 +477,25 @@ function createManualCandidate(
 
         systemType:
           evaluation.systemType ||
+          preferences.systemType ||
           "",
 
         placeType:
           evaluation.placeType ||
+          preferences.placeType ||
           "",
+
+        powerKw:
+          preferences.powerKw ??
+          null,
+
+        connectorCount:
+          preferences.connectorCount ??
+          null,
+
+        budget:
+          preferences.budget ??
+          null,
 
         isManual: true,
 
@@ -462,6 +510,21 @@ function createManualCandidate(
     ...mappedCandidate,
 
     isManual: true,
+
+    powerKw:
+      preferences.powerKw ??
+      mappedCandidate?.powerKw ??
+      null,
+
+    connectorCount:
+      preferences.connectorCount ??
+      mappedCandidate?.connectorCount ??
+      null,
+
+    budget:
+      preferences.budget ??
+      mappedCandidate?.budget ??
+      null,
 
     costSource:
       evaluation.costSource ||
@@ -1283,6 +1346,19 @@ export default function CandidatePointsPage() {
       }, 2500);
     }
 
+    if (
+      candidate?.isManual &&
+      !hasCompleteCandidateAnalysis(
+        candidate,
+      )
+    ) {
+      showFeedback(
+        "Manuel adayın maliyet ve skor analizi tamamlanmadan kayıt yapılamaz.",
+      );
+
+      return;
+    }
+
     try {
       const result =
         await saveCandidatePoint(
@@ -1381,6 +1457,19 @@ export default function CandidatePointsPage() {
     if (!selectedCandidate) {
       setMessage(
         "Alternatifleri görmek için önce bir aday nokta seçin.",
+      );
+
+      return;
+    }
+
+    if (
+      selectedCandidate.isManual &&
+      !hasCompleteCandidateAnalysis(
+        selectedCandidate,
+      )
+    ) {
+      setMessage(
+        "Alternatifleri görmek için önce manuel aday analizinin tamamlanması gerekir.",
       );
 
       return;
@@ -2397,6 +2486,7 @@ export default function CandidatePointsPage() {
     regionId,
     latitude,
     longitude,
+    preferences = {},
   }) {
     const numericRegionId =
       Number(
@@ -2409,6 +2499,35 @@ export default function CandidatePointsPage() {
 
     const numericLongitude =
       Number(longitude);
+
+    const normalizedPreferences = {
+      systemType:
+        String(
+          preferences.systemType ??
+            "",
+        ).trim(),
+
+      placeType:
+        String(
+          preferences.placeType ??
+            "",
+        ).trim(),
+
+      powerKw:
+        Number(
+          preferences.powerKw,
+        ),
+
+      connectorCount:
+        Number(
+          preferences.connectorCount,
+        ),
+
+      budget:
+        Number(
+          preferences.budget,
+        ),
+    };
 
     function hasNumericValue(
       value,
@@ -2500,6 +2619,86 @@ export default function CandidatePointsPage() {
       return;
     }
 
+    if (
+      !normalizedPreferences.systemType ||
+      !normalizedPreferences.placeType
+    ) {
+      setManualPinStatus(
+        "error",
+      );
+
+      setManualPinMessage("");
+
+      setManualPinError(
+        "Manuel pin için sistem ve mekân tipi seçilmelidir.",
+      );
+
+      return;
+    }
+
+    if (
+      !Number.isFinite(
+        normalizedPreferences.powerKw,
+      ) ||
+      normalizedPreferences.powerKw <=
+        0 ||
+      normalizedPreferences.powerKw >
+        1000
+    ) {
+      setManualPinStatus(
+        "error",
+      );
+
+      setManualPinMessage("");
+
+      setManualPinError(
+        "Manuel pin güç değeri 1 ile 1000 kW arasında olmalıdır.",
+      );
+
+      return;
+    }
+
+    if (
+      !Number.isInteger(
+        normalizedPreferences.connectorCount,
+      ) ||
+      normalizedPreferences.connectorCount <=
+        0 ||
+      normalizedPreferences.connectorCount >
+        50
+    ) {
+      setManualPinStatus(
+        "error",
+      );
+
+      setManualPinMessage("");
+
+      setManualPinError(
+        "Manuel pin konnektör sayısı 1 ile 50 arasında tam sayı olmalıdır.",
+      );
+
+      return;
+    }
+
+    if (
+      !Number.isFinite(
+        normalizedPreferences.budget,
+      ) ||
+      normalizedPreferences.budget <= 0
+    ) {
+      setManualPinStatus(
+        "error",
+      );
+
+      setManualPinMessage("");
+
+      setManualPinError(
+        "Manuel pin için geçerli bir kurulum bütçesi girilmelidir.",
+      );
+
+      return;
+    }
+
     const requestId =
       manualPinRequestIdRef.current +
       1;
@@ -2569,6 +2768,8 @@ export default function CandidatePointsPage() {
 
           longitude:
             numericLongitude,
+
+          ...normalizedPreferences,
         });
 
       if (
@@ -2668,6 +2869,14 @@ export default function CandidatePointsPage() {
               )
             : numericLongitude,
 
+        systemType:
+          evaluation.systemType ||
+          normalizedPreferences.systemType,
+
+        placeType:
+          evaluation.placeType ||
+          normalizedPreferences.placeType,
+
         status:
           hasCompleteAnalysis
             ? evaluation.status ||
@@ -2679,6 +2888,7 @@ export default function CandidatePointsPage() {
         createManualCandidate(
           normalizedEvaluation,
           locateResult,
+          normalizedPreferences,
         );
 
       setManualPinCandidate(
@@ -2853,6 +3063,14 @@ export default function CandidatePointsPage() {
     logoutUser();
     window.location.assign("/login");
   }
+
+  const selectedCandidateActionsDisabled =
+    Boolean(
+      selectedCandidate?.isManual &&
+        !hasCompleteCandidateAnalysis(
+          selectedCandidate,
+        ),
+    );
 
   return (
     <div
@@ -3782,6 +4000,57 @@ export default function CandidatePointsPage() {
                     </span>
                   </p>
 
+                  {selectedCandidate.isManual && (
+                    <>
+                      <p>
+                        <strong>
+                          Sistem Tipi:
+                        </strong>
+
+                        <span>
+                          {selectedCandidate.systemType ||
+                            "Veri Eksik"}
+                        </span>
+                      </p>
+
+                      <p>
+                        <strong>
+                          Mekân Tipi:
+                        </strong>
+
+                        <span>
+                          {selectedCandidate.placeType ||
+                            "Veri Eksik"}
+                        </span>
+                      </p>
+
+                      <p>
+                        <strong>
+                          Güç / Konnektör:
+                        </strong>
+
+                        <span>
+                          {selectedCandidate.powerKw &&
+                          selectedCandidate.connectorCount
+                            ? `${selectedCandidate.powerKw} kW / ${selectedCandidate.connectorCount} adet`
+                            : "Veri Eksik"}
+                        </span>
+                      </p>
+
+                      <p>
+                        <strong>
+                          Kurulum Bütçesi:
+                        </strong>
+
+                        <span>
+                          {formatMoney(
+                            selectedCandidate.budget,
+                          )}
+                        </span>
+                      </p>
+                    </>
+                  )}
+
                   {selectedCandidate.status ===
                     "calculating" && (
                     <div className="popup-warning">
@@ -3796,14 +4065,30 @@ export default function CandidatePointsPage() {
                     </div>
                   )}
 
+                  {selectedCandidateActionsDisabled && (
+                    <div
+                      className="popup-analysis-required"
+                      data-testid="manual-pin-analysis-required-message"
+                    >
+                      Kaydetmek veya alternatifleri görmek için maliyet ve skor analizinin tamamlanması gerekir.
+                    </div>
+                  )}
+
                   <button
                     type="button"
                     className="popup-alternatives-button"
                     data-testid={`popup-alternatives-button-${selectedCandidate.id}`}
+                    disabled={
+                      selectedCandidateActionsDisabled
+                    }
                     onClick={
                       openAlternativeCandidates
                     }
-                    title="Benzer alternatif adayları göster"
+                    title={
+                      selectedCandidateActionsDisabled
+                        ? "Analiz tamamlanmadan alternatifler gösterilemez"
+                        : "Benzer alternatif adayları göster"
+                    }
                   >
                     Alternatifleri Gör
                   </button>
@@ -3812,12 +4097,19 @@ export default function CandidatePointsPage() {
                     type="button"
                     className="popup-save-button"
                     data-testid={`popup-save-candidate-button-${selectedCandidate.id}`}
+                    disabled={
+                      selectedCandidateActionsDisabled
+                    }
                     onClick={() =>
                       saveCandidate(
                         selectedCandidate,
                       )
                     }
-                    title="Aday noktayı kaydet"
+                    title={
+                      selectedCandidateActionsDisabled
+                        ? "Analiz tamamlanmadan aday kaydedilemez"
+                        : "Aday noktayı kaydet"
+                    }
                   >
                     <span className="popup-save-icon">
                       +
