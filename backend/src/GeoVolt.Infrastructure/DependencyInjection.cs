@@ -7,6 +7,7 @@ using GeoVolt.Application.DataImports.Abstractions;
 using GeoVolt.Application.Neighborhoods.Abstractions;
 using GeoVolt.Application.Regions.Abstractions;
 using GeoVolt.Application.SavedCandidatePoints.Abstractions;
+using GeoVolt.Application.SuitabilityAnalysis.Abstractions;
 using GeoVolt.Infrastructure.Admin;
 using GeoVolt.Infrastructure.Auth;
 using GeoVolt.Infrastructure.CandidatePoints;
@@ -17,6 +18,7 @@ using GeoVolt.Infrastructure.Options;
 using GeoVolt.Infrastructure.Persistence;
 using GeoVolt.Infrastructure.Regions;
 using GeoVolt.Infrastructure.SavedCandidatePoints;
+using GeoVolt.Infrastructure.SuitabilityAnalysis;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -85,6 +87,7 @@ public static class DependencyInjection
         services.AddScoped<IDataImportValidationService, GeoJsonDataImportValidationService>();
         services.AddScoped<IDataImportStagingService, GeoJsonDataImportStagingService>();
         services.AddScoped<IDataImportPromotionService, GeoJsonDataImportPromotionService>();
+        services.AddScoped<ISuitabilityAnalysisRepository, PostGisSuitabilityAnalysisRepository>();
 
         return services;
     }

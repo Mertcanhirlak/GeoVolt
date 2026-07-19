@@ -86,3 +86,27 @@ Bir hücre ilk üretildiğinde varsayılan karar `INSUFFICIENT_DATA` olur. Gerç
 metrikler hesaplanmadan `CANDIDATE` veya `HARD_EXCLUSION` durumuna geçirilemez.
 Analiz çalışması silinirse ona bağlı hücreler silinir; semt veya mahalle kaydı
 değişirse geçmiş analiz hücresi korunur ve ilgili bağlantı `NULL` yapılır.
+
+## Grid Üretimi
+
+İdari yetkili grid üretim endpointi:
+
+```http
+POST /api/admin/suitability-analysis/districts/{districtSourceId}/grid
+```
+
+İstek gövdesindeki `gridEdgeMeters` değeri 50-1000 metre arasında olmalıdır ve
+varsayılan değer 200 metredir. İşlem şu adımları tek bir PostGIS akışında yapar:
+
+1. İlçe sınırını EPSG:32636 koordinat sistemine dönüştürür.
+2. `ST_HexagonGrid` ile hex hücreleri üretir.
+3. İlçe sınırındaki hücreleri gerçek sınır geometrisiyle kırpar.
+4. Alanı metrekare olarak EPSG:32636 üzerinde hesaplar.
+5. Hücreyi depolama için EPSG:4326 `MultiPolygon` biçimine dönüştürür.
+6. Semt ve mahalleyi temsil noktasıyla bağlar; sınırdaki istisnai hücrelerde en büyük alan çakışmasını yedek yöntem olarak kullanır.
+7. Kullanılan son `Promoted` veri importlarını analiz çalışmasına JSON anlık
+   görüntüsü olarak kaydeder.
+
+Grid üretimi tamamlanan çalışma `GridReady`, hücreler ise metrik hesaplanana
+kadar `INSUFFICIENT_DATA` durumunda tutulur. Bu aşamada hücrelere uygun veya
+uygunsuz kararı verilmez.
