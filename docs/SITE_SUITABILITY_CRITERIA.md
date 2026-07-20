@@ -46,7 +46,7 @@ durumlarda sonuç `INSUFFICIENT_DATA` olarak değerlendirilir.
 | POI yoğunluğu | `gis.pois` | Yumuşak/talep | `INSUFFICIENT_DATA` |
 | Mahalle nüfusu | `gis.neighborhoods` | Yumuşak/talep | Güven puanını düşür |
 | İstasyon ve soket yoğunluğu | `gis.charging_stations`, `gis.charging_connectors` | Yumuşak/rekabet ve hizmet açığı | `INSUFFICIENT_DATA` |
-| Eğim yüzdesi | TIFF mevcut, veritabanında değil | Yumuşak/maliyet | `INSUFFICIENT_DATA` |
+| Eğim yüzdesi | `gis.slope_raster_tiles` | Yumuşak/topografya | `INSUFFICIENT_DATA` |
 | Parsel, imar ve mülkiyet | Henüz yok | Gelecekte kesin engel | `INSUFFICIENT_DATA` |
 
 ## Puan ve Güven Ayrımı
@@ -110,3 +110,94 @@ varsayılan değer 200 metredir. İşlem şu adımları tek bir PostGIS akışı
 Grid üretimi tamamlanan çalışma `GridReady`, hücreler ise metrik hesaplanana
 kadar `INSUFFICIENT_DATA` durumunda tutulur. Bu aşamada hücrelere uygun veya
 uygunsuz kararı verilmez.
+
+## Hücre Metriklerinin Hesaplanması
+
+Grid üretimi tamamlanan bir çalışma için yönetim endpointi:
+
+```http
+POST /api/admin/suitability-analysis/{analysisRunId}/metrics
+```
+
+İşlem `GridReady` veya `MetricsReady` durumundaki bir çalışma üzerinde
+idempotent olarak yeniden çalıştırılabilir. Hesaplamalar hücrenin temsil
+noktasından EPSG:32636 üzerinde metre cinsinden yapılır:
+
+- En yakın trafoya kuş uçuşu mesafe
+- En yakın aktif ve halka açık (`Public`) şarj istasyonuna kuş uçuşu mesafe
+- En yakın ana yola mesafe; ana yol türleri `Ana Arter`, `Bulvar`, `Cadde`,
+  `Devlet Yolu`, `Otoyol` ve `Otoyol Bağlantısı`
+- 300, 500 ve 1000 metre yarıçaplarındaki POI sayıları
+- Bağlı mahallenin nüfusu ve EPSG:32636 alanından hesaplanan nüfus yoğunluğu
+- EPSG:32636 yüzde eğim rasterından hücre temsil noktasına en yakın geçerli
+  pikselin eğim yüzdesi
+
+Hesaplamada kaynak geometriler geçici metrik tablolara dönüştürülür ve GiST
+indeksleriyle en yakın komşu/yarıçap sorguları çalıştırılır. Kullanılan yöntem,
+kaynak kayıt kimlikleri ve parametreler hücrenin `metric_details` JSONB
+alanında; çalışma seviyesi parametreler `analysis_runs.parameters` alanında
+saklanır.
+
+Yüzde eğim rasterı PostGIS `raster` türünde 256x256 döşemeler halinde
+`gis.slope_raster_tiles` tablosunda saklanır. Kaynak dosyadaki `NaN` pikseller
+NoData olarak işaretlenir; hücre sınırındaki NoData piksellerinde en yakın
+geçerli değer kullanılır. Raster dosya adı, SHA-256 özeti, SRID ve örnekleme
+yöntemi hücre ve analiz parametrelerine kaydedilir.
+
+Raster farklı bir ortama aktarılırken `raster2pgsql` için SRID 32636, birinci
+band, 256x256 döşeme ve `NaN` NoData seçenekleri kullanılmalıdır:
+
+```text
+raster2pgsql -s 32636 -b 1 -t 256x256 -N NaN -a -F -q -Y <raster.tif> gis.slope_raster_tiles | psql <connection>
+```
+
+Hesaplama tamamlanınca çalışma `MetricsReady` olur. Mevcut veri
+kapsamı/bütünlük metadataları `Unknown` olduğu ve puanlama henüz çalışmadığı
+için bu aşamada `suitability_score` ve `confidence_score` üretilmez. Hücreler
+`INSUFFICIENT_DATA` durumunda ve aşağıdaki gerekçelerle tutulur:
+
+- `DATASET_COVERAGE_UNVERIFIED`
+- `SCORING_NOT_CALCULATED`
+
+## Göreli Uygunluk Puanlaması
+
+Metrikleri hazır bir çalışma için yönetim endpointi:
+
+```http
+POST /api/admin/suitability-analysis/{analysisRunId}/score
+```
+
+İşlem `MetricsReady` veya `Scored` durumundaki çalışmalarda idempotent olarak
+yeniden çalıştırılabilir. Altı metrik aynı çalışma içindeki yüzdelik sırasına
+çevrilerek 0-100 alt puanları oluşturulur. Düşük trafo, ana yol ve eğim değeri;
+yüksek POI, nüfus yoğunluğu ve mevcut istasyona uzaklık değeri daha yüksek alt
+puan üretir. İstasyona uzaklık burada mevcut hizmet açığını temsil eder.
+
+Varsayılan `score-v1` profilinin ağırlıkları:
+
+| Bileşen | Ağırlık |
+| --- | ---: |
+| Trafo yakınlığı | %25 |
+| Ana yol yakınlığı | %20 |
+| 500 metre POI yoğunluğu | %20 |
+| Nüfus yoğunluğu | %15 |
+| Mevcut istasyon hizmet açığı | %10 |
+| Düşük eğim | %10 |
+
+Ağırlıklar ve öneri yüzdeliği `analysis.scoring_profiles` tablosunda sürümlü
+olarak saklanır. Alt puanlar, toplam puanın yüzdelik sırası ve öneri işareti
+hücrenin `metric_details.scoring` alanına; profil ve ağırlıklar çalışma
+parametrelerine yazılır. Maliyet bu formüle dahil edilmez ve `estimated_cost`
+alanına puanlama tarafından yazılmaz.
+
+En yüksek puanlı yüzde 10 hücre `provisionalRecommendation=true` olarak
+işaretlenir. Veri kapsamı henüz doğrulanmadığı için bu hücreler kesin
+`CANDIDATE` yapılmaz; `INSUFFICIENT_DATA` ve
+`DATASET_COVERAGE_UNVERIFIED` gerekçesi korunur. Bu nedenle çalışma seviyesindeki
+`candidate_cell_count` sıfır kalır. Kapsam `Verified` ve bütünlük `Complete`
+olduğunda aynı akış önerilen hücreleri `CANDIDATE`, diğerlerini
+`LOW_SUITABILITY` olarak sınıflandırabilir.
+
+Puanlama tamamlanınca çalışma `Scored` olur. Kapsam, bütünlük, güncellik ve
+kalite tabanlı güven formülü ayrıca tanımlanana kadar `confidence_score` boş
+bırakılır.

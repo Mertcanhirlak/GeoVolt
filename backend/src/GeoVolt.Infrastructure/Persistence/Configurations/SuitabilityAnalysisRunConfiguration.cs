@@ -13,7 +13,7 @@ public sealed class SuitabilityAnalysisRunConfiguration : IEntityTypeConfigurati
         {
             tableBuilder.HasCheckConstraint(
                 "ck_analysis_runs_status",
-                $"status IN ('{AnalysisRunStatuses.Pending}', '{AnalysisRunStatuses.Running}', '{AnalysisRunStatuses.GridReady}', '{AnalysisRunStatuses.Completed}', '{AnalysisRunStatuses.Failed}', '{AnalysisRunStatuses.Cancelled}')");
+                $"status IN ('{AnalysisRunStatuses.Pending}', '{AnalysisRunStatuses.Running}', '{AnalysisRunStatuses.GridReady}', '{AnalysisRunStatuses.MetricsReady}', '{AnalysisRunStatuses.Scored}', '{AnalysisRunStatuses.Completed}', '{AnalysisRunStatuses.Failed}', '{AnalysisRunStatuses.Cancelled}')");
             tableBuilder.HasCheckConstraint("ck_analysis_runs_grid_edge", "grid_edge_meters > 0");
             tableBuilder.HasCheckConstraint("ck_analysis_runs_metric_srid", "metric_srid > 0");
             tableBuilder.HasCheckConstraint("ck_analysis_runs_storage_srid", "storage_srid > 0");

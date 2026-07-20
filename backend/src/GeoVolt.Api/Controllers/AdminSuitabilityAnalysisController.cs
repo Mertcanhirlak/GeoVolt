@@ -40,4 +40,44 @@ public sealed class AdminSuitabilityAnalysisController : ControllerBase
             result,
             "Uygunluk analiz grid'i oluşturuldu."));
     }
+
+    [HttpPost("{analysisRunId:int}/metrics")]
+    [Authorize(Policy = PermissionNames.DataImportExecute)]
+    [ProducesResponseType(typeof(ApiResponse<SuitabilityMetricCalculationResult>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ApiResponse<SuitabilityMetricCalculationResult>>> CalculateMetrics(
+        int analysisRunId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _service.CalculateMetricsAsync(
+            analysisRunId,
+            cancellationToken);
+
+        return Ok(ApiResponse<SuitabilityMetricCalculationResult>.Ok(
+            result,
+            "Uygunluk hücre metrikleri hesaplandı."));
+    }
+
+    [HttpPost("{analysisRunId:int}/score")]
+    [Authorize(Policy = PermissionNames.DataImportExecute)]
+    [ProducesResponseType(typeof(ApiResponse<SuitabilityScoringResult>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ApiResponse<SuitabilityScoringResult>>> CalculateScores(
+        int analysisRunId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _service.CalculateScoresAsync(
+            analysisRunId,
+            cancellationToken);
+
+        return Ok(ApiResponse<SuitabilityScoringResult>.Ok(
+            result,
+            "Uygunluk puanları hesaplandı."));
+    }
 }
