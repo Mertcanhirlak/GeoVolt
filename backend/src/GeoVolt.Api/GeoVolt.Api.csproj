@@ -1,23 +1,31 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.4">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.4">
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+			<PrivateAssets>all</PrivateAssets>
+		</PackageReference>
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\GeoVolt.Application\GeoVolt.Application.csproj" />
-    <ProjectReference Include="..\GeoVolt.Infrastructure\GeoVolt.Infrastructure.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\GeoVolt.Application\GeoVolt.Application.csproj" />
+		<ProjectReference Include="..\GeoVolt.Infrastructure\GeoVolt.Infrastructure.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- LocalDataImporter ayrı bir projedir, API içinde derlenmez. -->
+		<Compile Remove="tools\**\*.cs" />
+		<Content Remove="tools\**\*" />
+		<EmbeddedResource Remove="tools\**\*" />
+		<None Remove="tools\**\*" />
+	</ItemGroup>
 
 </Project>

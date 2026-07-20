@@ -1,20 +1,17 @@
 ﻿namespace GeoVolt.Application.Neighborhoods.Dtos;
-
-// Mahalle özet bilgisini içerir.
+// Mahalle ile ilgili veri transfer nesnesi
 public sealed class NeighborhoodResponseDto
 {
-    // Mahallenin API'de kullanılan kimliği.
+    // Mahallenin kimliği
     public int Id { get; set; }
 
-    // Mahallenin adı.
+    // Mahallenin adı
     public string Name { get; set; } = string.Empty;
 
-    // Bağlı olduğu bölgenin API'de kullanılan kimliği.
+    // Mahallenin bağlı olduğu bölge kimliği
     public int RegionId { get; set; }
 
-    // Bağlı olduğu bölgenin adı.
     public string RegionName { get; set; } = string.Empty;
 
-    // Mahallenin nüfusu.
     public int Population { get; set; }
 }

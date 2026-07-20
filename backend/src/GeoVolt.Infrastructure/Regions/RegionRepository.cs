@@ -5,13 +5,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GeoVolt.Infrastructure.Regions;
 
-// Bölge verilerine PostGIS üzerinden erişir.
 public sealed class RegionRepository : IRegionRepository
 {
     private readonly GeoVoltDbContext _dbContext;
 
-    public RegionRepository(
-        GeoVoltDbContext dbContext)
+    public RegionRepository(GeoVoltDbContext dbContext)
     {
         _dbContext = dbContext;
     }
@@ -19,7 +17,6 @@ public sealed class RegionRepository : IRegionRepository
     public async Task<IReadOnlyList<Region>> GetAllAsync(
         CancellationToken cancellationToken = default)
     {
-        // Tüm bölgeleri kaynak kimliğine göre sıralar.
         return await _dbContext.Regions
             .AsNoTracking()
             .OrderBy(region => region.SourceId)
@@ -30,7 +27,6 @@ public sealed class RegionRepository : IRegionRepository
         int sourceId,
         CancellationToken cancellationToken = default)
     {
-        // Kaynak kimliğine göre bölgeyi getirir.
         return await _dbContext.Regions
             .AsNoTracking()
             .FirstOrDefaultAsync(

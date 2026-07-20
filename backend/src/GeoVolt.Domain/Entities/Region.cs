@@ -4,12 +4,10 @@ namespace GeoVolt.Domain.Entities;
 //Bölge sınıfı, coğrafi bölgeleri temsil eder.
 public sealed class Region
 {
-    // Veritabanı primary key değeri.
     public int Id { get; set; }
-    // Kaynak sistemdeki bölge kimliği
 
     public int SourceId { get; set; }
-    // Bağlı olduğu ilçenin internal DB kimliği.
+
     public int DistrictId { get; set; }
 
     public District District { get; set; } = null!;
