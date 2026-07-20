@@ -16,4 +16,8 @@ public interface ISuitabilityAnalysisService
     Task<SuitabilityScoringResult> CalculateScoresAsync(
         int analysisRunId,
         CancellationToken cancellationToken = default);
+
+    Task<SuitabilityLocationEvaluationResponse> EvaluateLocationAsync(
+        EvaluateSuitabilityLocationRequest request,
+        CancellationToken cancellationToken = default);
 }

@@ -47,4 +47,15 @@ public sealed class SuitabilityAnalysisService : ISuitabilityAnalysisService
 
         return result ?? throw new NotFoundException("Uygunluk analiz çalışması bulunamadı.");
     }
+
+    public Task<SuitabilityLocationEvaluationResponse> EvaluateLocationAsync(
+        EvaluateSuitabilityLocationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return _repository.EvaluateLocationAsync(
+            request.Latitude,
+            request.Longitude,
+            request.RecommendationLimit,
+            cancellationToken);
+    }
 }

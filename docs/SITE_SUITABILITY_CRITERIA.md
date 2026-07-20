@@ -201,3 +201,29 @@ olduğunda aynı akış önerilen hücreleri `CANDIDATE`, diğerlerini
 Puanlama tamamlanınca çalışma `Scored` olur. Kapsam, bütünlük, güncellik ve
 kalite tabanlı güven formülü ayrıca tanımlanana kadar `confidence_score` boş
 bırakılır.
+
+## Harita Konumu Değerlendirmesi
+
+Oturum açmış kullanıcının haritada seçtiği koordinat aşağıdaki salt okunur
+endpoint ile değerlendirilir:
+
+```http
+GET /api/suitability/evaluate?latitude={latitude}&longitude={longitude}&recommendationLimit=3
+```
+
+`recommendationLimit` varsayılan olarak 3, en fazla 10 olabilir. Endpoint:
+
+1. Koordinatın desteklenen ilçe sınırında olup olmadığını belirler.
+2. İlçeye ait en yeni `Scored` analiz çalışmasını seçer.
+3. Noktayı kapsayan analiz hücresini ve hücrenin puan/metrik ayrıntılarını
+   döndürür.
+4. Seçili hücre dışında kalan en yakın geçici öneri poligonlarını EPSG:32636
+   üzerinde metre cinsinden gerçek poligon mesafesine göre sıralar.
+5. Poligon geometrilerini doğrudan GeoJSON `MultiPolygon` nesnesi olarak
+   döndürür.
+
+Seçili hücre zaten öneriyse kendisi alternatif listesinde tekrarlanmaz. Nokta
+çalışma alanı dışındaysa `OUTSIDE_STUDY_AREA`, boş seçili hücre ve boş öneri
+listesi döner. Puanlanmış çalışma bulunamazsa sonuç `INSUFFICIENT_DATA` olur.
+Veri kapsamı doğrulanana kadar öneriler `isProvisionalRecommendation=true`
+olarak açıkça işaretlenir; API bunları kesin kurulum onayı gibi sunmaz.

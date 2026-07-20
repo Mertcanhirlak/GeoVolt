@@ -1056,6 +1056,55 @@ function getRegionColor(
     : `hsla(${hue}, 74%, 57%, 0.5)`;
 }
 
+function createSuitabilityCellStyle(
+  feature,
+) {
+  const featureRole =
+    feature.get("suitabilityRole");
+  const isFocused =
+    feature.get("focused") === true;
+  const isSelected =
+    featureRole === "selected";
+  const fillColor = isFocused
+    ? "rgba(245, 158, 11, 0.38)"
+    : isSelected
+      ? "rgba(37, 99, 235, 0.30)"
+      : "rgba(34, 197, 94, 0.28)";
+  const strokeColor = isFocused
+    ? "#d97706"
+    : isSelected
+      ? "#1d4ed8"
+      : "#15803d";
+  const label = isSelected
+    ? "Seçilen"
+    : String(
+        feature.get("recommendationRank") ?? "",
+      );
+
+  return [
+    new Style({
+      fill: new Fill({ color: fillColor }),
+      stroke: new Stroke({
+        color: strokeColor,
+        width: isFocused ? 4 : 3,
+      }),
+    }),
+    new Style({
+      geometry: getRegionLabelGeometry,
+      text: new Text({
+        text: label,
+        font: "700 12px Inter, system-ui, sans-serif",
+        fill: new Fill({ color: "#ffffff" }),
+        stroke: new Stroke({
+          color: strokeColor,
+          width: 5,
+        }),
+        overflow: true,
+      }),
+    }),
+  ];
+}
+
 function getRegionStrokeColor(
   regionIndex,
   isSelected
@@ -1359,6 +1408,57 @@ function createRegionFeatures(
       return [];
     }
   });
+}
+
+function createSuitabilityCellFeature(
+  cell,
+  suitabilityRole,
+  focusedRecommendationCellId,
+) {
+  if (!cell?.boundary) {
+    return null;
+  }
+
+  try {
+    const geometry =
+      typeof cell.boundary === "string"
+        ? JSON.parse(cell.boundary)
+        : cell.boundary;
+    const feature = new GeoJSON().readFeature(
+      {
+        type: "Feature",
+        properties: {},
+        geometry,
+      },
+      {
+        dataProjection: "EPSG:4326",
+        featureProjection: "EPSG:3857",
+      },
+    );
+
+    feature.set("featureType", "suitability-cell");
+    feature.set("suitabilityRole", suitabilityRole);
+    feature.set("cell", cell);
+    feature.set("cellId", cell.cellId);
+    feature.set(
+      "recommendationRank",
+      cell.recommendationRank,
+    );
+    feature.set(
+      "focused",
+      suitabilityRole === "recommendation" &&
+        String(cell.cellId) ===
+          String(focusedRecommendationCellId),
+    );
+
+    return feature;
+  } catch (error) {
+    console.error(
+      "Uygunluk hücresi geometrisi okunamadı:",
+      error,
+    );
+    return null;
+  }
 }
 
 async function loadGeoJsonFeatures(
@@ -1829,6 +1929,8 @@ export default function CandidatePointsMap({
   manualPinStatus = "idle",
   manualPinMessage = "",
   manualPinError = "",
+  suitabilityEvaluation = null,
+  focusedRecommendationCellId = null,
   onManualPinRequest,
   onPointSelect,
   onRegionSelect,
@@ -1876,6 +1978,11 @@ export default function CandidatePointsMap({
       new VectorSource()
     );
 
+  const suitabilitySourceRef =
+    useRef(
+      new VectorSource()
+    );
+
   const poiSourceRef =
     useRef(
       new VectorSource()
@@ -1914,6 +2021,9 @@ export default function CandidatePointsMap({
     );
 
   const regionLayerRef =
+    useRef(null);
+
+  const suitabilityLayerRef =
     useRef(null);
 
   const poiLayerRef =
@@ -2524,6 +2634,16 @@ export default function CandidatePointsMap({
         zIndex: 7,
       });
 
+    const suitabilityLayer =
+      new VectorLayer({
+        source:
+          suitabilitySourceRef.current,
+        style:
+          createSuitabilityCellStyle,
+        renderBuffer: 120,
+        zIndex: 6,
+      });
+
     const manualPinLayer =
       new VectorLayer({
         source:
@@ -2555,6 +2675,7 @@ export default function CandidatePointsMap({
           roadLayer,
           poiLayer,
           trafoLayer,
+          suitabilityLayer,
           candidateLayer,
           manualPinLayer,
         ],
@@ -2636,6 +2757,8 @@ export default function CandidatePointsMap({
                         candidateLayer ||
                       layer ===
                         manualPinLayer ||
+                      layer ===
+                        suitabilityLayer ||
                       layer ===
                         poiLayer ||
                       layer ===
@@ -3266,6 +3389,9 @@ export default function CandidatePointsMap({
     candidateLayerRef.current =
       candidateLayer;
 
+    suitabilityLayerRef.current =
+      suitabilityLayer;
+
     regionLayerRef.current =
       regionLayer;
 
@@ -3314,6 +3440,9 @@ export default function CandidatePointsMap({
         null;
 
       candidateLayerRef.current =
+        null;
+
+      suitabilityLayerRef.current =
         null;
 
       regionLayerRef.current =
@@ -3378,6 +3507,63 @@ export default function CandidatePointsMap({
       );
     }
   }, [manualPinCandidate]);
+
+  useEffect(() => {
+    const selectedCell =
+      suitabilityEvaluation?.selectedCell;
+    const recommendations =
+      Array.isArray(
+        suitabilityEvaluation?.recommendations,
+      )
+        ? suitabilityEvaluation.recommendations
+        : [];
+    const features = [
+      createSuitabilityCellFeature(
+        selectedCell,
+        "selected",
+        focusedRecommendationCellId,
+      ),
+      ...recommendations.map(
+        (recommendation) =>
+          createSuitabilityCellFeature(
+            recommendation,
+            "recommendation",
+            focusedRecommendationCellId,
+          ),
+      ),
+    ].filter(Boolean);
+
+    suitabilitySourceRef.current.clear();
+    suitabilitySourceRef.current.addFeatures(
+      features,
+    );
+    suitabilityLayerRef.current?.changed();
+
+    if (!mapRef.current || features.length === 0) {
+      return;
+    }
+
+    const focusedFeature = features.find(
+      (feature) =>
+        feature.get("focused") === true,
+    );
+    const extent = focusedFeature
+      ? focusedFeature.getGeometry()?.getExtent()
+      : suitabilitySourceRef.current.getExtent();
+
+    if (!extent || !Number.isFinite(extent[0])) {
+      return;
+    }
+
+    mapRef.current.getView().fit(extent, {
+      padding: [110, 390, 110, 110],
+      maxZoom: focusedFeature ? 16.5 : 15.5,
+      duration: 450,
+    });
+  }, [
+    suitabilityEvaluation,
+    focusedRecommendationCellId,
+  ]);
 
   useEffect(() => {
     if (

@@ -16,4 +16,10 @@ public interface ISuitabilityAnalysisRepository
     Task<SuitabilityScoringResult?> CalculateScoresAsync(
         int analysisRunId,
         CancellationToken cancellationToken = default);
+
+    Task<SuitabilityLocationEvaluationResponse> EvaluateLocationAsync(
+        double latitude,
+        double longitude,
+        int recommendationLimit,
+        CancellationToken cancellationToken = default);
 }

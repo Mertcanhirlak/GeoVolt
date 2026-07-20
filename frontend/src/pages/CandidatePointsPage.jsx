@@ -23,9 +23,12 @@ import {
 } from "../services/candidatePointsApi";
 
 import {
-  evaluateManualPin,
   locateRegionPoint,
 } from "../services/manualPinApi";
+
+import {
+  evaluateSuitabilityLocation,
+} from "../services/suitabilityApi";
 
 import {
   saveCandidatePoint,
@@ -42,6 +45,7 @@ import SavedCandidates from "../components/SavedCandidates";
 import PersonalizationForm from "../components/PersonalizationForm";
 import ExistingStationsMap from "../components/ExistingStationsMap";
 import CandidatePointsMap from "../components/CandidatePointsMap";
+import SuitabilityResultsPanel from "../components/SuitabilityResultsPanel";
 import AlternativeCandidatesModal from "../components/AlternativeCandidatesModal";
 import PoiSummary from "../components/PoiSummary";
 import TrafoSummary from "../components/TrafoSummary";
@@ -532,6 +536,16 @@ export default function CandidatePointsPage() {
     manualPinError,
     setManualPinError,
   ] = useState("");
+
+  const [
+    suitabilityEvaluation,
+    setSuitabilityEvaluation,
+  ] = useState(null);
+
+  const [
+    focusedRecommendationCellId,
+    setFocusedRecommendationCellId,
+  ] = useState(null);
 
   const [
     candidates,
@@ -1712,6 +1726,16 @@ export default function CandidatePointsPage() {
       return;
     }
 
+    if (
+      candidate.isManual &&
+      suitabilityEvaluation
+    ) {
+      setFocusedRecommendationCellId(
+        null,
+      );
+      return;
+    }
+
     setSelectedCandidate(
       candidate,
     );
@@ -2509,6 +2533,14 @@ export default function CandidatePointsPage() {
 
     removeOldManualCandidate();
 
+    setSuitabilityEvaluation(
+      null,
+    );
+
+    setFocusedRecommendationCellId(
+      null,
+    );
+
     setManualPinStatus(
       "loading",
     );
@@ -2556,19 +2588,14 @@ export default function CandidatePointsPage() {
       }
 
       setManualPinMessage(
-        "Tahmini maliyet ve aday skorları hesaplanıyor...",
+        "Uygunluk puanı ve en yakın öneri alanları getiriliyor...",
       );
 
-      const evaluation =
-        await evaluateManualPin({
-          regionId:
-            numericRegionId,
-
-          latitude:
-            numericLatitude,
-
-          longitude:
-            numericLongitude,
+      const suitabilityResult =
+        await evaluateSuitabilityLocation({
+          latitude: numericLatitude,
+          longitude: numericLongitude,
+          recommendationLimit: 3,
         });
 
       if (
@@ -2578,7 +2605,10 @@ export default function CandidatePointsPage() {
         return;
       }
 
-      if (!evaluation.isValid) {
+      if (
+        !suitabilityResult?.isInsideStudyArea ||
+        !suitabilityResult?.selectedCell
+      ) {
         setManualPinStatus(
           "error",
         );
@@ -2586,12 +2616,56 @@ export default function CandidatePointsPage() {
         setManualPinMessage("");
 
         setManualPinError(
-          evaluation.message ||
+          suitabilityResult?.message ||
             "Manuel pin değerlendirilemedi.",
+        );
+
+        setSuitabilityEvaluation(
+          suitabilityResult ?? null,
         );
 
         return;
       }
+
+      setSuitabilityEvaluation(
+        suitabilityResult,
+      );
+
+      setFocusedRecommendationCellId(
+        null,
+      );
+
+      const selectedCell =
+        suitabilityResult.selectedCell;
+
+      const evaluation = {
+        isValid: true,
+        regionId:
+          selectedCell.regionId ??
+          locateResult.regionId,
+        regionName:
+          selectedCell.regionName ??
+          locateResult.regionName,
+        neighborhoodId:
+          selectedCell.neighborhoodId ??
+          locateResult.neighborhoodId,
+        neighborhoodName:
+          selectedCell.neighborhoodName ??
+          locateResult.neighborhoodName,
+        latitude: numericLatitude,
+        longitude: numericLongitude,
+        estimatedCost: null,
+        costScore: null,
+        demandScore: null,
+        generalScore:
+          selectedCell.suitabilityScore,
+        status:
+          selectedCell.isProvisionalRecommendation
+            ? "provisional"
+            : "evaluated",
+        message:
+          suitabilityResult.message,
+      };
 
       const hasEstimatedCost =
         hasNumericValue(
@@ -2719,7 +2793,7 @@ export default function CandidatePointsPage() {
       );
 
       setSelectedCandidate(
-        manualCandidate,
+        null,
       );
 
       setManualPinStatus(
@@ -2728,26 +2802,13 @@ export default function CandidatePointsPage() {
 
       setManualPinError("");
 
-      if (hasCompleteAnalysis) {
-        setManualPinMessage(
-          evaluation.message ||
-            "Manuel pin başarıyla değerlendirildi.",
-        );
-
-        setMessage(
-          "Manuel aday nokta maliyet ve skorlarıyla haritaya eklendi.",
-        );
-
-        return;
-      }
-
       setManualPinMessage(
         evaluation.message ||
-          "Nokta seçili bölge içinde doğrulandı. Maliyet ve skor verileri henüz bulunmadığı için manuel aday eksik veriyle eklendi.",
+          "Seçilen alan değerlendirildi ve en yakın öneriler getirildi.",
       );
 
       setMessage(
-        "Manuel aday nokta eklendi. Eksik maliyet ve skorlar backend hazır olduğunda doldurulacak.",
+        "Uygunluk sonucu ve en yakın üç öneri alanı haritada gösteriliyor.",
       );
     } catch (error) {
       if (
@@ -2776,6 +2837,24 @@ export default function CandidatePointsPage() {
     }
   }
 
+  function handleSuitabilityRecommendationSelect(
+    recommendation,
+  ) {
+    setFocusedRecommendationCellId(
+      recommendation?.cellId ?? null,
+    );
+  }
+
+  function closeSuitabilityResults() {
+    manualPinRequestIdRef.current += 1;
+    setSuitabilityEvaluation(null);
+    setFocusedRecommendationCellId(null);
+    setManualPinCandidate(null);
+    setManualPinStatus("idle");
+    setManualPinMessage("");
+    setManualPinError("");
+  }
+
   function toggleCandidateRegions() {
     const nextValue =
       !regionsActive;
@@ -2794,6 +2873,14 @@ export default function CandidatePointsPage() {
     setManualPinError("");
 
     setManualPinCandidate(
+      null,
+    );
+
+    setSuitabilityEvaluation(
+      null,
+    );
+
+    setFocusedRecommendationCellId(
       null,
     );
 
@@ -3431,6 +3518,12 @@ export default function CandidatePointsPage() {
                 manualPinError={
                   manualPinError
                 }
+                suitabilityEvaluation={
+                  suitabilityEvaluation
+                }
+                focusedRecommendationCellId={
+                  focusedRecommendationCellId
+                }
                 onManualPinRequest={
                   handleManualPinRequest
                 }
@@ -3439,6 +3532,21 @@ export default function CandidatePointsPage() {
                 }
                 onRegionSelect={
                   handleCandidateRegionSelect
+                }
+              />
+
+              <SuitabilityResultsPanel
+                status={manualPinStatus}
+                error={manualPinError}
+                evaluation={suitabilityEvaluation}
+                focusedRecommendationCellId={
+                  focusedRecommendationCellId
+                }
+                onRecommendationSelect={
+                  handleSuitabilityRecommendationSelect
+                }
+                onClose={
+                  closeSuitabilityResults
                 }
               />
 
