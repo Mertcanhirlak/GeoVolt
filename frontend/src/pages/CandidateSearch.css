@@ -749,3 +749,448 @@
 
   outline-offset: 3px;
 }
+/* =========================================================
+   ADAY HARİTASI - SAĞ KENAR HOVER ARAÇ ÇUBUĞU VE TEK PANEL
+   ========================================================= */
+
+.candidate-map {
+  --candidate-right-rail-width: 58px;
+  --candidate-right-panel-width: 318px;
+  --candidate-right-gap: 14px;
+}
+
+/* Sağ kenardaki görünmez hover alanı. */
+.candidate-right-tools {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  z-index: 420;
+  width: 76px;
+  height: 280px;
+  pointer-events: auto;
+  transform: translateY(-50%);
+}
+
+.candidate-right-tool-rail {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 9px;
+  opacity: 0;
+  visibility: hidden;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 18px;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.2);
+  backdrop-filter: blur(16px);
+  transform: translate(18px, -50%);
+  transition:
+    opacity 180ms ease,
+    visibility 180ms ease,
+    transform 180ms ease;
+}
+
+.candidate-right-tools:hover .candidate-right-tool-rail,
+.candidate-right-tools:focus-within .candidate-right-tool-rail,
+.candidate-right-tools.has-active-panel .candidate-right-tool-rail {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(0, -50%);
+}
+
+.candidate-right-tool-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  color: #475569;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 13px;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.candidate-right-tool-button:hover {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  transform: translateX(-2px);
+}
+
+.candidate-right-tool-button.active {
+  color: #ffffff;
+  background: linear-gradient(145deg, #2563eb, #1d4ed8);
+  border-color: #1d4ed8;
+  box-shadow: 0 9px 20px rgba(37, 99, 235, 0.3);
+}
+
+.candidate-right-tool-button:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.24);
+  outline-offset: 2px;
+}
+
+.candidate-right-tool-label {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 12px);
+  width: max-content;
+  max-width: 210px;
+  padding: 7px 10px;
+  color: #ffffff;
+  background: rgba(15, 23, 42, 0.94);
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.2);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate(6px, -50%);
+  transition:
+    opacity 140ms ease,
+    visibility 140ms ease,
+    transform 140ms ease;
+}
+
+.candidate-right-tool-button:hover .candidate-right-tool-label,
+.candidate-right-tool-button:focus-visible .candidate-right-tool-label {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(0, -50%);
+}
+
+/* CandidatePointsMap içindeki eski sol kutu taşıyıcısını kaldırır;
+   içerideki iki paneli sağ çekmece olarak kullanmaya devam eder. */
+.candidate-map .candidate-left-controls {
+  display: contents !important;
+}
+
+.candidate-map .candidate-manual-controls,
+.candidate-map .candidate-layer-controls,
+.candidate-map .map-filter-overlay,
+.candidate-map .candidate-scan-control-panel {
+  position: absolute !important;
+  top: 82px !important;
+  right: calc(
+    var(--candidate-right-rail-width) +
+      var(--candidate-right-gap)
+  ) !important;
+  bottom: auto !important;
+  left: auto !important;
+  z-index: 390 !important;
+  box-sizing: border-box !important;
+  width: min(
+    var(--candidate-right-panel-width),
+    calc(100% - 150px)
+  ) !important;
+  max-height: calc(100% - 106px) !important;
+  margin: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transform: translateX(20px) !important;
+  transition:
+    opacity 190ms ease,
+    visibility 190ms ease,
+    transform 190ms ease !important;
+}
+
+/* Panel tabanı aynı görünümde olsun. */
+.candidate-map .candidate-manual-controls,
+.candidate-map .candidate-layer-controls,
+.candidate-map .candidate-scan-control-panel,
+.candidate-map .map-filter-overlay {
+  padding: 16px !important;
+  background: rgba(255, 255, 255, 0.97) !important;
+  border: 1px solid rgba(148, 163, 184, 0.34) !important;
+  border-radius: 17px !important;
+  box-shadow: 0 20px 46px rgba(15, 23, 42, 0.2) !important;
+  backdrop-filter: blur(16px) !important;
+}
+
+.candidate-map .map-filter-overlay .filter-panel {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.candidate-map.right-tool-region .candidate-manual-controls,
+.candidate-map.right-tool-layers .candidate-layer-controls,
+.candidate-map.right-tool-filters .map-filter-overlay,
+.candidate-map.right-tool-scan .candidate-scan-control-panel {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  transform: translateX(0) !important;
+}
+
+/* Eski konumların haritada boşluk bırakmamasını sağlar. */
+.candidate-map:not(.right-tool-region) .candidate-manual-controls,
+.candidate-map:not(.right-tool-layers) .candidate-layer-controls,
+.candidate-map:not(.right-tool-filters) .map-filter-overlay,
+.candidate-map:not(.right-tool-scan) .candidate-scan-control-panel {
+  pointer-events: none !important;
+}
+
+/* Tarama sonuçları açılan sağ panelle çakışmasın. */
+.candidate-map.right-tool-panel-open .candidate-scan-results-panel {
+  right: calc(
+    var(--candidate-right-panel-width) +
+      var(--candidate-right-rail-width) +
+      30px
+  ) !important;
+}
+
+/* Popup sağ çekmecenin altında kalmasın. */
+.candidate-map.right-tool-panel-open .map-candidate-popup {
+  right: calc(
+    var(--candidate-right-panel-width) +
+      var(--candidate-right-rail-width) +
+      26px
+  ) !important;
+}
+
+@media (max-width: 900px) {
+  .candidate-map {
+    --candidate-right-panel-width: 290px;
+  }
+
+  .candidate-right-tools {
+    top: auto;
+    right: 8px;
+    bottom: 18px;
+    width: auto;
+    height: 62px;
+    transform: none;
+  }
+
+  .candidate-right-tool-rail {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    flex-direction: row;
+    transform: translateY(14px);
+  }
+
+  .candidate-right-tools:hover .candidate-right-tool-rail,
+  .candidate-right-tools:focus-within .candidate-right-tool-rail,
+  .candidate-right-tools.has-active-panel .candidate-right-tool-rail {
+    transform: translateY(0);
+  }
+
+  .candidate-right-tool-label {
+    top: auto;
+    right: 50%;
+    bottom: calc(100% + 10px);
+    transform: translate(50%, 5px);
+  }
+
+  .candidate-right-tool-button:hover .candidate-right-tool-label,
+  .candidate-right-tool-button:focus-visible .candidate-right-tool-label {
+    transform: translate(50%, 0);
+  }
+
+  .candidate-map .candidate-manual-controls,
+  .candidate-map .candidate-layer-controls,
+  .candidate-map .map-filter-overlay,
+  .candidate-map .candidate-scan-control-panel {
+    top: 78px !important;
+    right: 14px !important;
+    width: min(310px, calc(100% - 28px)) !important;
+    max-height: calc(100% - 160px) !important;
+  }
+
+  .candidate-map.right-tool-panel-open .candidate-scan-results-panel,
+  .candidate-map.right-tool-panel-open .map-candidate-popup {
+    right: 14px !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .candidate-right-tool-rail {
+    gap: 6px;
+    padding: 7px;
+  }
+
+  .candidate-right-tool-button {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+  }
+
+  .candidate-map .candidate-manual-controls,
+  .candidate-map .candidate-layer-controls,
+  .candidate-map .map-filter-overlay,
+  .candidate-map .candidate-scan-control-panel {
+    top: 70px !important;
+    right: 10px !important;
+    width: calc(100% - 20px) !important;
+    max-height: calc(100% - 142px) !important;
+  }
+}
+
+
+/* RIGHT TOOL HANDLE FIX START */
+
+/* Sağ araç alanının harita içinde doğru konumlanması */
+.candidate-map {
+  position: relative !important;
+}
+
+/* Ok ve simgeler için sağ kenardaki hover alanı */
+.candidate-right-tools {
+  position: absolute !important;
+  top: 50% !important;
+  right: 0 !important;
+  z-index: 9999 !important;
+
+  width: 124px !important;
+  height: 300px !important;
+
+  transform: translateY(-50%) !important;
+  pointer-events: auto !important;
+}
+
+/* Her zaman görünen sağ kenar oku */
+.candidate-right-tools::before {
+  content: "‹";
+
+  position: absolute;
+  top: 50%;
+  right: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 34px;
+  height: 82px;
+
+  color: #ffffff;
+  background: linear-gradient(
+    145deg,
+    #2563eb,
+    #1d4ed8
+  );
+
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-right: 0;
+  border-radius: 16px 0 0 16px;
+
+  box-shadow:
+    -8px 10px 26px rgba(37, 99, 235, 0.3);
+
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1;
+
+  pointer-events: none;
+  transform: translateY(-50%);
+
+  transition:
+    width 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+
+/* Fare okun üzerine gelince */
+.candidate-right-tools:hover::before,
+.candidate-right-tools:focus-within::before,
+.candidate-right-tools.has-active-panel::before {
+  width: 38px;
+
+  background: linear-gradient(
+    145deg,
+    #1d4ed8,
+    #1e40af
+  );
+
+  box-shadow:
+    -10px 12px 30px rgba(37, 99, 235, 0.4);
+}
+
+/* Dört simge okun solunda açılır */
+.candidate-right-tool-rail {
+  top: 50% !important;
+  right: 42px !important;
+
+  opacity: 0 !important;
+  visibility: hidden !important;
+
+  transform:
+    translate(18px, -50%) !important;
+
+  pointer-events: none !important;
+}
+
+/* Fare sağ alana gelince simgeler görünür */
+.candidate-right-tools:hover
+  .candidate-right-tool-rail,
+.candidate-right-tools:focus-within
+  .candidate-right-tool-rail,
+.candidate-right-tools.has-active-panel
+  .candidate-right-tool-rail {
+  opacity: 1 !important;
+  visibility: visible !important;
+
+  transform:
+    translate(0, -50%) !important;
+
+  pointer-events: auto !important;
+}
+
+/* Panel açıkken ok ve simgeler kaybolmaz */
+.candidate-right-tools.has-active-panel {
+  width: 124px !important;
+}
+
+/* Küçük ekran düzeni */
+@media (max-width: 900px) {
+  .candidate-right-tools {
+    top: auto !important;
+    right: 8px !important;
+    bottom: 18px !important;
+
+    width: 240px !important;
+    height: 66px !important;
+
+    transform: none !important;
+  }
+
+  .candidate-right-tools::before {
+    display: none;
+  }
+
+  .candidate-right-tool-rail {
+    top: auto !important;
+    right: 0 !important;
+    bottom: 0 !important;
+
+    opacity: 1 !important;
+    visibility: visible !important;
+
+    transform: none !important;
+    pointer-events: auto !important;
+  }
+}
+
+/* RIGHT TOOL HANDLE FIX END */

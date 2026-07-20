@@ -15,6 +15,9 @@ import {
   SlidersHorizontal,
   LayoutDashboard,
   Power,
+  MapPin,
+  Layers,
+  Search,
 } from "lucide-react";
 
 import {
@@ -560,6 +563,11 @@ export default function CandidatePointsPage() {
     activeTab,
     setActiveTab,
   ] = useState("home");
+
+  const [
+    activeCandidateRightTool,
+    setActiveCandidateRightTool,
+  ] = useState(null);
 
   const [
     dataLayersOpen,
@@ -2986,6 +2994,15 @@ export default function CandidatePointsPage() {
     }
   }
 
+  function toggleCandidateRightTool(toolName) {
+    setActiveCandidateRightTool(
+      (currentTool) =>
+        currentTool === toolName
+          ? null
+          : toolName,
+    );
+  }
+
   function toggleCandidateRegions() {
     const nextValue =
       !regionsActive;
@@ -3615,7 +3632,21 @@ export default function CandidatePointsPage() {
               </button>
             </div>
 
-            <div className="mock-map candidate-map">
+            <div
+              className={[
+                "mock-map",
+                "candidate-map",
+                activeCandidateRightTool
+                  ? `right-tool-${activeCandidateRightTool}`
+                  : "",
+                activeCandidateRightTool
+                  ? "right-tool-panel-open"
+                  : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              data-testid="candidate-map-container"
+            >
               <CandidatePointsMap
                 points={
                   filteredCandidates
@@ -3659,6 +3690,114 @@ export default function CandidatePointsPage() {
                   handleCandidateRegionSelect
                 }
               />
+
+              <div
+                className={
+                  activeCandidateRightTool
+                    ? "candidate-right-tools has-active-panel"
+                    : "candidate-right-tools"
+                }
+                data-testid="candidate-right-tools"
+              >
+                <div
+                  className="candidate-right-tool-rail"
+                  role="toolbar"
+                  aria-label="Aday haritası araçları"
+                  data-testid="candidate-right-tool-rail"
+                >
+                  <button
+                    type="button"
+                    className={
+                      activeCandidateRightTool === "region"
+                        ? "candidate-right-tool-button active"
+                        : "candidate-right-tool-button"
+                    }
+                    aria-pressed={
+                      activeCandidateRightTool === "region"
+                    }
+                    aria-label="Seçili bölge panelini aç veya kapat"
+                    title="Seçili Bölge"
+                    data-testid="candidate-right-tool-region"
+                    onClick={() =>
+                      toggleCandidateRightTool("region")
+                    }
+                  >
+                    <MapPin size={21} strokeWidth={2.2} />
+                    <span className="candidate-right-tool-label">
+                      Seçili Bölge
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={
+                      activeCandidateRightTool === "layers"
+                        ? "candidate-right-tool-button active"
+                        : "candidate-right-tool-button"
+                    }
+                    aria-pressed={
+                      activeCandidateRightTool === "layers"
+                    }
+                    aria-label="Harita katmanları panelini aç veya kapat"
+                    title="Harita Katmanları"
+                    data-testid="candidate-right-tool-layers"
+                    onClick={() =>
+                      toggleCandidateRightTool("layers")
+                    }
+                  >
+                    <Layers size={21} strokeWidth={2.2} />
+                    <span className="candidate-right-tool-label">
+                      Harita Katmanları
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={
+                      activeCandidateRightTool === "filters"
+                        ? "candidate-right-tool-button active"
+                        : "candidate-right-tool-button"
+                    }
+                    aria-pressed={
+                      activeCandidateRightTool === "filters"
+                    }
+                    aria-label="Aday nokta filtrelerini aç veya kapat"
+                    title="Aday Nokta Filtreleri"
+                    data-testid="candidate-right-tool-filters"
+                    onClick={() =>
+                      toggleCandidateRightTool("filters")
+                    }
+                  >
+                    <SlidersHorizontal size={21} strokeWidth={2.2} />
+                    <span className="candidate-right-tool-label">
+                      Aday Nokta Filtreleri
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={
+                      activeCandidateRightTool === "scan"
+                        ? "candidate-right-tool-button active"
+                        : "candidate-right-tool-button"
+                    }
+                    aria-pressed={
+                      activeCandidateRightTool === "scan"
+                    }
+                    aria-label="Bölgeyi tara panelini aç veya kapat"
+                    title="Bölgeyi Tara"
+                    data-testid="candidate-right-tool-scan"
+                    onClick={() =>
+                      toggleCandidateRightTool("scan")
+                    }
+                  >
+                    <Search size={21} strokeWidth={2.2} />
+                    <span className="candidate-right-tool-label">
+                      Bölgeyi Tara
+                    </span>
+                  </button>
+                </div>
+              </div>
 
               <aside
                 className="candidate-scan-control-panel"
