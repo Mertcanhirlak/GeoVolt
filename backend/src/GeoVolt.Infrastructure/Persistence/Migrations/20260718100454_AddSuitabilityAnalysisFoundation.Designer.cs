@@ -3,6 +3,7 @@ using System;
 using GeoVolt.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GeoVolt.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(GeoVoltDbContext))]
-    partial class GeoVoltDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260718100454_AddSuitabilityAnalysisFoundation")]
+    partial class AddSuitabilityAnalysisFoundation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1290,7 +1293,7 @@ namespace GeoVolt.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_analysis_runs_metric_srid", "metric_srid > 0");
 
-                            t.HasCheckConstraint("ck_analysis_runs_status", "status IN ('Pending', 'Running', 'GridReady', 'Completed', 'Failed', 'Cancelled')");
+                            t.HasCheckConstraint("ck_analysis_runs_status", "status IN ('Pending', 'Running', 'Completed', 'Failed', 'Cancelled')");
 
                             t.HasCheckConstraint("ck_analysis_runs_storage_srid", "storage_srid > 0");
 

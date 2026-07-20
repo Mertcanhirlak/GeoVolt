@@ -14,7 +14,11 @@ using GeoVolt.Application.Regions;
 using GeoVolt.Application.Regions.Abstractions;
 using GeoVolt.Application.SavedCandidatePoints;
 using GeoVolt.Application.SavedCandidatePoints.Abstractions;
+using GeoVolt.Application.SuitabilityAnalysis;
+using GeoVolt.Application.SuitabilityAnalysis.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
+using GeoVolt.Application.CostEstimations;
+using GeoVolt.Application.CostEstimations.Abstractions;
 
 namespace GeoVolt.Application;
 
@@ -31,6 +35,8 @@ public static class DependencyInjection
         services.AddScoped<IChargingStationService, ChargingStationService>();
         services.AddScoped<INeighborhoodService, NeighborhoodService>();
         services.AddScoped<IManualPinService, ManualPinService>();
+        services.AddScoped<ICostEstimationService, CostEstimationService>();
+        services.AddScoped<ISuitabilityAnalysisService, SuitabilityAnalysisService>();
 
         return services;
     }

@@ -9,7 +9,7 @@ public sealed class ChargingConnectorResponseDto
 
     // Soket tipi
     public string SocketType { get; set; } = string.Empty;
-    
+
     public string? ConnectorType { get; set; }
 
     // Şarj gücü

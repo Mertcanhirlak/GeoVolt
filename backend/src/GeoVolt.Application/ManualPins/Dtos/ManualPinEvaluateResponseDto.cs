@@ -16,17 +16,20 @@ public sealed class ManualPinEvaluateResponseDto
 
     public double Longitude { get; set; }
 
+    // Firmanın seçtiği kurulum bilgileri.
     public string SystemType { get; set; } = string.Empty;
 
     public int PowerKw { get; set; }
 
     public string VenueType { get; set; } = string.Empty;
 
+    // GIS üzerinden bulunan değerler.
     public double? SlopePercent { get; set; }
 
     public double? DistanceToTransformerMeters { get; set; }
 
-    public double? EstimatedCableLengthMeters { get; set; }
+    // Hesaplanan maliyet kırılımları.
+    public decimal? EstimatedCableLengthMeters { get; set; }
 
     public decimal? EquipmentCost { get; set; }
 
@@ -36,19 +39,23 @@ public sealed class ManualPinEvaluateResponseDto
 
     public decimal? SlopeExtraCost { get; set; }
 
-    public decimal? AdjustedSiteCost { get; set; }
+    public decimal? AdjustedCivilWorksCost { get; set; }
 
     public decimal? SubtotalCost { get; set; }
 
     public decimal? EstimatedCost { get; set; }
 
+    // Bütçe kontrolü.
     public decimal? BudgetMax { get; set; }
 
     public bool? IsWithinBudget { get; set; }
 
-    public string CostSource { get; set; } = string.Empty;
+    // Kullanılan maliyet modelinin bilgileri.
+    public string CurrencyCode { get; set; } = string.Empty;
 
-    public string CostConfidence { get; set; } = string.Empty;
+    public string CostModelVersion { get; set; } = string.Empty;
+
+    public string CostSource { get; set; } = string.Empty;
 
     public List<string> Warnings { get; set; } = [];
 

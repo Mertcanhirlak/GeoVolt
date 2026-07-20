@@ -47,9 +47,23 @@ public sealed class GeoVoltDbContext : DbContext
 
     public DbSet<DatasetImport> DatasetImports => Set<DatasetImport>();
 
+    public DbSet<DatasetCoverage> DatasetCoverages => Set<DatasetCoverage>();
+
     public DbSet<StagedGeoJsonFeature> StagedGeoJsonFeatures => Set<StagedGeoJsonFeature>();
 
     public DbSet<ScoringProfile> ScoringProfiles => Set<ScoringProfile>();
+
+    public DbSet<SuitabilityAnalysisRun> SuitabilityAnalysisRuns => Set<SuitabilityAnalysisRun>();
+
+    public DbSet<SuitabilityCell> SuitabilityCells => Set<SuitabilityCell>();
+
+    public DbSet<CostModelSetting> CostModelSettings => Set<CostModelSetting>();
+
+    public DbSet<CostProfile> CostProfiles => Set<CostProfile>();
+
+    public DbSet<SlopeCostBand> SlopeCostBands => Set<SlopeCostBand>();
+
+    public DbSet<VenueCostMultiplier> VenueCostMultipliers => Set<VenueCostMultiplier>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -59,6 +73,9 @@ public sealed class GeoVoltDbContext : DbContext
         modelBuilder.ApplyConfiguration(new ChargingConnectorConfiguration());
         modelBuilder.ApplyConfiguration(new ChargingStationConfiguration());
         modelBuilder.ApplyConfiguration(new CompanyConfiguration());
+        modelBuilder.ApplyConfiguration(new CostModelSettingConfiguration());
+        modelBuilder.ApplyConfiguration(new CostProfileConfiguration());
+        modelBuilder.ApplyConfiguration(new DatasetCoverageConfiguration());
         modelBuilder.ApplyConfiguration(new DatasetImportConfiguration());
         modelBuilder.ApplyConfiguration(new DistrictConfiguration());
         modelBuilder.ApplyConfiguration(new NeighborhoodConfiguration());
@@ -71,9 +88,13 @@ public sealed class GeoVoltDbContext : DbContext
         modelBuilder.ApplyConfiguration(new RoadConfiguration());
         modelBuilder.ApplyConfiguration(new SavedCandidatePointConfiguration());
         modelBuilder.ApplyConfiguration(new ScoringProfileConfiguration());
+        modelBuilder.ApplyConfiguration(new SlopeCostBandConfiguration());
         modelBuilder.ApplyConfiguration(new StagedGeoJsonFeatureConfiguration());
+        modelBuilder.ApplyConfiguration(new SuitabilityAnalysisRunConfiguration());
+        modelBuilder.ApplyConfiguration(new SuitabilityCellConfiguration());
         modelBuilder.ApplyConfiguration(new UserConfiguration());
         modelBuilder.ApplyConfiguration(new UserPermissionConfiguration());
         modelBuilder.ApplyConfiguration(new UserRoleConfiguration());
+        modelBuilder.ApplyConfiguration(new VenueCostMultiplierConfiguration());
     }
 }
