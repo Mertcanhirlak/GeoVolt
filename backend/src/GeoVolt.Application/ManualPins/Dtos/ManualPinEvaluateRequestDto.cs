@@ -47,7 +47,9 @@ public sealed class ManualPinEvaluateRequestDto : IValidatableObject
         typeof(decimal),
         "0.01",
         "999999999999",
-        ErrorMessage = "Bütçe sıfırdan büyük olmalıdır.")]
+        ErrorMessage = "Bütçe sıfırdan büyük olmalıdır.",
+        ParseLimitsInInvariantCulture = true,
+        ConvertValueInInvariantCulture = true)]
     public decimal? BudgetMax { get; set; }
 
     // Sistem tipi ile güç seçiminin uyumunu doğrular.

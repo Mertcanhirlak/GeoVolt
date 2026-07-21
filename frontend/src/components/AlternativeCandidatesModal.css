@@ -1,0 +1,776 @@
+.alternative-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(5px);
+}
+
+.alternative-modal {
+  width: min(960px, 100%);
+  max-height: min(
+    820px,
+    calc(100vh - 48px)
+  );
+  overflow: hidden;
+  border: 1px solid
+    rgba(148, 163, 184, 0.34);
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 28px 70px
+    rgba(15, 23, 42, 0.32);
+}
+
+.alternative-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px 26px 18px;
+  border-bottom: 1px solid #e2e8f0;
+  background: linear-gradient(
+    135deg,
+    #f8fafc 0%,
+    #eef2ff 100%
+  );
+}
+
+.alternative-modal-header h2 {
+  margin: 4px 0 7px;
+  color: #0f172a;
+  font-size: 1.55rem;
+  line-height: 1.2;
+}
+
+.alternative-modal-header p {
+  max-width: 700px;
+  margin: 0;
+  color: #475569;
+  line-height: 1.55;
+}
+
+.alternative-modal-eyebrow {
+  color: #2563eb;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.alternative-modal-close {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.alternative-modal-close:hover {
+  transform: translateY(-1px);
+  border-color: #ef4444;
+  color: #dc2626;
+}
+
+.alternative-selected-summary {
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px 26px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.alternative-selected-summary > div {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.alternative-selected-summary span,
+.alternative-candidate-stats span {
+  display: block;
+  margin-bottom: 4px;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.alternative-selected-summary strong {
+  display: block;
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 0.95rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alternative-modal-content {
+  max-height: calc(
+    100vh - 310px
+  );
+  overflow-y: auto;
+  padding: 20px 26px 26px;
+  background: #f8fafc;
+}
+
+.alternative-candidate-list {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.alternative-candidate-card {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid #dbe4ef;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 10px 26px
+    rgba(15, 23, 42, 0.07);
+}
+
+.alternative-candidate-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.alternative-candidate-card-header h3 {
+  margin: 7px 0 0;
+  color: #0f172a;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.alternative-relation-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.alternative-score-badge {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  min-width: 68px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.alternative-score-badge small {
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+.alternative-score-badge strong {
+  margin-top: 2px;
+  font-size: 1.15rem;
+}
+
+.alternative-address,
+.alternative-distance {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  color: #475569;
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.alternative-address svg,
+.alternative-distance svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: #2563eb;
+}
+
+.alternative-distance {
+  color: #64748b;
+}
+
+.alternative-candidate-stats {
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.alternative-candidate-stats > div {
+  min-width: 0;
+  padding: 10px;
+  border-radius: 12px;
+  background: #f1f5f9;
+}
+
+.alternative-candidate-stats strong {
+  display: block;
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alternative-candidate-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.alternative-map-button,
+.alternative-save-button,
+.popup-alternatives-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  border-radius: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.alternative-map-button {
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.alternative-save-button {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.alternative-map-button:hover,
+.alternative-save-button:hover,
+.popup-alternatives-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px
+    rgba(15, 23, 42, 0.14);
+}
+
+.alternative-save-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+  transform: none;
+  box-shadow: none;
+}
+
+.popup-alternatives-button {
+  width: 100%;
+  margin-top: 8px;
+  border: 1px solid #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.alternative-modal-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 250px;
+  padding: 34px;
+  border: 1px dashed #94a3b8;
+  border-radius: 18px;
+  background: #ffffff;
+  color: #64748b;
+  text-align: center;
+}
+
+.alternative-modal-empty svg {
+  color: #2563eb;
+}
+
+.alternative-modal-empty h3 {
+  margin: 13px 0 7px;
+  color: #0f172a;
+}
+
+.alternative-modal-empty p {
+  max-width: 520px;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* =========================================================
+   HARİTA ÜZERİNDEKİ ADAY NOKTA POPUP'I
+   ========================================================= */
+
+.candidate-map {
+  position: relative;
+}
+
+.candidate-map > .map-candidate-popup {
+  position: absolute !important;
+  left: calc(50% + 24px) !important;
+  top: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+
+  width: 238px !important;
+  min-width: 0 !important;
+  max-width: calc(100% - 32px) !important;
+  max-height: 360px;
+
+  margin: 0 !important;
+  padding: 13px 13px 12px !important;
+
+  overflow-x: visible;
+  overflow-y: auto;
+
+  border: 1px solid
+    rgba(100, 116, 139, 0.5) !important;
+  border-radius: 14px !important;
+
+  background: rgba(
+    255,
+    255,
+    255,
+    0.98
+  ) !important;
+
+  box-shadow:
+    0 12px 28px
+      rgba(15, 23, 42, 0.2),
+    0 3px 8px
+      rgba(15, 23, 42, 0.1) !important;
+
+  transform:
+    translateY(-50%) !important;
+
+  box-sizing: border-box;
+  z-index: 1450 !important;
+
+  animation:
+    candidate-popup-open
+    160ms
+    ease-out;
+}
+
+/* Markerı gösteren küçük ok */
+
+.candidate-map
+  > .map-candidate-popup::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -8px;
+
+  width: 14px;
+  height: 14px;
+
+  border-left: 1px solid
+    rgba(100, 116, 139, 0.5);
+  border-bottom: 1px solid
+    rgba(100, 116, 139, 0.5);
+
+  background: #ffffff;
+
+  transform:
+    translateY(-50%)
+    rotate(45deg);
+
+  pointer-events: none;
+  z-index: 0;
+}
+
+.candidate-map
+  > .map-candidate-popup
+  > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Kapatma çarpısı */
+
+.candidate-map
+  > .map-candidate-popup
+  > .popup-close-button {
+  position: absolute !important;
+  top: 7px !important;
+  right: 7px !important;
+  bottom: auto !important;
+  left: auto !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  width: 25px !important;
+  height: 25px !important;
+  min-width: 25px !important;
+  min-height: 25px !important;
+
+  margin: 0 !important;
+  padding: 0 0 2px !important;
+
+  border: 1px solid #dbe3ee !important;
+  border-radius: 8px !important;
+
+  background: #f8fafc !important;
+  color: #475569 !important;
+
+  font-family: Arial, sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+
+  cursor: pointer;
+  transform: none !important;
+  box-shadow: none !important;
+  z-index: 5 !important;
+}
+
+.candidate-map
+  > .map-candidate-popup
+  > .popup-close-button:hover {
+  border-color: #fecaca !important;
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+}
+
+/* Adres */
+
+.candidate-map
+  > .map-candidate-popup
+  > small {
+  display: block;
+  max-width: calc(100% - 31px);
+  margin: 0 0 3px !important;
+
+  overflow: hidden;
+  color: #64748b !important;
+
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  line-height: 1.35 !important;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Başlık */
+
+.candidate-map
+  > .map-candidate-popup
+  > h3 {
+  max-width: calc(100% - 31px);
+  margin: 0 0 9px !important;
+
+  color: #0f172a !important;
+
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  line-height: 1.25 !important;
+}
+
+/* Bilgi satırları */
+
+.candidate-map
+  > .map-candidate-popup
+  > p {
+  display: grid !important;
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto;
+  align-items: center;
+  gap: 8px;
+
+  min-height: 31px;
+  margin: 0 !important;
+  padding: 6px 7px !important;
+
+  border-bottom: 1px solid
+    #edf2f7;
+
+  color: #334155 !important;
+  font-size: 10.5px !important;
+  line-height: 1.3 !important;
+}
+
+.candidate-map
+  > .map-candidate-popup
+  > p:nth-of-type(odd) {
+  background: #f8fafc;
+}
+
+.candidate-map
+  > .map-candidate-popup
+  > p strong {
+  overflow: hidden;
+  color: #475569 !important;
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.candidate-map
+  > .map-candidate-popup
+  > p span {
+  color: #0f172a !important;
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Veri eksik uyarısı */
+
+.candidate-map
+  > .map-candidate-popup
+  > .popup-warning {
+  margin: 7px 0 0 !important;
+  padding: 6px 8px !important;
+
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+
+  background: #fff7ed;
+  color: #c2410c;
+
+  font-size: 10.5px !important;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* Alternatifleri Gör butonu */
+
+.candidate-map
+  > .map-candidate-popup
+  > .popup-alternatives-button {
+  width: 100% !important;
+  min-height: 32px !important;
+
+  margin: 9px 0 0 !important;
+  padding: 6px 10px !important;
+
+  border: 1px solid #2563eb !important;
+  border-radius: 9px !important;
+
+  background: #ffffff !important;
+  color: #1d4ed8 !important;
+
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+
+  cursor: pointer;
+}
+
+/* Kaydet butonu */
+
+.candidate-map
+  > .map-candidate-popup
+  > .popup-save-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+
+  width: 100% !important;
+  min-height: 33px !important;
+
+  margin: 7px 0 0 !important;
+  padding: 6px 10px !important;
+
+  border: 1px solid #2563eb !important;
+  border-radius: 9px !important;
+
+  background: #2563eb !important;
+  color: #ffffff !important;
+
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+
+  cursor: pointer;
+  box-shadow:
+    0 5px 12px
+      rgba(37, 99, 235, 0.2) !important;
+}
+
+.candidate-map
+  > .map-candidate-popup
+  > .popup-alternatives-button:hover,
+.candidate-map
+  > .map-candidate-popup
+  > .popup-save-button:hover {
+  transform: translateY(-1px);
+}
+
+.candidate-map
+  > .map-candidate-popup
+  .popup-save-icon {
+  font-size: 15px !important;
+  line-height: 1 !important;
+}
+
+.candidate-map
+  > .map-candidate-popup
+  .popup-save-text {
+  font-size: 11px !important;
+}
+
+@keyframes candidate-popup-open {
+  from {
+    opacity: 0;
+    transform:
+      translateY(-50%)
+      translateX(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform:
+      translateY(-50%)
+      translateX(0);
+  }
+}
+
+/* =========================================================
+   TABLET VE TELEFON
+   ========================================================= */
+
+@media (max-width: 900px) {
+  .candidate-map
+    > .map-candidate-popup {
+    left: 50% !important;
+    top: calc(50% - 24px) !important;
+
+    width: 224px !important;
+    max-height: 330px;
+
+    transform:
+      translate(
+        -50%,
+        -100%
+      ) !important;
+  }
+
+  .candidate-map
+    > .map-candidate-popup::before {
+    top: auto;
+    bottom: -8px;
+    left: 50%;
+
+    border-left: 0;
+    border-bottom: 1px solid
+      rgba(100, 116, 139, 0.5);
+    border-right: 1px solid
+      rgba(100, 116, 139, 0.5);
+
+    transform:
+      translateX(-50%)
+      rotate(45deg);
+  }
+
+  @keyframes candidate-popup-open {
+    from {
+      opacity: 0;
+      transform:
+        translate(
+          -50%,
+          -100%
+        )
+        translateY(-6px);
+    }
+
+    to {
+      opacity: 1;
+      transform:
+        translate(
+          -50%,
+          -100%
+        )
+        translateY(0);
+    }
+  }
+}
+
+@media (max-width: 760px) {
+  .alternative-modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .alternative-modal {
+    max-height: 92vh;
+    border-radius:
+      22px 22px 0 0;
+  }
+
+  .alternative-modal-header {
+    padding:
+      20px 18px 16px;
+  }
+
+  .alternative-selected-summary {
+    grid-template-columns: 1fr;
+    padding: 14px 18px;
+  }
+
+  .alternative-modal-content {
+    max-height:
+      calc(92vh - 390px);
+    padding:
+      16px 18px 22px;
+  }
+
+  .alternative-candidate-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .alternative-candidate-stats,
+  .alternative-candidate-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .candidate-map
+    > .map-candidate-popup {
+    width: 212px !important;
+    padding: 11px !important;
+  }
+}

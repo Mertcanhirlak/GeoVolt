@@ -8,4 +8,16 @@ public interface ISuitabilityAnalysisService
         int districtSourceId,
         GenerateSuitabilityGridRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<SuitabilityMetricCalculationResult> CalculateMetricsAsync(
+        int analysisRunId,
+        CancellationToken cancellationToken = default);
+
+    Task<SuitabilityScoringResult> CalculateScoresAsync(
+        int analysisRunId,
+        CancellationToken cancellationToken = default);
+
+    Task<SuitabilityLocationEvaluationResponse> EvaluateLocationAsync(
+        EvaluateSuitabilityLocationRequest request,
+        CancellationToken cancellationToken = default);
 }

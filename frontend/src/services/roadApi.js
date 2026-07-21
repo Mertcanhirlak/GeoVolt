@@ -1,5 +1,7 @@
 const LOCAL_ROAD_URL = "/data/YOL.geojson";
 
+let localRoadsPromise = null;
+
 const fallbackRoads = [
   {
     id: 1,
@@ -91,20 +93,29 @@ function normalizeRoads(roads) {
 }
 
 async function getRoadsFromLocalGeoJson() {
-  const response = await fetch(LOCAL_ROAD_URL);
+  if (!localRoadsPromise) {
+    localRoadsPromise = (async () => {
+      const response = await fetch(LOCAL_ROAD_URL);
 
-  if (!response.ok) {
-    throw new Error("Yerel YOL.geojson dosyası yüklenemedi.");
+      if (!response.ok) {
+        throw new Error("Yerel YOL.geojson dosyası yüklenemedi.");
+      }
+
+      const result = await response.json();
+      const roadArray = extractArray(result);
+
+      if (!roadArray) {
+        throw new Error("Yerel YOL.geojson yanıtı geçersiz.");
+      }
+
+      return normalizeRoads(roadArray);
+    })().catch((error) => {
+      localRoadsPromise = null;
+      throw error;
+    });
   }
 
-  const result = await response.json();
-  const roadArray = extractArray(result);
-
-  if (!roadArray) {
-    throw new Error("Yerel YOL.geojson yanıtı geçersiz.");
-  }
-
-  return normalizeRoads(roadArray);
+  return localRoadsPromise;
 }
 
 export async function getRoads() {

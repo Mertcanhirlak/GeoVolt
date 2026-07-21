@@ -40,6 +40,7 @@ public sealed class RegionService : IRegionService
         int sourceId,
         CancellationToken cancellationToken = default)
     {
+        // Id değerine göre bölgeyi getirir
         var region = await _regionRepository.GetBySourceIdAsync(
             sourceId,
             cancellationToken);
@@ -56,6 +57,7 @@ public sealed class RegionService : IRegionService
         int sourceId,
         CancellationToken cancellationToken = default)
     {
+        // Id değerine göre bölgeyi getirir
         var region = await _regionRepository.GetBySourceIdAsync(
             sourceId,
             cancellationToken);
@@ -65,18 +67,20 @@ public sealed class RegionService : IRegionService
             throw new NotFoundException("Bölge bulunamadı.");
         }
 
-        // Seçilen semtteki istasyonları getirir
+        // Seçilen bölgedeki tüm istasyonları getirir.
+        // Mahalle filtresi uygulanmaz.
         var stations = await _chargingStationRepository.GetAllAsync(
             regionSourceId: sourceId,
             neighborhoodSourceId: null,
             cancellationToken: cancellationToken);
 
-        // Sistemdeki tüm istasyonları getirir
+        // Sistemdeki tüm istasyonları getirir.
         var allStations = await _chargingStationRepository.GetAllAsync(
             regionSourceId: null,
             neighborhoodSourceId: null,
             cancellationToken: cancellationToken);
 
+        // Repository connector verilerini istasyonlarla birlikte topluca getirir.
         var connectors = stations
             .SelectMany(station => station.Connectors)
             .ToList();
@@ -174,6 +178,7 @@ public sealed class RegionService : IRegionService
             RegionId = region.SourceId,
             RegionName = region.Name,
 
+            // PostGIS repository'sindeki gerçek istasyon sayısını kullanır.
             ChargingStationCount = chargingStationCount,
             TotalChargingStationCount = totalChargingStationCount,
             ChargingStationPercentage = chargingStationPercentage,
@@ -183,6 +188,7 @@ public sealed class RegionService : IRegionService
             AcPercentage = acPercentage,
             DcPercentage = dcPercentage,
 
+            // Gerçek trafik veri seti henüz sisteme bağlı değildir.
             TrafficLevel = "Veri hazırlanıyor",
             MostCommonSocketType = mostCommonSocketType,
             MostCommonPowerKw = mostCommonPowerKw,
@@ -208,7 +214,6 @@ public sealed class RegionService : IRegionService
             new Coordinate(
                 request.Longitude,
                 request.Latitude));
-
         var isInsideRegion = region.Boundary.Covers(point);
 
         Neighborhood? neighborhood = null;

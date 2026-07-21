@@ -42,4 +42,4 @@ finally {
     Pop-Location
 }
 
-Write-Host "Tamamlandı: İlçe, 28 semt ve 124 mahalle yerel PostGIS veritabanına hazırlandı." -ForegroundColor Green
+Write-Host "Tamamlandı: İlçe, 28 semt, 124 mahalle ve şarj istasyonları yerel PostGIS veritabanına hazırlandı." -ForegroundColor Green

@@ -38,26 +38,26 @@ public sealed class PostGisTransformerRepository
             await using var command =
                 connection.CreateCommand();
 
-            command.CommandText =
-                """
-                SELECT
-                    ST_Distance(
-                        transformer.location::geography,
-                        ST_SetSRID(
-                            ST_MakePoint(
-                                @longitude,
-                                @latitude),
-                            4326)::geography)
-                FROM gis.power_transformers AS transformer
-                ORDER BY
-                    transformer.location <->
-                    ST_SetSRID(
-                        ST_MakePoint(
-                            @longitude,
-                            @latitude),
-                        4326)
-                LIMIT 1;
-                """;
+        command.CommandText =
+    """
+    SELECT
+        ST_Distance(
+            transformer."Location"::geography,
+            ST_SetSRID(
+                ST_MakePoint(
+                    @longitude,
+                    @latitude),
+                4326)::geography)
+    FROM gis.power_transformers AS transformer
+    ORDER BY
+        transformer."Location" <->
+        ST_SetSRID(
+            ST_MakePoint(
+                @longitude,
+                @latitude),
+            4326)
+    LIMIT 1;
+    """;
 
             var latitudeParameter =
                 command.CreateParameter();

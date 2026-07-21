@@ -25,4 +25,37 @@ public sealed class SuitabilityAnalysisService : ISuitabilityAnalysisService
 
         return result ?? throw new NotFoundException("İlçe bulunamadı.");
     }
+
+    public async Task<SuitabilityMetricCalculationResult> CalculateMetricsAsync(
+        int analysisRunId,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _repository.CalculateMetricsAsync(
+            analysisRunId,
+            cancellationToken);
+
+        return result ?? throw new NotFoundException("Uygunluk analiz çalışması bulunamadı.");
+    }
+
+    public async Task<SuitabilityScoringResult> CalculateScoresAsync(
+        int analysisRunId,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _repository.CalculateScoresAsync(
+            analysisRunId,
+            cancellationToken);
+
+        return result ?? throw new NotFoundException("Uygunluk analiz çalışması bulunamadı.");
+    }
+
+    public Task<SuitabilityLocationEvaluationResponse> EvaluateLocationAsync(
+        EvaluateSuitabilityLocationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return _repository.EvaluateLocationAsync(
+            request.Latitude,
+            request.Longitude,
+            request.RecommendationLimit,
+            cancellationToken);
+    }
 }

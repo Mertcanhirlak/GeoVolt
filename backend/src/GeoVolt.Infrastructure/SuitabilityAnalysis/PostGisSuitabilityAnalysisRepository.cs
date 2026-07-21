@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GeoVolt.Infrastructure.SuitabilityAnalysis;
 
-public sealed class PostGisSuitabilityAnalysisRepository : ISuitabilityAnalysisRepository
+public sealed partial class PostGisSuitabilityAnalysisRepository : ISuitabilityAnalysisRepository
 {
     private const string GridAlgorithmVersion = "grid-v1";
 
