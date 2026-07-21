@@ -3,6 +3,7 @@ using System;
 using GeoVolt.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GeoVolt.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(GeoVoltDbContext))]
-    partial class GeoVoltDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260718095012_AddDatasetCoverageMetadata")]
+    partial class AddDatasetCoverageMetadata
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1025,44 +1028,32 @@ namespace GeoVolt.Infrastructure.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<decimal>("AccessWeight")
+                        .HasPrecision(5, 4)
+                        .HasColumnType("numeric(5,4)");
+
+                    b.Property<decimal>("CompetitionWeight")
+                        .HasPrecision(5, 4)
+                        .HasColumnType("numeric(5,4)");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<decimal>("MajorRoadWeight")
+                    b.Property<decimal>("DemandWeight")
                         .HasPrecision(5, 4)
                         .HasColumnType("numeric(5,4)");
+
+                    b.Property<decimal>("EnergyWeight")
+                        .HasPrecision(5, 4)
+                        .HasColumnType("numeric(5,4)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
-
-                    b.Property<decimal>("PoiWeight")
-                        .HasPrecision(5, 4)
-                        .HasColumnType("numeric(5,4)");
-
-                    b.Property<decimal>("PopulationWeight")
-                        .HasPrecision(5, 4)
-                        .HasColumnType("numeric(5,4)");
-
-                    b.Property<decimal>("RecommendationPercentile")
-                        .HasPrecision(5, 4)
-                        .HasColumnType("numeric(5,4)");
-
-                    b.Property<decimal>("SlopeWeight")
-                        .HasPrecision(5, 4)
-                        .HasColumnType("numeric(5,4)");
-
-                    b.Property<decimal>("StationGapWeight")
-                        .HasPrecision(5, 4)
-                        .HasColumnType("numeric(5,4)");
-
-                    b.Property<decimal>("TransformerWeight")
-                        .HasPrecision(5, 4)
-                        .HasColumnType("numeric(5,4)");
 
                     b.Property<string>("Version")
                         .IsRequired()
@@ -1076,12 +1067,7 @@ namespace GeoVolt.Infrastructure.Persistence.Migrations
                     b.HasIndex("Name", "Version")
                         .IsUnique();
 
-                    b.ToTable("scoring_profiles", "analysis", t =>
-                        {
-                            t.HasCheckConstraint("ck_scoring_profiles_recommendation_percentile", "\"RecommendationPercentile\" > 0 AND \"RecommendationPercentile\" < 1");
-
-                            t.HasCheckConstraint("ck_scoring_profiles_weights", "\"TransformerWeight\" >= 0 AND \"MajorRoadWeight\" >= 0 AND \"PoiWeight\" >= 0 AND \"PopulationWeight\" >= 0 AND \"StationGapWeight\" >= 0 AND \"SlopeWeight\" >= 0 AND ABS((\"TransformerWeight\" + \"MajorRoadWeight\" + \"PoiWeight\" + \"PopulationWeight\" + \"StationGapWeight\" + \"SlopeWeight\") - 1.0) < 0.0001");
-                        });
+                    b.ToTable("scoring_profiles", "analysis");
                 });
 
             modelBuilder.Entity("GeoVolt.Domain.Entities.SlopeCostBand", b =>
@@ -1202,290 +1188,6 @@ namespace GeoVolt.Infrastructure.Persistence.Migrations
                     b.HasIndex("DatasetImportId", "SourceFeatureId");
 
                     b.ToTable("geojson_features", "staging");
-                });
-
-            modelBuilder.Entity("GeoVolt.Domain.Entities.SuitabilityAnalysisRun", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("AlgorithmVersion")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("algorithm_version");
-
-                    b.Property<int>("CandidateCellCount")
-                        .HasColumnType("integer")
-                        .HasColumnName("candidate_cell_count");
-
-                    b.Property<int>("CellCount")
-                        .HasColumnType("integer")
-                        .HasColumnName("cell_count");
-
-                    b.Property<DateTime?>("CompletedAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("completed_at_utc");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at_utc")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<string>("DatasetSnapshotJson")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("dataset_snapshot")
-                        .HasDefaultValueSql("'{}'::jsonb");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)")
-                        .HasColumnName("error_message");
-
-                    b.Property<int>("GridEdgeMeters")
-                        .HasColumnType("integer")
-                        .HasColumnName("grid_edge_meters");
-
-                    b.Property<int>("MetricSrid")
-                        .HasColumnType("integer")
-                        .HasColumnName("metric_srid");
-
-                    b.Property<string>("ParametersJson")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("parameters")
-                        .HasDefaultValueSql("'{}'::jsonb");
-
-                    b.Property<int?>("ScoringProfileId")
-                        .HasColumnType("integer")
-                        .HasColumnName("scoring_profile_id");
-
-                    b.Property<DateTime?>("StartedAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("started_at_utc");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("status");
-
-                    b.Property<int>("StorageSrid")
-                        .HasColumnType("integer")
-                        .HasColumnName("storage_srid");
-
-                    b.Property<int>("StudyAreaDistrictId")
-                        .HasColumnType("integer")
-                        .HasColumnName("study_area_district_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ScoringProfileId")
-                        .HasDatabaseName("ix_analysis_runs_scoring_profile");
-
-                    b.HasIndex("Status", "CreatedAtUtc")
-                        .HasDatabaseName("ix_analysis_runs_status_created");
-
-                    b.HasIndex("StudyAreaDistrictId", "CreatedAtUtc")
-                        .HasDatabaseName("ix_analysis_runs_district_created");
-
-                    b.ToTable("analysis_runs", "analysis", t =>
-                        {
-                            t.HasCheckConstraint("ck_analysis_runs_candidate_cell_count", "candidate_cell_count >= 0 AND candidate_cell_count <= cell_count");
-
-                            t.HasCheckConstraint("ck_analysis_runs_cell_count", "cell_count >= 0");
-
-                            t.HasCheckConstraint("ck_analysis_runs_grid_edge", "grid_edge_meters > 0");
-
-                            t.HasCheckConstraint("ck_analysis_runs_metric_srid", "metric_srid > 0");
-
-                            t.HasCheckConstraint("ck_analysis_runs_status", "status IN ('Pending', 'Running', 'GridReady', 'MetricsReady', 'Scored', 'Completed', 'Failed', 'Cancelled')");
-
-                            t.HasCheckConstraint("ck_analysis_runs_storage_srid", "storage_srid > 0");
-
-                            t.HasCheckConstraint("ck_analysis_runs_time_order", "completed_at_utc IS NULL OR started_at_utc IS NULL OR completed_at_utc >= started_at_utc");
-                        });
-                });
-
-            modelBuilder.Entity("GeoVolt.Domain.Entities.SuitabilityCell", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<int>("AnalysisRunId")
-                        .HasColumnType("integer")
-                        .HasColumnName("analysis_run_id");
-
-                    b.Property<double>("AreaSquareMeters")
-                        .HasColumnType("double precision")
-                        .HasColumnName("area_square_meters");
-
-                    b.Property<MultiPolygon>("Boundary")
-                        .IsRequired()
-                        .HasColumnType("geometry (MultiPolygon, 4326)")
-                        .HasColumnName("boundary");
-
-                    b.Property<DateTime?>("CalculatedAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("calculated_at_utc");
-
-                    b.Property<int>("CellI")
-                        .HasColumnType("integer")
-                        .HasColumnName("cell_i");
-
-                    b.Property<int>("CellJ")
-                        .HasColumnType("integer")
-                        .HasColumnName("cell_j");
-
-                    b.Property<decimal?>("ConfidenceScore")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("numeric(5,2)")
-                        .HasColumnName("confidence_score");
-
-                    b.Property<decimal?>("EstimatedCost")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("estimated_cost");
-
-                    b.Property<string>("EvaluationStatus")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasColumnName("evaluation_status");
-
-                    b.Property<bool>("HasHardExclusion")
-                        .HasColumnType("boolean")
-                        .HasColumnName("has_hard_exclusion");
-
-                    b.Property<string>("MetricDetailsJson")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("metric_details")
-                        .HasDefaultValueSql("'{}'::jsonb");
-
-                    b.Property<double?>("NearestMajorRoadMeters")
-                        .HasColumnType("double precision")
-                        .HasColumnName("nearest_major_road_meters");
-
-                    b.Property<double?>("NearestStationMeters")
-                        .HasColumnType("double precision")
-                        .HasColumnName("nearest_station_meters");
-
-                    b.Property<double?>("NearestTransformerMeters")
-                        .HasColumnType("double precision")
-                        .HasColumnName("nearest_transformer_meters");
-
-                    b.Property<int?>("NeighborhoodId")
-                        .HasColumnType("integer")
-                        .HasColumnName("neighborhood_id");
-
-                    b.Property<int?>("PoiCount1000Meters")
-                        .HasColumnType("integer")
-                        .HasColumnName("poi_count_1000_meters");
-
-                    b.Property<int?>("PoiCount300Meters")
-                        .HasColumnType("integer")
-                        .HasColumnName("poi_count_300_meters");
-
-                    b.Property<int?>("PoiCount500Meters")
-                        .HasColumnType("integer")
-                        .HasColumnName("poi_count_500_meters");
-
-                    b.Property<double?>("PopulationDensityPerSquareKilometer")
-                        .HasColumnType("double precision")
-                        .HasColumnName("population_density_per_square_kilometer");
-
-                    b.Property<string>("ReasonCodesJson")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("reason_codes")
-                        .HasDefaultValueSql("'[]'::jsonb");
-
-                    b.Property<int?>("RegionId")
-                        .HasColumnType("integer")
-                        .HasColumnName("region_id");
-
-                    b.Property<Point>("RepresentativePoint")
-                        .IsRequired()
-                        .HasColumnType("geometry (Point, 4326)")
-                        .HasColumnName("representative_point");
-
-                    b.Property<decimal?>("SlopePercent")
-                        .HasPrecision(6, 2)
-                        .HasColumnType("numeric(6,2)")
-                        .HasColumnName("slope_percent");
-
-                    b.Property<decimal?>("SuitabilityScore")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("numeric(5,2)")
-                        .HasColumnName("suitability_score");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Boundary")
-                        .HasDatabaseName("gist_suitability_cells_boundary");
-
-                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Boundary"), "gist");
-
-                    b.HasIndex("NeighborhoodId")
-                        .HasDatabaseName("ix_suitability_cells_neighborhood");
-
-                    b.HasIndex("RegionId")
-                        .HasDatabaseName("ix_suitability_cells_region");
-
-                    b.HasIndex("RepresentativePoint")
-                        .HasDatabaseName("gist_suitability_cells_representative_point");
-
-                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("RepresentativePoint"), "gist");
-
-                    b.HasIndex("AnalysisRunId", "CellI", "CellJ")
-                        .IsUnique()
-                        .HasDatabaseName("uq_suitability_cells_run_grid");
-
-                    b.HasIndex("AnalysisRunId", "EvaluationStatus", "SuitabilityScore")
-                        .HasDatabaseName("ix_suitability_cells_run_status_score");
-
-                    b.HasIndex("AnalysisRunId", "RegionId", "NeighborhoodId")
-                        .HasDatabaseName("ix_suitability_cells_run_region_neighborhood");
-
-                    b.ToTable("suitability_cells", "analysis", t =>
-                        {
-                            t.HasCheckConstraint("ck_suitability_cells_area", "area_square_meters > 0");
-
-                            t.HasCheckConstraint("ck_suitability_cells_boundary_valid", "NOT ST_IsEmpty(boundary) AND ST_IsValid(boundary)");
-
-                            t.HasCheckConstraint("ck_suitability_cells_confidence_score", "confidence_score IS NULL OR (confidence_score >= 0 AND confidence_score <= 100)");
-
-                            t.HasCheckConstraint("ck_suitability_cells_distances", "(nearest_transformer_meters IS NULL OR nearest_transformer_meters >= 0) AND (nearest_major_road_meters IS NULL OR nearest_major_road_meters >= 0) AND (nearest_station_meters IS NULL OR nearest_station_meters >= 0)");
-
-                            t.HasCheckConstraint("ck_suitability_cells_estimated_cost", "estimated_cost IS NULL OR estimated_cost >= 0");
-
-                            t.HasCheckConstraint("ck_suitability_cells_evaluation_status", "evaluation_status IN ('OUTSIDE_STUDY_AREA', 'INSUFFICIENT_DATA', 'HARD_EXCLUSION', 'LOW_SUITABILITY', 'CANDIDATE')");
-
-                            t.HasCheckConstraint("ck_suitability_cells_poi_counts", "(poi_count_300_meters IS NULL OR poi_count_300_meters >= 0) AND (poi_count_500_meters IS NULL OR poi_count_500_meters >= 0) AND (poi_count_1000_meters IS NULL OR poi_count_1000_meters >= 0)");
-
-                            t.HasCheckConstraint("ck_suitability_cells_population_density", "population_density_per_square_kilometer IS NULL OR population_density_per_square_kilometer >= 0");
-
-                            t.HasCheckConstraint("ck_suitability_cells_representative_point", "ST_Covers(boundary, representative_point)");
-
-                            t.HasCheckConstraint("ck_suitability_cells_slope", "slope_percent IS NULL OR slope_percent >= 0");
-
-                            t.HasCheckConstraint("ck_suitability_cells_suitability_score", "suitability_score IS NULL OR (suitability_score >= 0 AND suitability_score <= 100)");
-                        });
                 });
 
             modelBuilder.Entity("GeoVolt.Domain.Entities.User", b =>
@@ -1743,49 +1445,6 @@ namespace GeoVolt.Infrastructure.Persistence.Migrations
                     b.Navigation("DatasetImport");
                 });
 
-            modelBuilder.Entity("GeoVolt.Domain.Entities.SuitabilityAnalysisRun", b =>
-                {
-                    b.HasOne("GeoVolt.Domain.Entities.ScoringProfile", "ScoringProfile")
-                        .WithMany()
-                        .HasForeignKey("ScoringProfileId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("GeoVolt.Domain.Entities.District", "StudyAreaDistrict")
-                        .WithMany()
-                        .HasForeignKey("StudyAreaDistrictId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("ScoringProfile");
-
-                    b.Navigation("StudyAreaDistrict");
-                });
-
-            modelBuilder.Entity("GeoVolt.Domain.Entities.SuitabilityCell", b =>
-                {
-                    b.HasOne("GeoVolt.Domain.Entities.SuitabilityAnalysisRun", "AnalysisRun")
-                        .WithMany("Cells")
-                        .HasForeignKey("AnalysisRunId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("GeoVolt.Domain.Entities.Neighborhood", "Neighborhood")
-                        .WithMany()
-                        .HasForeignKey("NeighborhoodId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("GeoVolt.Domain.Entities.Region", "Region")
-                        .WithMany()
-                        .HasForeignKey("RegionId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("AnalysisRun");
-
-                    b.Navigation("Neighborhood");
-
-                    b.Navigation("Region");
-                });
-
             modelBuilder.Entity("GeoVolt.Domain.Entities.User", b =>
                 {
                     b.HasOne("GeoVolt.Domain.Entities.Company", "Company")
@@ -1878,11 +1537,6 @@ namespace GeoVolt.Infrastructure.Persistence.Migrations
                     b.Navigation("RolePermissions");
 
                     b.Navigation("UserRoles");
-                });
-
-            modelBuilder.Entity("GeoVolt.Domain.Entities.SuitabilityAnalysisRun", b =>
-                {
-                    b.Navigation("Cells");
                 });
 
             modelBuilder.Entity("GeoVolt.Domain.Entities.User", b =>

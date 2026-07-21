@@ -15,9 +15,6 @@ import {
   SlidersHorizontal,
   LayoutDashboard,
   Power,
-  MapPin,
-  Layers,
-  Search,
 } from "lucide-react";
 
 import {
@@ -26,9 +23,12 @@ import {
 } from "../services/candidatePointsApi";
 
 import {
-  evaluateManualPin,
   locateRegionPoint,
 } from "../services/manualPinApi";
+
+import {
+  evaluateSuitabilityLocation,
+} from "../services/suitabilityApi";
 
 import {
   saveCandidatePoint,
@@ -45,6 +45,7 @@ import SavedCandidates from "../components/SavedCandidates";
 import PersonalizationForm from "../components/PersonalizationForm";
 import ExistingStationsMap from "../components/ExistingStationsMap";
 import CandidatePointsMap from "../components/CandidatePointsMap";
+import SuitabilityResultsPanel from "../components/SuitabilityResultsPanel";
 import AlternativeCandidatesModal from "../components/AlternativeCandidatesModal";
 import PoiSummary from "../components/PoiSummary";
 import TrafoSummary from "../components/TrafoSummary";
@@ -224,39 +225,6 @@ function showScore(value) {
   return value;
 }
 
-function hasCompleteCandidateAnalysis(
-  candidate,
-) {
-  if (!candidate) {
-    return false;
-  }
-
-  const requiredValues = [
-    candidate.estimatedCost,
-    candidate.costScore,
-    candidate.demandScore,
-    candidate.generalScore,
-  ];
-
-  const hasAllNumericValues =
-    requiredValues.every(
-      (value) =>
-        value !== null &&
-        value !== undefined &&
-        value !== "" &&
-        Number.isFinite(
-          Number(value),
-        ),
-    );
-
-  return (
-    hasAllNumericValues &&
-    candidate.status !==
-      "calculating" &&
-    candidate.status !== "missing"
-  );
-}
-
 function normalizeSearchText(value) {
   return String(value ?? "")
     .trim()
@@ -410,7 +378,6 @@ function mergeCandidateLists(
 function createManualCandidate(
   evaluation,
   locateResult,
-  preferences = {},
 ) {
   const regionName =
     evaluation.regionName ||
@@ -480,25 +447,11 @@ function createManualCandidate(
 
         systemType:
           evaluation.systemType ||
-          preferences.systemType ||
           "",
 
         placeType:
           evaluation.placeType ||
-          preferences.placeType ||
           "",
-
-        powerKw:
-          preferences.powerKw ??
-          null,
-
-        connectorCount:
-          preferences.connectorCount ??
-          null,
-
-        budget:
-          preferences.budget ??
-          null,
 
         isManual: true,
 
@@ -513,21 +466,6 @@ function createManualCandidate(
     ...mappedCandidate,
 
     isManual: true,
-
-    powerKw:
-      preferences.powerKw ??
-      mappedCandidate?.powerKw ??
-      null,
-
-    connectorCount:
-      preferences.connectorCount ??
-      mappedCandidate?.connectorCount ??
-      null,
-
-    budget:
-      preferences.budget ??
-      mappedCandidate?.budget ??
-      null,
 
     costSource:
       evaluation.costSource ||
@@ -565,11 +503,6 @@ export default function CandidatePointsPage() {
   ] = useState("home");
 
   const [
-    activeCandidateRightTool,
-    setActiveCandidateRightTool,
-  ] = useState(null);
-
-  const [
     dataLayersOpen,
     setDataLayersOpen,
   ] = useState(false);
@@ -603,6 +536,16 @@ export default function CandidatePointsPage() {
     manualPinError,
     setManualPinError,
   ] = useState("");
+
+  const [
+    suitabilityEvaluation,
+    setSuitabilityEvaluation,
+  ] = useState(null);
+
+  const [
+    focusedRecommendationCellId,
+    setFocusedRecommendationCellId,
+  ] = useState(null);
 
   const [
     candidates,
@@ -1354,19 +1297,6 @@ export default function CandidatePointsPage() {
       }, 2500);
     }
 
-    if (
-      candidate?.isManual &&
-      !hasCompleteCandidateAnalysis(
-        candidate,
-      )
-    ) {
-      showFeedback(
-        "Manuel adayın maliyet ve skor analizi tamamlanmadan kayıt yapılamaz.",
-      );
-
-      return;
-    }
-
     try {
       const result =
         await saveCandidatePoint(
@@ -1465,19 +1395,6 @@ export default function CandidatePointsPage() {
     if (!selectedCandidate) {
       setMessage(
         "Alternatifleri görmek için önce bir aday nokta seçin.",
-      );
-
-      return;
-    }
-
-    if (
-      selectedCandidate.isManual &&
-      !hasCompleteCandidateAnalysis(
-        selectedCandidate,
-      )
-    ) {
-      setMessage(
-        "Alternatifleri görmek için önce manuel aday analizinin tamamlanması gerekir.",
       );
 
       return;
@@ -1806,6 +1723,16 @@ export default function CandidatePointsPage() {
     candidate,
   ) {
     if (!candidate) {
+      return;
+    }
+
+    if (
+      candidate.isManual &&
+      suitabilityEvaluation
+    ) {
+      setFocusedRecommendationCellId(
+        null,
+      );
       return;
     }
 
@@ -2494,7 +2421,6 @@ export default function CandidatePointsPage() {
     regionId,
     latitude,
     longitude,
-    preferences = {},
   }) {
     const numericRegionId =
       Number(
@@ -2507,35 +2433,6 @@ export default function CandidatePointsPage() {
 
     const numericLongitude =
       Number(longitude);
-
-    const normalizedPreferences = {
-      systemType:
-        String(
-          preferences.systemType ??
-            "",
-        ).trim(),
-
-      placeType:
-        String(
-          preferences.placeType ??
-            "",
-        ).trim(),
-
-      powerKw:
-        Number(
-          preferences.powerKw,
-        ),
-
-      connectorCount:
-        Number(
-          preferences.connectorCount,
-        ),
-
-      budget:
-        Number(
-          preferences.budget,
-        ),
-    };
 
     function hasNumericValue(
       value,
@@ -2627,86 +2524,6 @@ export default function CandidatePointsPage() {
       return;
     }
 
-    if (
-      !normalizedPreferences.systemType ||
-      !normalizedPreferences.placeType
-    ) {
-      setManualPinStatus(
-        "error",
-      );
-
-      setManualPinMessage("");
-
-      setManualPinError(
-        "Manuel pin için sistem ve mekân tipi seçilmelidir.",
-      );
-
-      return;
-    }
-
-    if (
-      !Number.isFinite(
-        normalizedPreferences.powerKw,
-      ) ||
-      normalizedPreferences.powerKw <=
-        0 ||
-      normalizedPreferences.powerKw >
-        1000
-    ) {
-      setManualPinStatus(
-        "error",
-      );
-
-      setManualPinMessage("");
-
-      setManualPinError(
-        "Manuel pin güç değeri 1 ile 1000 kW arasında olmalıdır.",
-      );
-
-      return;
-    }
-
-    if (
-      !Number.isInteger(
-        normalizedPreferences.connectorCount,
-      ) ||
-      normalizedPreferences.connectorCount <=
-        0 ||
-      normalizedPreferences.connectorCount >
-        50
-    ) {
-      setManualPinStatus(
-        "error",
-      );
-
-      setManualPinMessage("");
-
-      setManualPinError(
-        "Manuel pin konnektör sayısı 1 ile 50 arasında tam sayı olmalıdır.",
-      );
-
-      return;
-    }
-
-    if (
-      !Number.isFinite(
-        normalizedPreferences.budget,
-      ) ||
-      normalizedPreferences.budget <= 0
-    ) {
-      setManualPinStatus(
-        "error",
-      );
-
-      setManualPinMessage("");
-
-      setManualPinError(
-        "Manuel pin için geçerli bir kurulum bütçesi girilmelidir.",
-      );
-
-      return;
-    }
-
     const requestId =
       manualPinRequestIdRef.current +
       1;
@@ -2715,6 +2532,14 @@ export default function CandidatePointsPage() {
       requestId;
 
     removeOldManualCandidate();
+
+    setSuitabilityEvaluation(
+      null,
+    );
+
+    setFocusedRecommendationCellId(
+      null,
+    );
 
     setManualPinStatus(
       "loading",
@@ -2763,21 +2588,14 @@ export default function CandidatePointsPage() {
       }
 
       setManualPinMessage(
-        "Tahmini maliyet ve aday skorları hesaplanıyor...",
+        "Uygunluk puanı ve en yakın öneri alanları getiriliyor...",
       );
 
-      const evaluation =
-        await evaluateManualPin({
-          regionId:
-            numericRegionId,
-
-          latitude:
-            numericLatitude,
-
-          longitude:
-            numericLongitude,
-
-          ...normalizedPreferences,
+      const suitabilityResult =
+        await evaluateSuitabilityLocation({
+          latitude: numericLatitude,
+          longitude: numericLongitude,
+          recommendationLimit: 3,
         });
 
       if (
@@ -2787,7 +2605,10 @@ export default function CandidatePointsPage() {
         return;
       }
 
-      if (!evaluation.isValid) {
+      if (
+        !suitabilityResult?.isInsideStudyArea ||
+        !suitabilityResult?.selectedCell
+      ) {
         setManualPinStatus(
           "error",
         );
@@ -2795,12 +2616,56 @@ export default function CandidatePointsPage() {
         setManualPinMessage("");
 
         setManualPinError(
-          evaluation.message ||
+          suitabilityResult?.message ||
             "Manuel pin değerlendirilemedi.",
+        );
+
+        setSuitabilityEvaluation(
+          suitabilityResult ?? null,
         );
 
         return;
       }
+
+      setSuitabilityEvaluation(
+        suitabilityResult,
+      );
+
+      setFocusedRecommendationCellId(
+        null,
+      );
+
+      const selectedCell =
+        suitabilityResult.selectedCell;
+
+      const evaluation = {
+        isValid: true,
+        regionId:
+          selectedCell.regionId ??
+          locateResult.regionId,
+        regionName:
+          selectedCell.regionName ??
+          locateResult.regionName,
+        neighborhoodId:
+          selectedCell.neighborhoodId ??
+          locateResult.neighborhoodId,
+        neighborhoodName:
+          selectedCell.neighborhoodName ??
+          locateResult.neighborhoodName,
+        latitude: numericLatitude,
+        longitude: numericLongitude,
+        estimatedCost: null,
+        costScore: null,
+        demandScore: null,
+        generalScore:
+          selectedCell.suitabilityScore,
+        status:
+          selectedCell.isProvisionalRecommendation
+            ? "provisional"
+            : "evaluated",
+        message:
+          suitabilityResult.message,
+      };
 
       const hasEstimatedCost =
         hasNumericValue(
@@ -2877,14 +2742,6 @@ export default function CandidatePointsPage() {
               )
             : numericLongitude,
 
-        systemType:
-          evaluation.systemType ||
-          normalizedPreferences.systemType,
-
-        placeType:
-          evaluation.placeType ||
-          normalizedPreferences.placeType,
-
         status:
           hasCompleteAnalysis
             ? evaluation.status ||
@@ -2896,7 +2753,6 @@ export default function CandidatePointsPage() {
         createManualCandidate(
           normalizedEvaluation,
           locateResult,
-          normalizedPreferences,
         );
 
       setManualPinCandidate(
@@ -2937,7 +2793,7 @@ export default function CandidatePointsPage() {
       );
 
       setSelectedCandidate(
-        manualCandidate,
+        null,
       );
 
       setManualPinStatus(
@@ -2946,26 +2802,13 @@ export default function CandidatePointsPage() {
 
       setManualPinError("");
 
-      if (hasCompleteAnalysis) {
-        setManualPinMessage(
-          evaluation.message ||
-            "Manuel pin başarıyla değerlendirildi.",
-        );
-
-        setMessage(
-          "Manuel aday nokta maliyet ve skorlarıyla haritaya eklendi.",
-        );
-
-        return;
-      }
-
       setManualPinMessage(
         evaluation.message ||
-          "Nokta seçili bölge içinde doğrulandı. Maliyet ve skor verileri henüz bulunmadığı için manuel aday eksik veriyle eklendi.",
+          "Seçilen alan değerlendirildi ve en yakın öneriler getirildi.",
       );
 
       setMessage(
-        "Manuel aday nokta eklendi. Eksik maliyet ve skorlar backend hazır olduğunda doldurulacak.",
+        "Uygunluk sonucu ve en yakın üç öneri alanı haritada gösteriliyor.",
       );
     } catch (error) {
       if (
@@ -2994,13 +2837,22 @@ export default function CandidatePointsPage() {
     }
   }
 
-  function toggleCandidateRightTool(toolName) {
-    setActiveCandidateRightTool(
-      (currentTool) =>
-        currentTool === toolName
-          ? null
-          : toolName,
+  function handleSuitabilityRecommendationSelect(
+    recommendation,
+  ) {
+    setFocusedRecommendationCellId(
+      recommendation?.cellId ?? null,
     );
+  }
+
+  function closeSuitabilityResults() {
+    manualPinRequestIdRef.current += 1;
+    setSuitabilityEvaluation(null);
+    setFocusedRecommendationCellId(null);
+    setManualPinCandidate(null);
+    setManualPinStatus("idle");
+    setManualPinMessage("");
+    setManualPinError("");
   }
 
   function toggleCandidateRegions() {
@@ -3021,6 +2873,14 @@ export default function CandidatePointsPage() {
     setManualPinError("");
 
     setManualPinCandidate(
+      null,
+    );
+
+    setSuitabilityEvaluation(
+      null,
+    );
+
+    setFocusedRecommendationCellId(
       null,
     );
 
@@ -3080,14 +2940,6 @@ export default function CandidatePointsPage() {
     logoutUser();
     window.location.assign("/login");
   }
-
-  const selectedCandidateActionsDisabled =
-    Boolean(
-      selectedCandidate?.isManual &&
-        !hasCompleteCandidateAnalysis(
-          selectedCandidate,
-        ),
-    );
 
   return (
     <div
@@ -3632,21 +3484,7 @@ export default function CandidatePointsPage() {
               </button>
             </div>
 
-            <div
-              className={[
-                "mock-map",
-                "candidate-map",
-                activeCandidateRightTool
-                  ? `right-tool-${activeCandidateRightTool}`
-                  : "",
-                activeCandidateRightTool
-                  ? "right-tool-panel-open"
-                  : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              data-testid="candidate-map-container"
-            >
+            <div className="mock-map candidate-map">
               <CandidatePointsMap
                 points={
                   filteredCandidates
@@ -3680,6 +3518,12 @@ export default function CandidatePointsPage() {
                 manualPinError={
                   manualPinError
                 }
+                suitabilityEvaluation={
+                  suitabilityEvaluation
+                }
+                focusedRecommendationCellId={
+                  focusedRecommendationCellId
+                }
                 onManualPinRequest={
                   handleManualPinRequest
                 }
@@ -3691,113 +3535,20 @@ export default function CandidatePointsPage() {
                 }
               />
 
-              <div
-                className={
-                  activeCandidateRightTool
-                    ? "candidate-right-tools has-active-panel"
-                    : "candidate-right-tools"
+              <SuitabilityResultsPanel
+                status={manualPinStatus}
+                error={manualPinError}
+                evaluation={suitabilityEvaluation}
+                focusedRecommendationCellId={
+                  focusedRecommendationCellId
                 }
-                data-testid="candidate-right-tools"
-              >
-                <div
-                  className="candidate-right-tool-rail"
-                  role="toolbar"
-                  aria-label="Aday haritası araçları"
-                  data-testid="candidate-right-tool-rail"
-                >
-                  <button
-                    type="button"
-                    className={
-                      activeCandidateRightTool === "region"
-                        ? "candidate-right-tool-button active"
-                        : "candidate-right-tool-button"
-                    }
-                    aria-pressed={
-                      activeCandidateRightTool === "region"
-                    }
-                    aria-label="Seçili bölge panelini aç veya kapat"
-                    title="Seçili Bölge"
-                    data-testid="candidate-right-tool-region"
-                    onClick={() =>
-                      toggleCandidateRightTool("region")
-                    }
-                  >
-                    <MapPin size={21} strokeWidth={2.2} />
-                    <span className="candidate-right-tool-label">
-                      Seçili Bölge
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className={
-                      activeCandidateRightTool === "layers"
-                        ? "candidate-right-tool-button active"
-                        : "candidate-right-tool-button"
-                    }
-                    aria-pressed={
-                      activeCandidateRightTool === "layers"
-                    }
-                    aria-label="Harita katmanları panelini aç veya kapat"
-                    title="Harita Katmanları"
-                    data-testid="candidate-right-tool-layers"
-                    onClick={() =>
-                      toggleCandidateRightTool("layers")
-                    }
-                  >
-                    <Layers size={21} strokeWidth={2.2} />
-                    <span className="candidate-right-tool-label">
-                      Harita Katmanları
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className={
-                      activeCandidateRightTool === "filters"
-                        ? "candidate-right-tool-button active"
-                        : "candidate-right-tool-button"
-                    }
-                    aria-pressed={
-                      activeCandidateRightTool === "filters"
-                    }
-                    aria-label="Aday nokta filtrelerini aç veya kapat"
-                    title="Aday Nokta Filtreleri"
-                    data-testid="candidate-right-tool-filters"
-                    onClick={() =>
-                      toggleCandidateRightTool("filters")
-                    }
-                  >
-                    <SlidersHorizontal size={21} strokeWidth={2.2} />
-                    <span className="candidate-right-tool-label">
-                      Aday Nokta Filtreleri
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className={
-                      activeCandidateRightTool === "scan"
-                        ? "candidate-right-tool-button active"
-                        : "candidate-right-tool-button"
-                    }
-                    aria-pressed={
-                      activeCandidateRightTool === "scan"
-                    }
-                    aria-label="Bölgeyi tara panelini aç veya kapat"
-                    title="Bölgeyi Tara"
-                    data-testid="candidate-right-tool-scan"
-                    onClick={() =>
-                      toggleCandidateRightTool("scan")
-                    }
-                  >
-                    <Search size={21} strokeWidth={2.2} />
-                    <span className="candidate-right-tool-label">
-                      Bölgeyi Tara
-                    </span>
-                  </button>
-                </div>
-              </div>
+                onRecommendationSelect={
+                  handleSuitabilityRecommendationSelect
+                }
+                onClose={
+                  closeSuitabilityResults
+                }
+              />
 
               <aside
                 className="candidate-scan-control-panel"
@@ -4139,57 +3890,6 @@ export default function CandidatePointsPage() {
                     </span>
                   </p>
 
-                  {selectedCandidate.isManual && (
-                    <>
-                      <p>
-                        <strong>
-                          Sistem Tipi:
-                        </strong>
-
-                        <span>
-                          {selectedCandidate.systemType ||
-                            "Veri Eksik"}
-                        </span>
-                      </p>
-
-                      <p>
-                        <strong>
-                          Mekân Tipi:
-                        </strong>
-
-                        <span>
-                          {selectedCandidate.placeType ||
-                            "Veri Eksik"}
-                        </span>
-                      </p>
-
-                      <p>
-                        <strong>
-                          Güç / Konnektör:
-                        </strong>
-
-                        <span>
-                          {selectedCandidate.powerKw &&
-                          selectedCandidate.connectorCount
-                            ? `${selectedCandidate.powerKw} kW / ${selectedCandidate.connectorCount} adet`
-                            : "Veri Eksik"}
-                        </span>
-                      </p>
-
-                      <p>
-                        <strong>
-                          Kurulum Bütçesi:
-                        </strong>
-
-                        <span>
-                          {formatMoney(
-                            selectedCandidate.budget,
-                          )}
-                        </span>
-                      </p>
-                    </>
-                  )}
-
                   {selectedCandidate.status ===
                     "calculating" && (
                     <div className="popup-warning">
@@ -4204,30 +3904,14 @@ export default function CandidatePointsPage() {
                     </div>
                   )}
 
-                  {selectedCandidateActionsDisabled && (
-                    <div
-                      className="popup-analysis-required"
-                      data-testid="manual-pin-analysis-required-message"
-                    >
-                      Kaydetmek veya alternatifleri görmek için maliyet ve skor analizinin tamamlanması gerekir.
-                    </div>
-                  )}
-
                   <button
                     type="button"
                     className="popup-alternatives-button"
                     data-testid={`popup-alternatives-button-${selectedCandidate.id}`}
-                    disabled={
-                      selectedCandidateActionsDisabled
-                    }
                     onClick={
                       openAlternativeCandidates
                     }
-                    title={
-                      selectedCandidateActionsDisabled
-                        ? "Analiz tamamlanmadan alternatifler gösterilemez"
-                        : "Benzer alternatif adayları göster"
-                    }
+                    title="Benzer alternatif adayları göster"
                   >
                     Alternatifleri Gör
                   </button>
@@ -4236,19 +3920,12 @@ export default function CandidatePointsPage() {
                     type="button"
                     className="popup-save-button"
                     data-testid={`popup-save-candidate-button-${selectedCandidate.id}`}
-                    disabled={
-                      selectedCandidateActionsDisabled
-                    }
                     onClick={() =>
                       saveCandidate(
                         selectedCandidate,
                       )
                     }
-                    title={
-                      selectedCandidateActionsDisabled
-                        ? "Analiz tamamlanmadan aday kaydedilemez"
-                        : "Aday noktayı kaydet"
-                    }
+                    title="Aday noktayı kaydet"
                   >
                     <span className="popup-save-icon">
                       +

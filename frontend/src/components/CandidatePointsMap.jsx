@@ -42,8 +42,6 @@ import {
   getRegions,
 } from "../services/regionsApi";
 
-import ManualPinPreferencesPanel from "./ManualPinPreferencesPanel";
-
 import "./CandidatePointsMap.css";
 
 const CANKAYA_CENTER =
@@ -63,14 +61,6 @@ const GEOJSON_URLS = {
   poi: "/data/POI.geojson",
   trafo: "/data/TRAFO.geojson",
   road: "/data/YOL.geojson",
-};
-
-const DEFAULT_MANUAL_PIN_PREFERENCES = {
-  systemType: "",
-  placeType: "",
-  powerKw: "120",
-  connectorCount: "2",
-  budget: "",
 };
 
 const regionColors = [
@@ -1066,6 +1056,55 @@ function getRegionColor(
     : `hsla(${hue}, 74%, 57%, 0.5)`;
 }
 
+function createSuitabilityCellStyle(
+  feature,
+) {
+  const featureRole =
+    feature.get("suitabilityRole");
+  const isFocused =
+    feature.get("focused") === true;
+  const isSelected =
+    featureRole === "selected";
+  const fillColor = isFocused
+    ? "rgba(245, 158, 11, 0.38)"
+    : isSelected
+      ? "rgba(37, 99, 235, 0.30)"
+      : "rgba(34, 197, 94, 0.28)";
+  const strokeColor = isFocused
+    ? "#d97706"
+    : isSelected
+      ? "#1d4ed8"
+      : "#15803d";
+  const label = isSelected
+    ? "Seçilen"
+    : String(
+        feature.get("recommendationRank") ?? "",
+      );
+
+  return [
+    new Style({
+      fill: new Fill({ color: fillColor }),
+      stroke: new Stroke({
+        color: strokeColor,
+        width: isFocused ? 4 : 3,
+      }),
+    }),
+    new Style({
+      geometry: getRegionLabelGeometry,
+      text: new Text({
+        text: label,
+        font: "700 12px Inter, system-ui, sans-serif",
+        fill: new Fill({ color: "#ffffff" }),
+        stroke: new Stroke({
+          color: strokeColor,
+          width: 5,
+        }),
+        overflow: true,
+      }),
+    }),
+  ];
+}
+
 function getRegionStrokeColor(
   regionIndex,
   isSelected
@@ -1369,6 +1408,57 @@ function createRegionFeatures(
       return [];
     }
   });
+}
+
+function createSuitabilityCellFeature(
+  cell,
+  suitabilityRole,
+  focusedRecommendationCellId,
+) {
+  if (!cell?.boundary) {
+    return null;
+  }
+
+  try {
+    const geometry =
+      typeof cell.boundary === "string"
+        ? JSON.parse(cell.boundary)
+        : cell.boundary;
+    const feature = new GeoJSON().readFeature(
+      {
+        type: "Feature",
+        properties: {},
+        geometry,
+      },
+      {
+        dataProjection: "EPSG:4326",
+        featureProjection: "EPSG:3857",
+      },
+    );
+
+    feature.set("featureType", "suitability-cell");
+    feature.set("suitabilityRole", suitabilityRole);
+    feature.set("cell", cell);
+    feature.set("cellId", cell.cellId);
+    feature.set(
+      "recommendationRank",
+      cell.recommendationRank,
+    );
+    feature.set(
+      "focused",
+      suitabilityRole === "recommendation" &&
+        String(cell.cellId) ===
+          String(focusedRecommendationCellId),
+    );
+
+    return feature;
+  } catch (error) {
+    console.error(
+      "Uygunluk hücresi geometrisi okunamadı:",
+      error,
+    );
+    return null;
+  }
 }
 
 async function loadGeoJsonFeatures(
@@ -1839,6 +1929,8 @@ export default function CandidatePointsMap({
   manualPinStatus = "idle",
   manualPinMessage = "",
   manualPinError = "",
+  suitabilityEvaluation = null,
+  focusedRecommendationCellId = null,
   onManualPinRequest,
   onPointSelect,
   onRegionSelect,
@@ -1851,11 +1943,6 @@ export default function CandidatePointsMap({
 
   const selectedRegionRef =
     useRef(null);
-
-  const manualPinPreferencesRef =
-    useRef(
-      DEFAULT_MANUAL_PIN_PREFERENCES
-    );
 
   const candidateSourceRef =
     useRef(
@@ -1887,6 +1974,11 @@ export default function CandidatePointsMap({
     );
 
   const manualPinSourceRef =
+    useRef(
+      new VectorSource()
+    );
+
+  const suitabilitySourceRef =
     useRef(
       new VectorSource()
     );
@@ -1929,6 +2021,9 @@ export default function CandidatePointsMap({
     );
 
   const regionLayerRef =
+    useRef(null);
+
+  const suitabilityLayerRef =
     useRef(null);
 
   const poiLayerRef =
@@ -1985,23 +2080,6 @@ export default function CandidatePointsMap({
   const [
     manualPinHint,
     setManualPinHint,
-  ] = useState("");
-
-  const [
-    manualPinPanelOpen,
-    setManualPinPanelOpen,
-  ] = useState(false);
-
-  const [
-    manualPinPreferences,
-    setManualPinPreferences,
-  ] = useState(
-    DEFAULT_MANUAL_PIN_PREFERENCES
-  );
-
-  const [
-    manualPinValidationError,
-    setManualPinValidationError,
   ] = useState("");
 
   const [
@@ -2134,11 +2212,6 @@ export default function CandidatePointsMap({
     selectedRegionRef.current =
       selectedRegion;
   }, [selectedRegion]);
-
-  useEffect(() => {
-    manualPinPreferencesRef.current =
-      manualPinPreferences;
-  }, [manualPinPreferences]);
 
   useEffect(() => {
     interactionRef.current = {
@@ -2337,114 +2410,6 @@ export default function CandidatePointsMap({
     };
   }, []);
 
-  function validateManualPinPreferences() {
-    const systemType =
-      String(
-        manualPinPreferences.systemType ?? ""
-      ).trim();
-
-    const placeType =
-      String(
-        manualPinPreferences.placeType ?? ""
-      ).trim();
-
-    const powerKw =
-      Number(
-        manualPinPreferences.powerKw
-      );
-
-    const connectorCount =
-      Number(
-        manualPinPreferences.connectorCount
-      );
-
-    const budget =
-      Number(
-        manualPinPreferences.budget
-      );
-
-    if (!systemType) {
-      return "Sistem tipi seçmelisiniz.";
-    }
-
-    if (!placeType) {
-      return "Mekân tipi seçmelisiniz.";
-    }
-
-    if (
-      !Number.isFinite(powerKw) ||
-      powerKw <= 0 ||
-      powerKw > 1000
-    ) {
-      return "Güç değeri 1 ile 1000 kW arasında olmalıdır.";
-    }
-
-    if (
-      !Number.isInteger(connectorCount) ||
-      connectorCount <= 0 ||
-      connectorCount > 50
-    ) {
-      return "Konnektör sayısı 1 ile 50 arasında tam sayı olmalıdır.";
-    }
-
-    if (
-      !Number.isFinite(budget) ||
-      budget <= 0
-    ) {
-      return "Geçerli bir kurulum bütçesi girmelisiniz.";
-    }
-
-    return "";
-  }
-
-  function handleManualPinPreferenceChange(
-    fieldName,
-    value
-  ) {
-    setManualPinPreferences(
-      (currentValues) => ({
-        ...currentValues,
-        [fieldName]: value,
-      })
-    );
-
-    setManualPinValidationError("");
-  }
-
-  function closeManualPinPreferences() {
-    if (manualPinLoading) {
-      return;
-    }
-
-    setManualPinPanelOpen(false);
-    setManualPinValidationError("");
-  }
-
-  function startManualPinSelection(event) {
-    event.preventDefault();
-
-    const validationError =
-      validateManualPinPreferences();
-
-    if (validationError) {
-      setManualPinValidationError(
-        validationError
-      );
-
-      return;
-    }
-
-    closeLayerDetail();
-
-    setManualPinPanelOpen(false);
-    setManualPinValidationError("");
-    setManualPinMode(true);
-
-    setManualPinHint(
-      `${selectedRegionName} içinde manuel pin bırakmak için haritaya tıklayın.`
-    );
-  }
-
   function toggleManualPinMode() {
     if (
       !regionsActive
@@ -2474,30 +2439,21 @@ export default function CandidatePointsMap({
 
     closeLayerDetail();
 
-    if (manualPinMode) {
-      setManualPinMode(false);
-      setManualPinPanelOpen(false);
-      setManualPinValidationError("");
-      setManualPinHint(
-        "Manuel pin modu kapatıldı."
-      );
+    setManualPinMode(
+      (
+        currentValue
+      ) => {
+        const nextValue =
+          !currentValue;
 
-      return;
-    }
+        setManualPinHint(
+          nextValue
+            ? `${selectedRegionName} içinde manuel pin bırakmak için haritaya tıklayın.`
+            : "Manuel pin modu kapatıldı."
+        );
 
-    if (manualPinPanelOpen) {
-      closeManualPinPreferences();
-      setManualPinHint(
-        "Kurulum tercihleri kapatıldı."
-      );
-
-      return;
-    }
-
-    setManualPinValidationError("");
-    setManualPinPanelOpen(true);
-    setManualPinHint(
-      "Kurulum tercihlerini doldurup Haritada Nokta Seç butonuna basın."
+        return nextValue;
+      }
     );
   }
 
@@ -2678,6 +2634,16 @@ export default function CandidatePointsMap({
         zIndex: 7,
       });
 
+    const suitabilityLayer =
+      new VectorLayer({
+        source:
+          suitabilitySourceRef.current,
+        style:
+          createSuitabilityCellStyle,
+        renderBuffer: 120,
+        zIndex: 6,
+      });
+
     const manualPinLayer =
       new VectorLayer({
         source:
@@ -2709,6 +2675,7 @@ export default function CandidatePointsMap({
           roadLayer,
           poiLayer,
           trafoLayer,
+          suitabilityLayer,
           candidateLayer,
           manualPinLayer,
         ],
@@ -2791,6 +2758,8 @@ export default function CandidatePointsMap({
                       layer ===
                         manualPinLayer ||
                       layer ===
+                        suitabilityLayer ||
+                      layer ===
                         poiLayer ||
                       layer ===
                         trafoLayer,
@@ -2834,14 +2803,6 @@ export default function CandidatePointsMap({
 
         setManualPinMode(
           false
-        );
-
-        setManualPinPanelOpen(
-          false
-        );
-
-        setManualPinValidationError(
-          ""
         );
 
         setManualPinHint(
@@ -2926,33 +2887,6 @@ export default function CandidatePointsMap({
 
               latitude,
               longitude,
-
-              preferences: {
-                systemType:
-                  String(
-                    manualPinPreferencesRef.current.systemType
-                  ).trim(),
-
-                placeType:
-                  String(
-                    manualPinPreferencesRef.current.placeType
-                  ).trim(),
-
-                powerKw:
-                  Number(
-                    manualPinPreferencesRef.current.powerKw
-                  ),
-
-                connectorCount:
-                  Number(
-                    manualPinPreferencesRef.current.connectorCount
-                  ),
-
-                budget:
-                  Number(
-                    manualPinPreferencesRef.current.budget
-                  ),
-              },
             });
 
           return;
@@ -3455,6 +3389,9 @@ export default function CandidatePointsMap({
     candidateLayerRef.current =
       candidateLayer;
 
+    suitabilityLayerRef.current =
+      suitabilityLayer;
+
     regionLayerRef.current =
       regionLayer;
 
@@ -3505,6 +3442,9 @@ export default function CandidatePointsMap({
       candidateLayerRef.current =
         null;
 
+      suitabilityLayerRef.current =
+        null;
+
       regionLayerRef.current =
         null;
 
@@ -3528,20 +3468,6 @@ export default function CandidatePointsMap({
 
     candidateLayerRef.current?.changed();
   }, [selectedPointId]);
-
-  useEffect(() => {
-    regionSelectRef.current?.setActive(
-      Boolean(
-        regionsActive &&
-          !manualPinMode &&
-          !manualPinLoading
-      )
-    );
-  }, [
-    regionsActive,
-    manualPinMode,
-    manualPinLoading,
-  ]);
 
   useEffect(() => {
     const candidateFeatures =
@@ -3583,6 +3509,63 @@ export default function CandidatePointsMap({
   }, [manualPinCandidate]);
 
   useEffect(() => {
+    const selectedCell =
+      suitabilityEvaluation?.selectedCell;
+    const recommendations =
+      Array.isArray(
+        suitabilityEvaluation?.recommendations,
+      )
+        ? suitabilityEvaluation.recommendations
+        : [];
+    const features = [
+      createSuitabilityCellFeature(
+        selectedCell,
+        "selected",
+        focusedRecommendationCellId,
+      ),
+      ...recommendations.map(
+        (recommendation) =>
+          createSuitabilityCellFeature(
+            recommendation,
+            "recommendation",
+            focusedRecommendationCellId,
+          ),
+      ),
+    ].filter(Boolean);
+
+    suitabilitySourceRef.current.clear();
+    suitabilitySourceRef.current.addFeatures(
+      features,
+    );
+    suitabilityLayerRef.current?.changed();
+
+    if (!mapRef.current || features.length === 0) {
+      return;
+    }
+
+    const focusedFeature = features.find(
+      (feature) =>
+        feature.get("focused") === true,
+    );
+    const extent = focusedFeature
+      ? focusedFeature.getGeometry()?.getExtent()
+      : suitabilitySourceRef.current.getExtent();
+
+    if (!extent || !Number.isFinite(extent[0])) {
+      return;
+    }
+
+    mapRef.current.getView().fit(extent, {
+      padding: [110, 390, 110, 110],
+      maxZoom: focusedFeature ? 16.5 : 15.5,
+      duration: 450,
+    });
+  }, [
+    suitabilityEvaluation,
+    focusedRecommendationCellId,
+  ]);
+
+  useEffect(() => {
     if (
       manualPinStatus ===
         "success" &&
@@ -3590,14 +3573,6 @@ export default function CandidatePointsMap({
     ) {
       setManualPinMode(
         false
-      );
-
-      setManualPinPanelOpen(
-        false
-      );
-
-      setManualPinValidationError(
-        ""
       );
 
       setManualPinHint(
@@ -3688,14 +3663,6 @@ export default function CandidatePointsMap({
         false
       );
 
-      setManualPinPanelOpen(
-        false
-      );
-
-      setManualPinValidationError(
-        ""
-      );
-
       setManualPinHint(
         ""
       );
@@ -3762,14 +3729,6 @@ export default function CandidatePointsMap({
 
       setManualPinMode(
         false
-      );
-
-      setManualPinPanelOpen(
-        false
-      );
-
-      setManualPinValidationError(
-        ""
       );
 
       setManualPinHint(
@@ -4059,9 +4018,6 @@ export default function CandidatePointsMap({
               !selectedRegionId ||
               manualPinLoading
             }
-            aria-expanded={
-              manualPinPanelOpen
-            }
             onClick={
               toggleManualPinMode
             }
@@ -4070,10 +4026,8 @@ export default function CandidatePointsMap({
             {manualPinLoading
               ? "Değerlendiriliyor..."
               : manualPinMode
-                ? "Nokta Seçimini İptal Et"
-                : manualPinPanelOpen
-                  ? "Tercih Panelini Kapat"
-                  : "Manuel Pin Ekle"}
+                ? "Manuel Pin Modunu Kapat"
+                : "Manuel Pin Ekle"}
           </button>
         </div>
 
@@ -4173,32 +4127,6 @@ export default function CandidatePointsMap({
           </button>
         </div>
       </div>
-
-      {manualPinPanelOpen && (
-        <ManualPinPreferencesPanel
-          selectedRegionName={
-            selectedRegionName
-          }
-          values={
-            manualPinPreferences
-          }
-          error={
-            manualPinValidationError
-          }
-          disabled={
-            manualPinLoading
-          }
-          onChange={
-            handleManualPinPreferenceChange
-          }
-          onSubmit={
-            startManualPinSelection
-          }
-          onClose={
-            closeManualPinPreferences
-          }
-        />
-      )}
 
       {layerDetail &&
         layerDetailPosition && (

@@ -17,11 +17,12 @@ public sealed class GlobalExceptionHandler(
         var traceId = Activity.Current?.Id
             ?? httpContext.TraceIdentifier;
         var isNotFound = exception is NotFoundException;
+        var isConflict = exception is ConflictException;
 
-        if (isNotFound)
+        if (isNotFound || isConflict)
         {
             logger.LogWarning(
-                "Kaynak bulunamadı. TraceId: {TraceId}. Mesaj: {Message}",
+                "İstek tamamlanamadı. TraceId: {TraceId}. Mesaj: {Message}",
                 traceId,
                 exception.Message);
         }
@@ -35,17 +36,21 @@ public sealed class GlobalExceptionHandler(
 
         httpContext.Response.StatusCode = isNotFound
             ? StatusCodes.Status404NotFound
-            : StatusCodes.Status500InternalServerError;
+            : isConflict
+                ? StatusCodes.Status409Conflict
+                : StatusCodes.Status500InternalServerError;
 
         await httpContext.Response.WriteAsJsonAsync(
             new ApiErrorResponse
             {
                 Success = false,
-                Message = isNotFound
+                Message = isNotFound || isConflict
                     ? exception.Message
                     : "Beklenmeyen bir hata oluştu.",
                 ErrorCode = isNotFound
                     ? "NOT_FOUND"
+                    : isConflict
+                        ? "CONFLICT"
                     : "INTERNAL_SERVER_ERROR",
                 TraceId = traceId
             },

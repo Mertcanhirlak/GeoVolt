@@ -3,6 +3,7 @@ using System;
 using GeoVolt.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GeoVolt.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(GeoVoltDbContext))]
-    partial class GeoVoltDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260720082542_AddSlopeRasterStorage")]
+    partial class AddSlopeRasterStorage
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1025,44 +1028,32 @@ namespace GeoVolt.Infrastructure.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<decimal>("AccessWeight")
+                        .HasPrecision(5, 4)
+                        .HasColumnType("numeric(5,4)");
+
+                    b.Property<decimal>("CompetitionWeight")
+                        .HasPrecision(5, 4)
+                        .HasColumnType("numeric(5,4)");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<decimal>("MajorRoadWeight")
+                    b.Property<decimal>("DemandWeight")
                         .HasPrecision(5, 4)
                         .HasColumnType("numeric(5,4)");
+
+                    b.Property<decimal>("EnergyWeight")
+                        .HasPrecision(5, 4)
+                        .HasColumnType("numeric(5,4)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
-
-                    b.Property<decimal>("PoiWeight")
-                        .HasPrecision(5, 4)
-                        .HasColumnType("numeric(5,4)");
-
-                    b.Property<decimal>("PopulationWeight")
-                        .HasPrecision(5, 4)
-                        .HasColumnType("numeric(5,4)");
-
-                    b.Property<decimal>("RecommendationPercentile")
-                        .HasPrecision(5, 4)
-                        .HasColumnType("numeric(5,4)");
-
-                    b.Property<decimal>("SlopeWeight")
-                        .HasPrecision(5, 4)
-                        .HasColumnType("numeric(5,4)");
-
-                    b.Property<decimal>("StationGapWeight")
-                        .HasPrecision(5, 4)
-                        .HasColumnType("numeric(5,4)");
-
-                    b.Property<decimal>("TransformerWeight")
-                        .HasPrecision(5, 4)
-                        .HasColumnType("numeric(5,4)");
 
                     b.Property<string>("Version")
                         .IsRequired()
@@ -1076,12 +1067,7 @@ namespace GeoVolt.Infrastructure.Persistence.Migrations
                     b.HasIndex("Name", "Version")
                         .IsUnique();
 
-                    b.ToTable("scoring_profiles", "analysis", t =>
-                        {
-                            t.HasCheckConstraint("ck_scoring_profiles_recommendation_percentile", "\"RecommendationPercentile\" > 0 AND \"RecommendationPercentile\" < 1");
-
-                            t.HasCheckConstraint("ck_scoring_profiles_weights", "\"TransformerWeight\" >= 0 AND \"MajorRoadWeight\" >= 0 AND \"PoiWeight\" >= 0 AND \"PopulationWeight\" >= 0 AND \"StationGapWeight\" >= 0 AND \"SlopeWeight\" >= 0 AND ABS((\"TransformerWeight\" + \"MajorRoadWeight\" + \"PoiWeight\" + \"PopulationWeight\" + \"StationGapWeight\" + \"SlopeWeight\") - 1.0) < 0.0001");
-                        });
+                    b.ToTable("scoring_profiles", "analysis");
                 });
 
             modelBuilder.Entity("GeoVolt.Domain.Entities.SlopeCostBand", b =>
@@ -1307,7 +1293,7 @@ namespace GeoVolt.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_analysis_runs_metric_srid", "metric_srid > 0");
 
-                            t.HasCheckConstraint("ck_analysis_runs_status", "status IN ('Pending', 'Running', 'GridReady', 'MetricsReady', 'Scored', 'Completed', 'Failed', 'Cancelled')");
+                            t.HasCheckConstraint("ck_analysis_runs_status", "status IN ('Pending', 'Running', 'GridReady', 'MetricsReady', 'Completed', 'Failed', 'Cancelled')");
 
                             t.HasCheckConstraint("ck_analysis_runs_storage_srid", "storage_srid > 0");
 

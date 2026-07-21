@@ -24,5 +24,7 @@ public sealed class DatasetImport
 
     public string? ErrorMessage { get; set; }
 
+    public DatasetCoverage? Coverage { get; set; }
+
     public ICollection<StagedGeoJsonFeature> StagedFeatures { get; set; } = [];
 }

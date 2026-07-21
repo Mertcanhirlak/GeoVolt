@@ -2,7 +2,7 @@ const RAW_API_BASE_URL = String(
   import.meta.env.VITE_API_BASE_URL ??
     import.meta.env.VITE_API_URL ??
     import.meta.env.VITE_BACKEND_URL ??
-    ""
+    "http://localhost:5000"
 ).trim();
 
 const REQUEST_TIMEOUT_MS = 15000;
@@ -530,57 +530,6 @@ function validateRegionId(
   return numericRegionId;
 }
 
-function validateRequiredText(
-  value,
-  fieldLabel
-) {
-  const text =
-    String(value ?? "").trim();
-
-  if (!text) {
-    throw new Error(
-      `${fieldLabel} seçilmelidir.`
-    );
-  }
-
-  return text;
-}
-
-function validatePositiveNumber(
-  value,
-  fieldLabel,
-  {
-    integer = false,
-    max = null,
-  } = {}
-) {
-  const numericValue =
-    Number(value);
-
-  if (
-    !Number.isFinite(
-      numericValue
-    ) ||
-    numericValue <= 0 ||
-    (
-      integer &&
-      !Number.isInteger(
-        numericValue
-      )
-    ) ||
-    (
-      max !== null &&
-      numericValue > max
-    )
-  ) {
-    throw new Error(
-      `${fieldLabel} geçersiz.`
-    );
-  }
-
-  return numericValue;
-}
-
 export async function locateRegionPoint(
   regionId,
   {
@@ -624,11 +573,6 @@ export async function evaluateManualPin({
   regionId,
   latitude,
   longitude,
-  systemType,
-  placeType,
-  powerKw,
-  connectorCount,
-  budget,
 }) {
   const numericRegionId =
     validateRegionId(
@@ -640,45 +584,6 @@ export async function evaluateManualPin({
       latitude,
       longitude
     );
-
-  const normalizedPreferences = {
-    systemType:
-      validateRequiredText(
-        systemType,
-        "Sistem tipi"
-      ),
-
-    placeType:
-      validateRequiredText(
-        placeType,
-        "Mekân tipi"
-      ),
-
-    powerKw:
-      validatePositiveNumber(
-        powerKw,
-        "Güç değeri",
-        {
-          max: 1000,
-        }
-      ),
-
-    connectorCount:
-      validatePositiveNumber(
-        connectorCount,
-        "Konnektör sayısı",
-        {
-          integer: true,
-          max: 50,
-        }
-      ),
-
-    budget:
-      validatePositiveNumber(
-        budget,
-        "Kurulum bütçesi"
-      ),
-  };
 
   const response =
     await requestJson(
@@ -695,8 +600,6 @@ export async function evaluateManualPin({
 
           longitude:
             coordinates.longitude,
-
-          ...normalizedPreferences,
         }),
       }
     );

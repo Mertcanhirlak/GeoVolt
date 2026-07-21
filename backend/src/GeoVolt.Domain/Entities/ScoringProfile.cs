@@ -8,13 +8,19 @@ public sealed class ScoringProfile
 
     public string Version { get; set; } = string.Empty;
 
-    public decimal DemandWeight { get; set; }
+    public decimal TransformerWeight { get; set; }
 
-    public decimal EnergyWeight { get; set; }
+    public decimal MajorRoadWeight { get; set; }
 
-    public decimal AccessWeight { get; set; }
+    public decimal PoiWeight { get; set; }
 
-    public decimal CompetitionWeight { get; set; }
+    public decimal PopulationWeight { get; set; }
+
+    public decimal StationGapWeight { get; set; }
+
+    public decimal SlopeWeight { get; set; }
+
+    public decimal RecommendationPercentile { get; set; }
 
     public bool IsActive { get; set; }
 
