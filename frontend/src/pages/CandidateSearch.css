@@ -749,3 +749,781 @@
 
   outline-offset: 3px;
 }
+/* =========================================================
+   ADAY HARITASI - SAG ARAC CUBUGU VE TEK PANEL DUZENI
+   Ilgin'in acilir araclari ile uygunluk paneli birlikte calisir.
+   ========================================================= */
+
+.candidate-map {
+  --candidate-right-rail-width: 58px;
+  --candidate-right-panel-width: 318px;
+  --candidate-right-gap: 14px;
+  position: relative !important;
+}
+
+.candidate-right-tools {
+  position: absolute !important;
+  top: 50% !important;
+  right: 0 !important;
+  z-index: 9999 !important;
+  width: 124px !important;
+  height: 300px !important;
+  pointer-events: auto !important;
+  transform: translateY(-50%) !important;
+}
+
+.candidate-right-tools::before {
+  content: "‹";
+  position: absolute;
+  top: 50%;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 82px;
+  color: #ffffff;
+  background: linear-gradient(145deg, #2563eb, #1d4ed8);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-right: 0;
+  border-radius: 16px 0 0 16px;
+  box-shadow: -8px 10px 26px rgba(37, 99, 235, 0.3);
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1;
+  pointer-events: none;
+  transform: translateY(-50%);
+  transition: width 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+.candidate-right-tools:hover::before,
+.candidate-right-tools:focus-within::before,
+.candidate-right-tools.has-active-panel::before {
+  width: 38px;
+  background: linear-gradient(145deg, #1d4ed8, #1e40af);
+  box-shadow: -10px 12px 30px rgba(37, 99, 235, 0.4);
+}
+
+.candidate-right-tool-rail {
+  position: absolute;
+  top: 50% !important;
+  right: 42px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 9px;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 18px;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.2);
+  backdrop-filter: blur(16px);
+  transform: translate(18px, -50%) !important;
+  transition: opacity 180ms ease, visibility 180ms ease, transform 180ms ease;
+}
+
+.candidate-right-tools:hover .candidate-right-tool-rail,
+.candidate-right-tools:focus-within .candidate-right-tool-rail,
+.candidate-right-tools.has-active-panel .candidate-right-tool-rail {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  transform: translate(0, -50%) !important;
+}
+
+.candidate-right-tool-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  color: #475569;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 13px;
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease,
+    border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.candidate-right-tool-button:hover {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  transform: translateX(-2px);
+}
+
+.candidate-right-tool-button.active {
+  color: #ffffff;
+  background: linear-gradient(145deg, #2563eb, #1d4ed8);
+  border-color: #1d4ed8;
+  box-shadow: 0 9px 20px rgba(37, 99, 235, 0.3);
+}
+
+.candidate-right-tool-button:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.24);
+  outline-offset: 2px;
+}
+
+.candidate-right-tool-label {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 12px);
+  width: max-content;
+  max-width: 210px;
+  padding: 7px 10px;
+  color: #ffffff;
+  background: rgba(15, 23, 42, 0.94);
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.2);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate(6px, -50%);
+  transition: opacity 140ms ease, visibility 140ms ease, transform 140ms ease;
+}
+
+.candidate-right-tool-button:hover .candidate-right-tool-label,
+.candidate-right-tool-button:focus-visible .candidate-right-tool-label {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(0, -50%);
+}
+
+.candidate-map .candidate-left-controls {
+  display: contents !important;
+}
+
+.candidate-map .candidate-manual-controls,
+.candidate-map .candidate-layer-controls,
+.candidate-map .map-filter-overlay,
+.candidate-map .candidate-scan-control-panel {
+  position: absolute !important;
+  top: 82px !important;
+  right: calc(
+    var(--candidate-right-rail-width) +
+      var(--candidate-right-gap)
+  ) !important;
+  bottom: auto !important;
+  left: auto !important;
+  z-index: 390 !important;
+  box-sizing: border-box !important;
+  width: min(
+    var(--candidate-right-panel-width),
+    calc(100% - 150px)
+  ) !important;
+  max-height: calc(100% - 106px) !important;
+  margin: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transform: translateX(20px) !important;
+  transition: opacity 190ms ease, visibility 190ms ease,
+    transform 190ms ease !important;
+}
+
+.candidate-map .candidate-manual-controls,
+.candidate-map .candidate-layer-controls,
+.candidate-map .candidate-scan-control-panel,
+.candidate-map .map-filter-overlay {
+  padding: 16px !important;
+  background: rgba(255, 255, 255, 0.97) !important;
+  border: 1px solid rgba(148, 163, 184, 0.34) !important;
+  border-radius: 17px !important;
+  box-shadow: 0 20px 46px rgba(15, 23, 42, 0.2) !important;
+  backdrop-filter: blur(16px) !important;
+}
+
+.candidate-map .map-filter-overlay .filter-panel {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.candidate-map.right-tool-region .candidate-manual-controls,
+.candidate-map.right-tool-layers .candidate-layer-controls,
+.candidate-map.right-tool-filters .map-filter-overlay,
+.candidate-map.right-tool-scan .candidate-scan-control-panel {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  transform: translateX(0) !important;
+}
+
+.candidate-map.right-tool-panel-open .candidate-scan-results-panel,
+.candidate-map.right-tool-panel-open .map-candidate-popup,
+.candidate-map.right-tool-panel-open .suitability-results-panel {
+  right: calc(
+    var(--candidate-right-panel-width) +
+      var(--candidate-right-rail-width) +
+      30px
+  ) !important;
+}
+
+@media (max-width: 1100px) {
+  .candidate-map {
+    --candidate-right-panel-width: 290px;
+  }
+
+  .candidate-map.right-tool-panel-open .suitability-results-panel {
+    width: min(320px, calc(100% - 350px));
+  }
+}
+
+@media (max-width: 900px) {
+  .candidate-right-tools {
+    top: auto !important;
+    right: 8px !important;
+    bottom: 18px !important;
+    width: 240px !important;
+    height: 66px !important;
+    transform: none !important;
+  }
+
+  .candidate-right-tools::before {
+    display: none;
+  }
+
+  .candidate-right-tool-rail {
+    top: auto !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    flex-direction: row;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: none !important;
+  }
+
+  .candidate-right-tool-label {
+    top: auto;
+    right: 50%;
+    bottom: calc(100% + 10px);
+    transform: translate(50%, 5px);
+  }
+
+  .candidate-right-tool-button:hover .candidate-right-tool-label,
+  .candidate-right-tool-button:focus-visible .candidate-right-tool-label {
+    transform: translate(50%, 0);
+  }
+
+  .candidate-map .candidate-manual-controls,
+  .candidate-map .candidate-layer-controls,
+  .candidate-map .map-filter-overlay,
+  .candidate-map .candidate-scan-control-panel {
+    top: 78px !important;
+    right: 14px !important;
+    width: min(310px, calc(100% - 28px)) !important;
+    max-height: calc(100% - 160px) !important;
+  }
+
+  .candidate-map.right-tool-panel-open .candidate-scan-results-panel,
+  .candidate-map.right-tool-panel-open .map-candidate-popup,
+  .candidate-map.right-tool-panel-open .suitability-results-panel {
+    right: 14px !important;
+  }
+
+  .candidate-map.right-tool-panel-open .suitability-results-panel {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .candidate-right-tool-rail {
+    gap: 6px;
+    padding: 7px;
+  }
+
+  .candidate-right-tool-button {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+  }
+
+  .candidate-map .candidate-manual-controls,
+  .candidate-map .candidate-layer-controls,
+  .candidate-map .map-filter-overlay,
+  .candidate-map .candidate-scan-control-panel {
+    top: 70px !important;
+    right: 10px !important;
+    width: calc(100% - 20px) !important;
+    max-height: calc(100% - 142px) !important;
+  }
+}
+
+/* =========================================================
+   MANUEL ADAY + UYGUNLUK PANELI GORSEL UYUMU
+   Iki kart ayni tipografiyle yan yana durur ve cakisma yapmaz.
+   ========================================================= */
+
+.candidate-map .map-candidate-popup,
+.candidate-map .suitability-results-panel {
+  box-sizing: border-box !important;
+  font-family: inherit !important;
+  color: #0f172a !important;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.candidate-map .suitability-results-panel {
+  right: 82px !important;
+  width: min(350px, calc(100% - 112px)) !important;
+}
+
+.candidate-map .map-candidate-popup {
+  position: absolute !important;
+  top: 184px !important;
+  right: 450px !important;
+  bottom: auto !important;
+  left: auto !important;
+  z-index: 420 !important;
+  width: 320px !important;
+  max-width: calc(100% - 32px) !important;
+  max-height: calc(100% - 214px) !important;
+  margin: 0 !important;
+  padding: 18px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid rgba(148, 163, 184, 0.3) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.22) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+.candidate-map.right-tool-panel-open .suitability-results-panel {
+  right: calc(
+    var(--candidate-right-panel-width) +
+      var(--candidate-right-rail-width) +
+      30px
+  ) !important;
+}
+
+.candidate-map.right-tool-panel-open .map-candidate-popup {
+  right: calc(
+    var(--candidate-right-panel-width) +
+      var(--candidate-right-rail-width) +
+      398px
+  ) !important;
+}
+
+.candidate-map .map-candidate-popup > small {
+  display: block !important;
+  min-width: 0 !important;
+  margin: 0 38px 4px 0 !important;
+  color: #64748b !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.035em !important;
+  line-height: 1.4 !important;
+  overflow-wrap: anywhere !important;
+}
+
+.candidate-map .map-candidate-popup h3 {
+  min-width: 0 !important;
+  margin: 0 38px 13px 0 !important;
+  color: #0f172a !important;
+  font-size: 1.08rem !important;
+  font-weight: 800 !important;
+  line-height: 1.25 !important;
+  overflow-wrap: anywhere !important;
+}
+
+.candidate-map .map-candidate-popup p {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(92px, auto) !important;
+  align-items: start !important;
+  gap: 12px !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 9px 0 !important;
+  border-bottom: 1px solid #eef2f7 !important;
+  font-size: 0.82rem !important;
+  line-height: 1.4 !important;
+}
+
+.candidate-map .map-candidate-popup p strong {
+  min-width: 0 !important;
+  color: #64748b !important;
+  font-size: 0.78rem !important;
+  font-weight: 700 !important;
+  line-height: 1.4 !important;
+}
+
+.candidate-map .map-candidate-popup p span {
+  min-width: 0 !important;
+  color: #0f172a !important;
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
+  line-height: 1.4 !important;
+  text-align: right !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+}
+
+.candidate-map .map-candidate-popup .popup-close-button {
+  position: absolute !important;
+  top: 14px !important;
+  right: 14px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 34px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  padding: 0 !important;
+  color: #334155 !important;
+  background: #eef2f7 !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  font-size: 1.35rem !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+}
+
+.candidate-map .map-candidate-popup .popup-warning {
+  display: block !important;
+  margin: 12px 0 0 !important;
+  padding: 10px 12px !important;
+  color: #b45309 !important;
+  background: #fff7ed !important;
+  border: 1px solid #fed7aa !important;
+  border-radius: 10px !important;
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
+  line-height: 1.35 !important;
+  text-align: center !important;
+}
+
+.candidate-map .map-candidate-popup .popup-alternatives-button,
+.candidate-map .map-candidate-popup .popup-save-button {
+  width: 100% !important;
+  min-height: 40px !important;
+  margin-top: 9px !important;
+  padding: 9px 12px !important;
+  border-radius: 10px !important;
+  font-family: inherit !important;
+  font-size: 0.82rem !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+}
+
+.candidate-map .suitability-results-header h2,
+.candidate-map .suitability-recommendations-title h3,
+.candidate-map .suitability-selected-card h3,
+.candidate-map .suitability-recommendation-main strong,
+.candidate-map .suitability-selected-card p,
+.candidate-map .suitability-selected-metrics dt,
+.candidate-map .suitability-selected-metrics dd,
+.candidate-map .suitability-recommendation-main small,
+.candidate-map .suitability-recommendation-card em,
+.candidate-map .suitability-provisional-note {
+  font-family: inherit !important;
+}
+
+@media (max-width: 1180px) and (min-width: 901px) {
+  .candidate-map .map-candidate-popup {
+    top: 170px !important;
+    width: 292px !important;
+  }
+
+  .candidate-map .suitability-results-panel {
+    width: 320px !important;
+  }
+
+  .candidate-map.right-tool-panel-open .map-candidate-popup {
+    right: calc(
+      var(--candidate-right-panel-width) +
+        var(--candidate-right-rail-width) +
+        364px
+    ) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .candidate-map .map-candidate-popup {
+    top: 142px !important;
+    right: 14px !important;
+    width: min(320px, calc(100% - 28px)) !important;
+    max-height: calc(100% - 226px) !important;
+  }
+
+  .candidate-map .suitability-results-panel {
+    right: 14px !important;
+    width: min(350px, calc(100% - 28px)) !important;
+  }
+
+  .candidate-map.right-tool-panel-open .map-candidate-popup {
+    right: 14px !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .candidate-map .map-candidate-popup {
+    top: 118px !important;
+    right: 10px !important;
+    width: calc(100% - 20px) !important;
+    max-height: calc(100% - 196px) !important;
+    padding: 16px !important;
+  }
+
+  .candidate-map .map-candidate-popup p {
+    grid-template-columns: minmax(0, 1fr) minmax(82px, auto) !important;
+    gap: 8px !important;
+  }
+}
+
+
+/* =========================================================
+   TEK KONUM ANALIZI PANELI
+   Manuel aday ve uygunluk sonucu sekmeli, oneriler sabit acik.
+   ========================================================= */
+
+.candidate-map .location-analysis-panel {
+  top: 74px !important;
+  right: 82px !important;
+  width: min(390px, calc(100% - 112px)) !important;
+  max-height: calc(100% - 96px) !important;
+  transform: none !important;
+}
+
+.candidate-map.right-tool-panel-open .location-analysis-panel {
+  right: calc(
+    var(--candidate-right-panel-width) +
+      var(--candidate-right-rail-width) +
+      30px
+  ) !important;
+}
+
+@media (max-width: 1180px) and (min-width: 901px) {
+  .candidate-map .location-analysis-panel {
+    width: min(360px, calc(100% - 410px)) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .candidate-map .location-analysis-panel {
+    top: 70px !important;
+    right: 14px !important;
+    left: 14px !important;
+    display: block !important;
+    width: auto !important;
+    max-height: calc(100% - 150px) !important;
+  }
+
+  .candidate-map.right-tool-panel-open .location-analysis-panel {
+    display: none !important;
+    right: 14px !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .candidate-map .location-analysis-panel {
+    top: 66px !important;
+    right: 10px !important;
+    left: 10px !important;
+    max-height: calc(100% - 138px) !important;
+  }
+}
+
+/* Gerçek uygunluk önerisi detayları: mock alternatif modalının yerine kullanılır. */
+.candidate-map .manual-pin-message.recommendation-analysis-details {
+  left: calc(50% - 130px);
+  right: auto;
+  bottom: 18px;
+  width: min(900px, calc(100% - 560px));
+  min-width: 620px;
+  max-width: 900px;
+  max-height: min(250px, calc(100% - 130px));
+  box-sizing: border-box;
+  display: block;
+  padding: 14px 16px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 16px 38px rgba(15, 23, 42, 0.2);
+  color: #0f172a;
+  text-align: left;
+  transform: translateX(-50%);
+  backdrop-filter: blur(12px);
+}
+
+.recommendation-analysis-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.recommendation-analysis-heading > div:first-child {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.recommendation-analysis-heading > div:first-child span {
+  color: #2563eb;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.recommendation-analysis-heading > div:first-child strong {
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 0.98rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recommendation-analysis-summary {
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.recommendation-analysis-summary > span {
+  min-width: 88px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 9px;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.recommendation-analysis-summary strong {
+  color: #0f172a;
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.recommendation-analysis-components {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 11px;
+}
+
+.recommendation-analysis-components article {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px;
+  border: 1px solid #e2e8f0;
+  border-radius: 11px;
+  background: #f8fafc;
+}
+
+.recommendation-analysis-components article > span {
+  min-height: 28px;
+  color: #64748b;
+  font-size: 0.66rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.recommendation-analysis-components article > strong {
+  color: #0f172a;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.recommendation-analysis-components article > small {
+  color: #475569;
+  font-size: 0.61rem;
+  line-height: 1.3;
+}
+
+@media (max-width: 1400px) {
+  .candidate-map .manual-pin-message.recommendation-analysis-details {
+    left: calc(50% - 110px);
+    width: min(760px, calc(100% - 520px));
+    min-width: 560px;
+    max-height: 310px;
+  }
+
+  .recommendation-analysis-components {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1050px) {
+  .candidate-map .manual-pin-message.recommendation-analysis-details {
+    left: 22px;
+    right: 440px;
+    width: auto;
+    min-width: 0;
+    transform: none;
+  }
+
+  .recommendation-analysis-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .recommendation-analysis-summary {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .recommendation-analysis-summary > span {
+    min-width: 0;
+    flex: 1;
+  }
+}
+
+@media (max-width: 760px) {
+  .candidate-map .manual-pin-message.recommendation-analysis-details {
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    width: auto;
+    max-width: none;
+    max-height: 44%;
+  }
+
+  .recommendation-analysis-components {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .recommendation-analysis-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .recommendation-analysis-components {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

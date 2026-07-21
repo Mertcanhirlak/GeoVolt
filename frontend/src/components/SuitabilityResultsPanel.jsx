@@ -9,7 +9,7 @@ function formatDistance(value) {
   const meters = Number(value);
 
   if (!Number.isFinite(meters)) {
-    return "Mesafe hesaplanamadı";
+    return "Veri Eksik";
   }
 
   if (meters >= 1000) {
@@ -20,26 +20,34 @@ function formatDistance(value) {
 }
 
 function getLocationLabel(cell) {
-  return [cell?.neighborhoodName, cell?.regionName]
-    .filter(Boolean)
-    .join(" / ") || "Konum bilgisi yok";
+  return (
+    [cell?.neighborhoodName, cell?.regionName]
+      .filter(Boolean)
+      .join(" / ") || "Konum bilgisi yok"
+  );
 }
 
 export default function SuitabilityResultsPanel({
   status = "idle",
   error = "",
   evaluation = null,
+  candidate = null,
   focusedRecommendationCellId = null,
   onRecommendationSelect,
+  onSaveCandidate,
   onClose,
 }) {
-  if (status === "idle") {
+  const recommendations = Array.isArray(evaluation?.recommendations)
+    ? evaluation.recommendations
+    : [];
+
+  if (status === "idle" && !evaluation) {
     return null;
   }
 
   return (
     <aside
-      className="suitability-results-panel"
+      className="suitability-results-panel location-analysis-panel"
       data-testid="suitability-results-panel"
     >
       <div className="suitability-results-header">
@@ -51,28 +59,31 @@ export default function SuitabilityResultsPanel({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Uygunluk panelini kapat"
+          aria-label="Konum analizi panelini kapat"
           data-testid="suitability-results-close"
         >
           ×
         </button>
       </div>
 
-      {status === "loading" && (
-        <div className="suitability-panel-state loading">
-          <i aria-hidden="true" />
-          <span>Seçilen alan değerlendiriliyor…</span>
-        </div>
-      )}
+      <section
+        className="location-analysis-suitability"
+        data-testid="location-analysis-suitability-content"
+      >
+        {status === "loading" && (
+          <div className="suitability-panel-state loading">
+            <i aria-hidden="true" />
+            <span>Seçilen alan değerlendiriliyor…</span>
+          </div>
+        )}
 
-      {status === "error" && (
-        <div className="suitability-panel-state error">
-          {error || "Konum değerlendirilemedi."}
-        </div>
-      )}
+        {status === "error" && (
+          <div className="suitability-panel-state error">
+            {error || "Konum değerlendirilemedi."}
+          </div>
+        )}
 
-      {status === "success" && evaluation && (
-        <>
+        {status === "success" && evaluation && (
           <div
             className={`suitability-selected-card ${
               evaluation.selectedCell?.isProvisionalRecommendation
@@ -99,64 +110,108 @@ export default function SuitabilityResultsPanel({
               <dl className="suitability-selected-metrics">
                 <div>
                   <dt>Trafo</dt>
-                  <dd>{formatDistance(evaluation.selectedCell.metrics?.nearestTransformerMeters)}</dd>
+                  <dd>
+                    {formatDistance(
+                      evaluation.selectedCell.metrics
+                        ?.nearestTransformerMeters,
+                    )}
+                  </dd>
                 </div>
+
                 <div>
                   <dt>Ana yol</dt>
-                  <dd>{formatDistance(evaluation.selectedCell.metrics?.nearestMajorRoadMeters)}</dd>
+                  <dd>
+                    {formatDistance(
+                      evaluation.selectedCell.metrics
+                        ?.nearestMajorRoadMeters,
+                    )}
+                  </dd>
                 </div>
+
                 <div>
                   <dt>Eğim</dt>
                   <dd>
                     {evaluation.selectedCell.metrics?.slopePercent == null
-                      ? "—"
-                      : `%${Number(evaluation.selectedCell.metrics.slopePercent).toFixed(2)}`}
+                      ? "Veri Eksik"
+                      : `%${Number(
+                          evaluation.selectedCell.metrics.slopePercent,
+                        ).toFixed(2)}`}
                   </dd>
                 </div>
               </dl>
             )}
+
+            {candidate && (
+              <button
+                type="button"
+                className="suitability-save-button"
+                data-testid={`suitability-save-candidate-${candidate.id}`}
+                onClick={() => onSaveCandidate?.(candidate)}
+              >
+                <span aria-hidden="true">+</span>
+                <span>Konumu Kaydet</span>
+              </button>
+            )}
           </div>
+        )}
+      </section>
 
-          {evaluation.recommendations?.length > 0 && (
-            <div className="suitability-recommendations">
-              <div className="suitability-recommendations-title">
-                <h3>En yakın öneriler</h3>
-                <span>{evaluation.recommendations.length} alan</span>
-              </div>
+      <div
+        className="suitability-recommendations"
+        data-testid="suitability-recommendations-always-open"
+      >
+        <div className="suitability-recommendations-title">
+          <h3>En yakın öneriler</h3>
+          <span>{recommendations.length} alan</span>
+        </div>
 
-              {evaluation.recommendations.map((recommendation) => (
-                <button
-                  key={recommendation.cellId}
-                  type="button"
-                  className={
-                    String(focusedRecommendationCellId) ===
-                    String(recommendation.cellId)
-                      ? "suitability-recommendation-card active"
-                      : "suitability-recommendation-card"
-                  }
-                  onClick={() => onRecommendationSelect?.(recommendation)}
-                  data-testid={`suitability-recommendation-${recommendation.recommendationRank}`}
-                >
-                  <span className="suitability-rank">
-                    {recommendation.recommendationRank}
-                  </span>
+        {recommendations.length > 0 ? (
+          <>
+            {recommendations.map((recommendation) => (
+              <button
+                key={recommendation.cellId}
+                type="button"
+                className={
+                  String(focusedRecommendationCellId) ===
+                  String(recommendation.cellId)
+                    ? "suitability-recommendation-card active"
+                    : "suitability-recommendation-card"
+                }
+                onClick={() => onRecommendationSelect?.(recommendation)}
+                data-testid={`suitability-recommendation-${recommendation.recommendationRank}`}
+              >
+                <span className="suitability-rank">
+                  {recommendation.recommendationRank}
+                </span>
 
-                  <span className="suitability-recommendation-main">
-                    <strong>{getLocationLabel(recommendation)}</strong>
-                    <small>{formatDistance(recommendation.distanceMeters)}</small>
-                  </span>
+                <span className="suitability-recommendation-main">
+                  <strong>{getLocationLabel(recommendation)}</strong>
+                  <small>{formatDistance(recommendation.distanceMeters)}</small>
+                </span>
 
-                  <em>{formatScore(recommendation.suitabilityScore)}</em>
-                </button>
-              ))}
+                <em>{formatScore(recommendation.suitabilityScore)}</em>
+              </button>
+            ))}
 
-              <small className="suitability-provisional-note">
-                Öneriler veri kapsamı doğrulanana kadar geçicidir.
-              </small>
-            </div>
-          )}
-        </>
-      )}
+            <small className="suitability-recommendation-help">
+              Bir öneriye tıkladığınızda harita yakınlaşır ve gerçek analiz
+              detayları alt bilgi alanında gösterilir.
+            </small>
+
+            <small className="suitability-provisional-note">
+              Öneriler veri kapsamı doğrulanana kadar geçicidir.
+            </small>
+          </>
+        ) : (
+          <div className="suitability-recommendations-empty">
+            {status === "loading"
+              ? "Analiz tamamlandığında en yakın öneriler burada listelenecek."
+              : status === "error"
+                ? "Analiz tamamlanamadığı için öneriler getirilemedi."
+                : "Bu konum için yakın öneri bulunamadı."}
+          </div>
+        )}
+      </div>
     </aside>
   );
 }

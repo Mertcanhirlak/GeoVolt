@@ -215,3 +215,34 @@
     max-height: calc(100% - 110px);
   }
 }
+
+/* Merged layout: keep the preference form beside the active right tool panel. */
+.candidate-map .manual-pin-preferences-panel {
+  top: 82px;
+  right: calc(
+    var(--candidate-right-panel-width, 318px) +
+      var(--candidate-right-rail-width, 58px) +
+      30px
+  );
+  z-index: 520;
+}
+
+@media (max-width: 900px) {
+  .candidate-map .manual-pin-preferences-panel {
+    top: 78px;
+    right: auto;
+    left: 14px;
+    width: min(310px, calc(100% - 28px));
+    max-height: calc(100% - 160px);
+  }
+}
+
+@media (max-width: 560px) {
+  .candidate-map .manual-pin-preferences-panel {
+    top: 70px;
+    right: 10px;
+    left: 10px;
+    width: auto;
+    max-height: calc(100% - 142px);
+  }
+}
