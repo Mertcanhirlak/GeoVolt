@@ -68,7 +68,7 @@ public sealed class ManualPinService : IManualPinService
                 location,
                 transformerDistance: null,
                 slopePercent: null,
-                estimatedCost: null,
+                costResult: null,
                 currencyCode: string.Empty,
                 costModelVersion: string.Empty,
                 costSource: "not_calculated",
@@ -82,7 +82,7 @@ public sealed class ManualPinService : IManualPinService
                 longitude,
                 cancellationToken);
 
-        // TIFF eğim verisinden pin noktasındaki yüzde eğim alınır.
+        // Raster verisinden pin noktasındaki yüzde eğim alınır.
         var slopePercent =
             await _slopeRepository.GetSlopePercentAsync(
                 latitude,
@@ -96,7 +96,7 @@ public sealed class ManualPinService : IManualPinService
                 location,
                 transformerDistance,
                 slopePercent,
-                estimatedCost: null,
+                costResult: null,
                 currencyCode: string.Empty,
                 costModelVersion: string.Empty,
                 costSource: "gis_data_unavailable",
@@ -138,9 +138,11 @@ public sealed class ManualPinService : IManualPinService
                 location,
                 transformerDistance,
                 slopePercent,
-                estimatedCost: null,
-                currencyCode: modelSetting?.CurrencyCode ?? string.Empty,
-                costModelVersion: modelSetting?.Version ?? string.Empty,
+                costResult: null,
+                currencyCode:
+                    modelSetting?.CurrencyCode ?? string.Empty,
+                costModelVersion:
+                    modelSetting?.Version ?? string.Empty,
                 costSource: "cost_configuration_unavailable",
                 message:
                     "Konum geçerli ancak maliyet katsayıları bulunamadığı için hesaplama yapılamadı.");
@@ -200,7 +202,7 @@ public sealed class ManualPinService : IManualPinService
             location,
             transformerDistance,
             slopePercent,
-            costResult.EstimatedCost,
+            costResult,
             costResult.CurrencyCode,
             costResult.CostModelVersion,
             $"{costResult.CostModelVersion}-{costResult.CurrencyCode}",
@@ -212,29 +214,36 @@ public sealed class ManualPinService : IManualPinService
         LocateRegionPointResponseDto location,
         double? transformerDistance,
         double? slopePercent,
-        decimal? estimatedCost,
+        CostEstimationResultDto? costResult,
         string currencyCode,
         string costModelVersion,
         string costSource,
         string message)
     {
+        var estimatedCost =
+            costResult?.EstimatedCost;
+
         bool? isWithinBudget = null;
 
-        if (estimatedCost.HasValue && request.BudgetMax.HasValue)
+        if (estimatedCost.HasValue
+            && request.BudgetMax.HasValue)
         {
             isWithinBudget =
                 estimatedCost.Value <= request.BudgetMax.Value;
         }
 
-        var warnings = new List<string>();
+        var warnings =
+            new List<string>();
 
-        if (location.IsInsideRegion && !transformerDistance.HasValue)
+        if (location.IsInsideRegion
+            && !transformerDistance.HasValue)
         {
             warnings.Add(
                 "En yakın trafo mesafesi bulunamadı.");
         }
 
-        if (location.IsInsideRegion && !slopePercent.HasValue)
+        if (location.IsInsideRegion
+            && !slopePercent.HasValue)
         {
             warnings.Add(
                 "Eğim verisi bulunamadı.");
@@ -242,41 +251,86 @@ public sealed class ManualPinService : IManualPinService
 
         return new ManualPinEvaluateResponseDto
         {
-            IsValid = location.IsInsideRegion,
+            IsValid =
+                location.IsInsideRegion,
 
-            RegionId = location.RegionId,
-            RegionName = location.RegionName,
+            RegionId =
+                location.RegionId,
 
-            NeighborhoodId = location.NeighborhoodId,
-            NeighborhoodName = location.NeighborhoodName,
+            RegionName =
+                location.RegionName,
 
-            Latitude = location.Latitude,
-            Longitude = location.Longitude,
+            NeighborhoodId =
+                location.NeighborhoodId,
+
+            NeighborhoodName =
+                location.NeighborhoodName,
+
+            Latitude =
+                location.Latitude,
+
+            Longitude =
+                location.Longitude,
 
             SystemType =
                 request.SystemType.Trim().ToUpperInvariant(),
 
-            PowerKw = request.PowerKw,
+            PowerKw =
+                request.PowerKw,
 
             VenueType =
                 request.VenueType.Trim(),
 
-            SlopePercent = slopePercent,
+            SlopePercent =
+                slopePercent,
 
             DistanceToTransformerMeters =
                 transformerDistance,
 
-            EstimatedCost = estimatedCost,
+            EstimatedCableLengthMeters =
+                costResult?.EstimatedCableLengthMeters,
 
-            BudgetMax = request.BudgetMax,
-            IsWithinBudget = isWithinBudget,
+            EquipmentCost =
+                costResult?.EquipmentCost,
 
-            CurrencyCode = currencyCode,
-            CostModelVersion = costModelVersion,
-            CostSource = costSource,
+            ElectricalInfrastructureCost =
+                costResult?.ElectricalInfrastructureCost,
 
-            Warnings = warnings,
-            Message = message
+            BaseCivilWorksCost =
+                costResult?.BaseCivilWorksCost,
+
+            SlopeExtraCost =
+                costResult?.SlopeExtraCost,
+
+            AdjustedCivilWorksCost =
+                costResult?.AdjustedCivilWorksCost,
+
+            SubtotalCost =
+                costResult?.SubtotalCost,
+
+            EstimatedCost =
+                estimatedCost,
+
+            BudgetMax =
+                request.BudgetMax,
+
+            IsWithinBudget =
+                isWithinBudget,
+
+            CurrencyCode =
+                currencyCode,
+
+            CostModelVersion =
+                costModelVersion,
+
+            CostSource =
+                costSource,
+
+            Warnings =
+                warnings,
+
+            Message =
+                message
         };
     }
 

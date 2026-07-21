@@ -93,7 +93,7 @@ public static class DependencyInjection
         services.AddScoped<ISuitabilityAnalysisRepository, PostGisSuitabilityAnalysisRepository>();
         services.AddScoped<ITransformerRepository,PostGisTransformerRepository>();
 
-        services.AddScoped< ISlopeRepository,UnavailableSlopeRepository>();
+        services.AddScoped<ISlopeRepository, PostGisSlopeRepository>();
 
         services.AddScoped<ICostConfigurationRepository,CostConfigurationRepository>();
 
