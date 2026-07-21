@@ -119,7 +119,7 @@ Grid üretimi tamamlanan bir çalışma için yönetim endpointi:
 POST /api/admin/suitability-analysis/{analysisRunId}/metrics
 ```
 
-İşlem `GridReady` veya `MetricsReady` durumundaki bir çalışma üzerinde
+İşlem `GridReady`, `MetricsReady` veya `Scored` durumundaki bir çalışma üzerinde
 idempotent olarak yeniden çalıştırılabilir. Hesaplamalar hücrenin temsil
 noktasından EPSG:32636 üzerinde metre cinsinden yapılır:
 
@@ -227,3 +227,19 @@ Seçili hücre zaten öneriyse kendisi alternatif listesinde tekrarlanmaz. Nokta
 listesi döner. Puanlanmış çalışma bulunamazsa sonuç `INSUFFICIENT_DATA` olur.
 Veri kapsamı doğrulanana kadar öneriler `isProvisionalRecommendation=true`
 olarak açıkça işaretlenir; API bunları kesin kurulum onayı gibi sunmaz.
+
+## İlk Aşama Gerekçe ve Uyarı Kuralları
+
+`metrics-v2` ile her hücrenin hesaplanamayan metriği ayrı bir gerekçe koduyla
+saklanır. Trafo, ana yol, istasyon, POI, nüfus yoğunluğu veya eğim
+metriklerinden biri eksik olan hücre öneri havuzuna alınmaz.
+
+İlk aşamada iki ihtiyatlı uyarı eşiği vardır:
+
+- Ana yola mesafe 1.000 metreden fazlaysa `MAJOR_ROAD_DISTANCE_WARNING`.
+- Eğim yüzde 15 veya üzerindeyse `STEEP_SLOPE_WARNING`.
+
+Bu eşikler kesin mühendislik engeli değildir. `has_hard_exclusion` alanını
+değiştirmez; saha doğrulaması gerektiren açıklanabilir uyarılar üretir. İmar,
+mülkiyet, gerçek araç girişi ve trafo kapasitesi gibi yetkili katmanlar gelene
+kadar bu verilerden kesin kurulum reddi üretilmez.

@@ -1065,15 +1065,33 @@ function createSuitabilityCellStyle(
     feature.get("focused") === true;
   const isSelected =
     featureRole === "selected";
+  const evaluationStatus =
+    feature.get("evaluationStatus");
+  const selectedFillColor =
+    evaluationStatus === "HARD_EXCLUSION"
+      ? "rgba(239, 68, 68, 0.32)"
+      : evaluationStatus === "LOW_SUITABILITY"
+        ? "rgba(245, 158, 11, 0.32)"
+        : evaluationStatus === "INSUFFICIENT_DATA"
+          ? "rgba(100, 116, 139, 0.30)"
+          : "rgba(34, 197, 94, 0.30)";
+  const selectedStrokeColor =
+    evaluationStatus === "HARD_EXCLUSION"
+      ? "#dc2626"
+      : evaluationStatus === "LOW_SUITABILITY"
+        ? "#d97706"
+        : evaluationStatus === "INSUFFICIENT_DATA"
+          ? "#475569"
+          : "#15803d";
   const fillColor = isFocused
     ? "rgba(245, 158, 11, 0.38)"
     : isSelected
-      ? "rgba(37, 99, 235, 0.30)"
+      ? selectedFillColor
       : "rgba(34, 197, 94, 0.28)";
   const strokeColor = isFocused
     ? "#d97706"
     : isSelected
-      ? "#1d4ed8"
+      ? selectedStrokeColor
       : "#15803d";
   const label = isSelected
     ? "Seçilen"
@@ -1440,6 +1458,7 @@ function createSuitabilityCellFeature(
     feature.set("suitabilityRole", suitabilityRole);
     feature.set("cell", cell);
     feature.set("cellId", cell.cellId);
+    feature.set("evaluationStatus", cell.evaluationStatus);
     feature.set(
       "recommendationRank",
       cell.recommendationRank,

@@ -1,5 +1,31 @@
 import "./SuitabilityResultsPanel.css";
 
+const STATUS_LABELS = {
+  CANDIDATE: "Uygunluk adayı",
+  LOW_SUITABILITY: "Düşük uygunluk",
+  HARD_EXCLUSION: "Kesin engel",
+  INSUFFICIENT_DATA: "Veri doğrulaması gerekli",
+  OUTSIDE_STUDY_AREA: "Çalışma alanı dışında",
+};
+
+const REASON_LABELS = {
+  DATASET_COVERAGE_UNVERIFIED: "Veri katmanlarının kapsam doğrulaması tamamlanmadı.",
+  TRANSFORMER_DISTANCE_MISSING: "Trafo mesafesi hesaplanamadı.",
+  MAJOR_ROAD_DISTANCE_MISSING: "Ana yol mesafesi hesaplanamadı.",
+  STATION_DISTANCE_MISSING: "Şarj istasyonu mesafesi hesaplanamadı.",
+  POI_METRIC_MISSING: "POI yoğunluğu hesaplanamadı.",
+  POPULATION_DENSITY_MISSING: "Nüfus yoğunluğu hesaplanamadı.",
+  SLOPE_DATA_MISSING: "Eğim verisi bulunamadı.",
+  MAJOR_ROAD_DISTANCE_WARNING: "Ana yola uzaklık 1 km'nin üzerinde.",
+  STEEP_SLOPE_WARNING: "Eğim %15 veya üzerinde; saha doğrulaması gerekir.",
+};
+
+function getReasonLabels(reasonCodes) {
+  return (Array.isArray(reasonCodes) ? reasonCodes : [])
+    .map((reasonCode) => REASON_LABELS[reasonCode])
+    .filter(Boolean);
+}
+
 function formatScore(value) {
   const score = Number(value);
   return Number.isFinite(score) ? score.toFixed(2) : "—";
@@ -36,6 +62,11 @@ export default function SuitabilityResultsPanel({
   if (status === "idle") {
     return null;
   }
+
+  const selectedStatus = evaluation?.selectedCell?.evaluationStatus;
+  const selectedReasons = getReasonLabels(
+    evaluation?.selectedCell?.reasonCodes,
+  );
 
   return (
     <aside
@@ -78,7 +109,7 @@ export default function SuitabilityResultsPanel({
               evaluation.selectedCell?.isProvisionalRecommendation
                 ? "recommended"
                 : ""
-            }`}
+            } status-${String(selectedStatus || "unknown").toLowerCase()}`}
           >
             <div className="suitability-card-title">
               <span>Seçilen alan</span>
@@ -93,7 +124,19 @@ export default function SuitabilityResultsPanel({
                 : evaluation.districtName || "Çalışma alanı dışında"}
             </h3>
 
+            <span className="suitability-status-badge">
+              {STATUS_LABELS[selectedStatus] || "Değerlendirilmedi"}
+            </span>
+
             <p>{evaluation.message}</p>
+
+            {selectedReasons.length > 0 && (
+              <ul className="suitability-reason-list">
+                {selectedReasons.map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+              </ul>
+            )}
 
             {evaluation.selectedCell && (
               <dl className="suitability-selected-metrics">
@@ -144,6 +187,11 @@ export default function SuitabilityResultsPanel({
                   <span className="suitability-recommendation-main">
                     <strong>{getLocationLabel(recommendation)}</strong>
                     <small>{formatDistance(recommendation.distanceMeters)}</small>
+                    {getReasonLabels(recommendation.reasonCodes).map((reason) => (
+                      <small className="suitability-recommendation-warning" key={reason}>
+                        {reason}
+                      </small>
+                    ))}
                   </span>
 
                   <em>{formatScore(recommendation.suitabilityScore)}</em>

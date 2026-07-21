@@ -90,6 +90,42 @@
   background: linear-gradient(145deg, #f0fdf4, #ffffff);
 }
 
+.suitability-selected-card.status-hard_exclusion {
+  border-color: #fca5a5;
+  background: linear-gradient(145deg, #fef2f2, #ffffff);
+}
+
+.suitability-selected-card.status-low_suitability {
+  border-color: #fcd34d;
+  background: linear-gradient(145deg, #fffbeb, #ffffff);
+}
+
+.suitability-selected-card.status-insufficient_data {
+  border-color: #cbd5e1;
+  background: linear-gradient(145deg, #f8fafc, #ffffff);
+}
+
+.suitability-status-badge {
+  display: inline-flex;
+  margin: 0 0 8px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.suitability-reason-list {
+  display: grid;
+  gap: 5px;
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: #92400e;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
 .suitability-card-title strong {
   color: #1d4ed8;
   font-size: 1.25rem;
@@ -195,6 +231,11 @@
 .suitability-recommendation-main small {
   margin-top: 3px;
   color: #64748b;
+}
+
+.suitability-recommendation-main .suitability-recommendation-warning {
+  color: #92400e;
+  white-space: normal;
 }
 
 .suitability-recommendation-card em {
