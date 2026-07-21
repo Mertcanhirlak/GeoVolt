@@ -150,12 +150,6 @@ export default function TrafoSummary({
             kurulum uygunluğunu değerlendirmek için kullanılabilir.
           </p>
         </div>
-
-        {message && (
-          <span className="trafo-source-badge" data-testid="trafo-source-badge">
-            {message}
-          </span>
-        )}
       </div>
 
       <div className="trafo-summary-grid">

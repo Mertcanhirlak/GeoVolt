@@ -1,4 +1,4 @@
-﻿body {
+body {
   margin: 0;
   font-family: Arial, sans-serif;
   background-color: #eef2f7;
@@ -2956,4 +2956,451 @@ body {
   width: 100% !important;
   height: 42px !important;
   margin: 16px 0 0 0 !important;
+}
+
+html,
+body,
+#root,
+button,
+input,
+select,
+textarea {
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+}
+
+/* Modern white dashboard shell for the existing stations home map. */
+.candidate-page .dashboard-sidebar {
+  width: 232px !important;
+  min-width: 232px !important;
+  padding: 20px 14px !important;
+  background: #ffffff !important;
+  border-right: 1px solid #e5eaf2 !important;
+  box-shadow: 8px 0 28px rgba(15, 23, 42, 0.06) !important;
+  align-items: stretch !important;
+  gap: 18px !important;
+}
+
+.sidebar-brand {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 2px 4px 18px;
+  color: #0f172a;
+}
+
+.sidebar-brand-mark {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #2563eb;
+  background: #eff6ff;
+  border-radius: 14px;
+}
+
+.sidebar-brand strong {
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.sidebar-brand small {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.candidate-page .dashboard-sidebar .menu-button {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 12px !important;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+  color: #475569 !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.candidate-page .dashboard-sidebar .menu-button > span:not(.menu-button-icon) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.candidate-page .dashboard-sidebar .menu-button svg {
+  width: 17px !important;
+  height: 17px !important;
+  flex: 0 0 auto;
+}
+
+.candidate-page .dashboard-sidebar .menu-button:hover,
+.candidate-page .dashboard-sidebar .menu-button.active {
+  color: #2563eb !important;
+  background: #eff6ff !important;
+  border-color: #dbeafe !important;
+  transform: none !important;
+}
+
+.candidate-page .dashboard-sidebar .logout-menu-button {
+  margin-top: auto !important;
+  color: #ef4444 !important;
+}
+
+.candidate-page .dashboard-sidebar .logout-menu-button:hover {
+  color: #dc2626 !important;
+  background: #fef2f2 !important;
+  border-color: #fee2e2 !important;
+}
+
+.candidate-page .page-content {
+  margin-left: 232px !important;
+  width: calc(100vw - 232px) !important;
+}
+
+[data-testid="fixed-map-actions"] {
+  display: none !important;
+}
+
+[data-testid="home-map-screen"] {
+  display: flex !important;
+  flex-direction: column;
+  min-height: 100vh;
+  background: #f5f8fc;
+}
+
+[data-testid="home-map-screen"] .dashboard-header {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+  width: 100% !important;
+  height: 72px !important;
+  padding: 0 26px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-bottom: 1px solid #e5eaf2;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
+  z-index: 30;
+}
+
+[data-testid="home-map-screen"] .dashboard-header-menu,
+[data-testid="home-map-screen"] .dashboard-header-actions {
+  display: none !important;
+}
+
+.dashboard-header-menu,
+.dashboard-icon-button {
+  width: 38px;
+  height: 38px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #334155;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+[data-testid="home-map-screen"] .dashboard-search-shell {
+  position: relative !important;
+  flex: 1 1 520px !important;
+  max-width: 760px !important;
+  height: 42px !important;
+  margin: 0 !important;
+}
+
+.dashboard-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  z-index: 2;
+  color: #94a3b8;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+[data-testid="home-map-screen"] .dashboard-search-input {
+  height: 42px !important;
+  padding: 0 44px 0 42px !important;
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  color: #0f172a !important;
+}
+
+[data-testid="home-map-screen"] .dashboard-region-toggle {
+  flex: 0 0 auto !important;
+  height: 40px !important;
+  min-width: 142px !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+
+.dashboard-header-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dashboard-notification-button {
+  position: relative;
+}
+
+.dashboard-notification-button span {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  background: #ef4444;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.dashboard-user-profile {
+  height: 40px;
+  padding: 0 10px 0 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #0f172a;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.dashboard-user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #1d4ed8;
+  background: #eff6ff;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+[data-testid="home-map-screen"] .mock-map {
+  flex: 1 1 auto !important;
+  height: calc(100vh - 72px) !important;
+  min-height: 0 !important;
+  border-radius: 0 !important;
+}
+
+@media (max-width: 980px) {
+  .candidate-page .dashboard-sidebar {
+    width: 76px !important;
+    min-width: 76px !important;
+    align-items: center !important;
+  }
+
+  .sidebar-brand strong,
+  .sidebar-brand small,
+  .candidate-page .dashboard-sidebar .menu-button > span:not(.menu-button-icon) {
+    display: none;
+  }
+
+  .candidate-page .dashboard-sidebar .menu-button {
+    width: 46px !important;
+    justify-content: center !important;
+    padding: 0 !important;
+  }
+
+  .candidate-page .page-content {
+    margin-left: 76px !important;
+    width: calc(100vw - 76px) !important;
+  }
+
+  .dashboard-user-profile strong {
+    display: none;
+  }
+}
+
+.map-candidate-popup {
+  left: 96px !important;
+  z-index: 1500 !important;
+}
+.map-candidate-popup {
+  width: 300px !important;
+  max-width: 300px !important;
+  min-height: auto !important;
+  height: auto !important;
+  max-height: 420px !important;
+  padding: 18px 18px 14px !important;
+  border-radius: 18px !important;
+  overflow: visible !important;
+}
+
+.map-candidate-popup small {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.map-candidate-popup h3 {
+  margin: 0 0 14px !important;
+  font-size: 19px !important;
+  line-height: 1.2;
+}
+
+.map-candidate-popup p {
+  margin: 8px 0 !important;
+  padding: 10px 12px !important;
+  border-radius: 10px;
+  font-size: 13px !important;
+  line-height: 1.3 !important;
+}
+
+.popup-save-button {
+  height: 38px !important;
+  margin: 14px 0 0 !important;
+  width: 100% !important;
+  border-radius: 12px !important;
+}
+
+.popup-close-button {
+  top: 12px !important;
+  right: 12px !important;
+}
+.map-candidate-popup {
+  width: 300px !important;
+  max-width: 300px !important;
+  height: auto !important;
+  min-height: auto !important;
+  max-height: none !important;
+  padding: 18px !important;
+  padding-bottom: 18px !important;
+  border-radius: 18px !important;
+  overflow: visible !important;
+}
+
+.popup-save-button {
+  position: static !important;
+  width: 100% !important;
+  height: 42px !important;
+  margin: 16px 0 0 0 !important;
+  padding: 0 16px !important;
+  border: none !important;
+  border-radius: 13px !important;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+  color: #ffffff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.28) !important;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease !important;
+}
+
+.popup-save-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.36) !important;
+  background: linear-gradient(135deg, #1d4ed8, #1e40af) !important;
+}
+
+.popup-save-button:active {
+  transform: translateY(0);
+}
+
+.popup-save-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+  font-weight: 900;
+  line-height: 1;
+  margin-top: -1px;
+}
+
+.popup-save-text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.map-candidate-popup {
+  width: 300px !important;
+  max-width: 300px !important;
+  height: fit-content !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 18px !important;
+  padding-bottom: 18px !important;
+  border-radius: 18px !important;
+  overflow: visible !important;
+}
+
+.map-candidate-popup::after,
+.map-candidate-popup::before {
+  display: none !important;
+}
+
+.map-candidate-popup small {
+  display: block !important;
+  margin-bottom: 8px !important;
+}
+
+.map-candidate-popup h3 {
+  margin: 0 0 14px 0 !important;
+}
+
+.map-candidate-popup p {
+  margin: 8px 0 !important;
+  padding: 10px 12px !important;
+}
+
+.popup-save-button {
+  position: relative !important;
+  bottom: auto !important;
+  left: auto !important;
+  right: auto !important;
+  width: 100% !important;
+  height: 42px !important;
+  margin: 16px 0 0 0 !important;
+}
+html,
+body,
+#root,
+button,
+input,
+select,
+textarea {
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
 }

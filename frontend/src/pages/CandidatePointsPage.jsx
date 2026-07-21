@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import React, {
   useEffect,
   useMemo,
@@ -9,7 +10,10 @@ import { createPortal } from "react-dom";
 
 import {
   ChevronDown,
+  FileText,
   Home,
+  Menu,
+  ShieldCheck,
   Zap,
   ListChecks,
   SlidersHorizontal,
@@ -53,6 +57,7 @@ import SuitabilityResultsPanel from "../components/SuitabilityResultsPanel";
 import PoiSummary from "../components/PoiSummary";
 import TrafoSummary from "../components/TrafoSummary";
 import RoadSummary from "../components/RoadSummary";
+import geovoltLogo from "../assets/geovolt-logo-transparent.png";
 
 import { useAuth } from "../context/AuthContext";
 
@@ -64,8 +69,32 @@ import "./CandidateSearch.css";
 import "./CandidateScan.css";
 import "./PersonalizationLayout.css";
 
+const SIDEBAR_LOGO_SRC = geovoltLogo;
+
 const REGION_SCAN_MIN_GENERAL_SCORE =
   80;
+
+const FALLBACK_HOME_REGIONS = [
+  "Kızılay",
+  "Kavaklıdere",
+  "Ayrancı",
+  "Gaziosmanpaşa",
+  "Bahçelievler",
+  "Cebeci",
+  "Dikmen",
+  "Öveçler",
+  "Balgat",
+  "Oran",
+  "Çayyolu",
+  "Kırkkonaklar",
+  "Ahlatlıbel",
+  "İmrahor",
+  "Diğer / Kırsal",
+].map((name, index) => ({
+  id: index + 1,
+  name,
+  isFallback: true,
+}));
 
 const defaultFilters = {
   costMin: "",
@@ -89,6 +118,328 @@ const defaultDataFilter = {
   budgetMin: "",
   budgetMax: "",
 };
+
+const reportDistrictDistribution = [
+  {
+    label: "\u00C7ankaya",
+    value: 40,
+    color: "#2563eb",
+  },
+  {
+    label: "Yenimahalle",
+    value: 25,
+    color: "#22c55e",
+  },
+  {
+    label: "Ke\u00E7i\u00F6ren",
+    value: 15,
+    color: "#f97316",
+  },
+  {
+    label: "Di\u011Fer",
+    value: 20,
+    color: "#8b5cf6",
+  },
+];
+
+const reportSocketDistributionByNeighborhood = {
+  "Bah\u00E7elievler": [
+    {
+      label: "AC (Yava\u015F)",
+      value: 70,
+      color: "#22c55e",
+    },
+    {
+      label: "DC (H\u0131zl\u0131)",
+      value: 30,
+      color: "#f97316",
+    },
+  ],
+  "\u00C7ukurambar": [
+    {
+      label: "AC (Yava\u015F)",
+      value: 40,
+      color: "#22c55e",
+    },
+    {
+      label: "DC (H\u0131zl\u0131)",
+      value: 60,
+      color: "#f97316",
+    },
+  ],
+  "Mustafa Kemal": [
+    {
+      label: "AC (Yava\u015F)",
+      value: 62,
+      color: "#22c55e",
+    },
+    {
+      label: "DC (H\u0131zl\u0131)",
+      value: 38,
+      color: "#f97316",
+    },
+  ],
+  "S\u00F6\u011F\u00FCt\u00F6z\u00FC": [
+    {
+      label: "AC (Yava\u015F)",
+      value: 50,
+      color: "#22c55e",
+    },
+    {
+      label: "DC (H\u0131zl\u0131)",
+      value: 50,
+      color: "#f97316",
+    },
+  ],
+};
+
+const reportNeighborhoodOptions = Object.keys(
+  reportSocketDistributionByNeighborhood,
+);
+
+function getReportNeighborhoodName(neighborhood) {
+  return String(
+    neighborhood?.name ??
+      neighborhood?.Name ??
+      neighborhood?.neighborhoodName ??
+      neighborhood?.NeighborhoodName ??
+      "",
+  ).trim();
+}
+
+function getReportNumberProperty(source, propertyNames) {
+  for (const propertyName of propertyNames) {
+    const value = Number(source?.[propertyName]);
+
+    if (Number.isFinite(value) && value >= 0) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function getFallbackSocketDistribution(neighborhoodName) {
+  const total = Array.from(
+    String(neighborhoodName || "GeoVolt"),
+  ).reduce(
+    (sum, character) =>
+      sum + character.charCodeAt(0),
+    0,
+  );
+
+  const acValue =
+    35 + (total % 46);
+  const dcValue =
+    100 - acValue;
+
+  return [
+    {
+      label: "AC (Yava\u015F)",
+      value: acValue,
+      color: "#22c55e",
+    },
+    {
+      label: "DC (H\u0131zl\u0131)",
+      value: dcValue,
+      color: "#f97316",
+    },
+  ];
+}
+
+function getReportSocketDistribution(
+  neighborhoodName,
+  neighborhoods,
+) {
+  if (
+    reportSocketDistributionByNeighborhood[
+      neighborhoodName
+    ]
+  ) {
+    return reportSocketDistributionByNeighborhood[
+      neighborhoodName
+    ];
+  }
+
+  const neighborhood =
+    neighborhoods.find(
+      (item) =>
+        getReportNeighborhoodName(item) ===
+        neighborhoodName,
+    );
+
+  const acCount = getReportNumberProperty(
+    neighborhood,
+    [
+      "acCount",
+      "ACCount",
+      "acSocketCount",
+      "AcSocketCount",
+      "slowSocketCount",
+      "SlowSocketCount",
+    ],
+  );
+
+  const dcCount = getReportNumberProperty(
+    neighborhood,
+    [
+      "dcCount",
+      "DCCount",
+      "dcSocketCount",
+      "DcSocketCount",
+      "fastSocketCount",
+      "FastSocketCount",
+    ],
+  );
+
+  if (
+    acCount !== null &&
+    dcCount !== null &&
+    acCount + dcCount > 0
+  ) {
+    const total = acCount + dcCount;
+
+    return [
+      {
+        label: "AC (Yava\u015F)",
+        value: Math.round(
+          (acCount / total) * 100,
+        ),
+        color: "#22c55e",
+      },
+      {
+        label: "DC (H\u0131zl\u0131)",
+        value: Math.round(
+          (dcCount / total) * 100,
+        ),
+        color: "#f97316",
+      },
+    ];
+  }
+
+  return getFallbackSocketDistribution(
+    neighborhoodName,
+  );
+}
+
+function buildConicGradient(data) {
+  const total = data.reduce(
+    (sum, item) => sum + Number(item.value || 0),
+    0,
+  );
+
+  if (!total) {
+    return "#e2e8f0";
+  }
+
+  let current = 0;
+
+  return `conic-gradient(${data
+    .map((item) => {
+      const start = current;
+      const end =
+        current + (Number(item.value || 0) / total) * 100;
+
+      current = end;
+
+      return `${item.color} ${start}% ${end}%`;
+    })
+    .join(", ")})`;
+}
+
+function ReportPieChart({ data }) {
+  return (
+    <div
+      className="report-pie-chart"
+      style={{
+        background: buildConicGradient(data),
+      }}
+      aria-hidden="true"
+    >
+      <span>
+        {data.reduce(
+          (sum, item) => sum + Number(item.value || 0),
+          0,
+        )}
+        %
+      </span>
+    </div>
+  );
+}
+
+function ReportDonutChart({
+  data,
+  centerLabel,
+}) {
+  const total = data.reduce(
+    (sum, item) => sum + Number(item.value || 0),
+    0,
+  );
+  const size = 230;
+  const strokeWidth = 32;
+  const radius =
+    (size - strokeWidth) / 2;
+  const circumference =
+    2 * Math.PI * radius;
+  let offset = 0;
+
+  return (
+    <div className="report-donut-wrap">
+      <svg
+        className="report-donut-chart"
+        viewBox={`0 0 ${size} ${size}`}
+        role="img"
+        aria-label={`${centerLabel} soket da\u011F\u0131l\u0131m\u0131`}
+      >
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="#e2e8f0"
+          strokeWidth={strokeWidth}
+        />
+        {data.map((item) => {
+          const value =
+            total > 0
+              ? (Number(item.value || 0) / total) *
+                circumference
+              : 0;
+          const dashOffset =
+            -offset;
+
+          offset += value;
+
+          return (
+            <circle
+              key={item.label}
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              stroke={item.color}
+              strokeWidth={strokeWidth}
+              strokeLinecap="round"
+              strokeDasharray={`${value} ${
+                circumference - value
+              }`}
+              strokeDashoffset={dashOffset}
+              transform={`rotate(-90 ${size / 2} ${
+                size / 2
+              })`}
+            />
+          );
+        })}
+      </svg>
+
+      <div className="report-donut-center">
+        <b>{total}%</b>
+        <strong>{centerLabel}</strong>
+        <span>{"Soket oran\u0131"}</span>
+      </div>
+    </div>
+  );
+}
 
 function normalizeLocationKey(value) {
   return String(value ?? "")
@@ -516,13 +867,15 @@ function createManualCandidate(
 }
 
 export default function CandidatePointsPage() {
+  const navigate = useNavigate();
   const {
     user,
     isAdmin,
+    canAccessManagement,
     logoutUser,
   } = useAuth();
 
-  const canOpenAdminPanel = true;
+  const canOpenAdminPanel = isAdmin || canAccessManagement;
 
   const scanRequestIdRef =
     useRef(0);
@@ -536,6 +889,21 @@ export default function CandidatePointsPage() {
   ] = useState("home");
 
   const [
+    activePersonalizationTab,
+    setActivePersonalizationTab,
+  ] = useState("form");
+
+  const [
+    selectedReportNeighborhood,
+    setSelectedReportNeighborhood,
+  ] = useState(reportNeighborhoodOptions[0]);
+
+  const [
+    activeSubTab,
+    setActiveSubTab,
+  ] = useState("poi");
+
+  const [
     activeCandidateRightTool,
     setActiveCandidateRightTool,
   ] = useState(null);
@@ -543,7 +911,7 @@ export default function CandidatePointsPage() {
   const [
     dataLayersOpen,
     setDataLayersOpen,
-  ] = useState(false);
+  ] = useState(true);
 
   const [
     selectedCandidate,
@@ -626,6 +994,11 @@ export default function CandidatePointsPage() {
   ] = useState([]);
 
   const [
+    hasPersonalizationResult,
+    setHasPersonalizationResult,
+  ] = useState(false);
+
+  const [
     regions,
     setRegions,
   ] = useState([]);
@@ -633,6 +1006,11 @@ export default function CandidatePointsPage() {
   const [
     neighborhoods,
     setNeighborhoods,
+  ] = useState([]);
+
+  const [
+    reportNeighborhoods,
+    setReportNeighborhoods,
   ] = useState([]);
 
 
@@ -714,6 +1092,21 @@ export default function CandidatePointsPage() {
   ] = useState(0);
 
   const [
+    selectedHomeRegionId,
+    setSelectedHomeRegionId,
+  ] = useState("");
+
+  const [
+    selectedCandidateRegionId,
+    setSelectedCandidateRegionId,
+  ] = useState("");
+
+  const [
+    selectedHomeNeighborhoodId,
+    setSelectedHomeNeighborhoodId,
+  ] = useState("");
+
+  const [
     candidateSearch,
     setCandidateSearch,
   ] = useState("");
@@ -721,6 +1114,11 @@ export default function CandidatePointsPage() {
   const [
     regionsActive,
     setRegionsActive,
+  ] = useState(false);
+
+  const [
+    sidebarCollapsed,
+    setSidebarCollapsed,
   ] = useState(false);
 
   const [
@@ -827,6 +1225,10 @@ export default function CandidatePointsPage() {
           .filter((region) => {
             const regionId =
               getRegionId(region);
+
+    setSelectedCandidateRegionId(
+      String(regionId ?? ""),
+    );
 
             return (
               regionId !== null &&
@@ -1016,9 +1418,7 @@ export default function CandidatePointsPage() {
 
       setFilteredCandidates([]);
 
-      setPersonalizedCandidates(
-        safeCandidates,
-      );
+      setPersonalizedCandidates([]);
 
       setSelectedCandidate(
         null,
@@ -1069,6 +1469,168 @@ export default function CandidatePointsPage() {
       isMounted = false;
     };
   }, []);
+
+  const homeRegionOptions =
+    useMemo(
+      () => {
+        const validRegions = regions
+          .filter(
+            (region) => {
+              const regionId = Number(getLocationId(region));
+              return Number.isFinite(regionId) && regionId > 0 && getLocationName(region);
+            },
+          )
+          .sort((first, second) =>
+            getLocationName(first).localeCompare(
+              getLocationName(second),
+              "tr-TR",
+            ),
+          );
+
+        return validRegions.length > 0
+          ? validRegions
+          : FALLBACK_HOME_REGIONS;
+      },
+      [regions],
+    );
+
+  const homeNeighborhoodOptions =
+    useMemo(() => {
+      const selectedRegionNumber = Number(
+        selectedHomeRegionId,
+      );
+
+      return neighborhoods
+        .filter((neighborhood) => {
+          const neighborhoodName =
+            getLocationName(neighborhood);
+
+          if (!neighborhoodName) {
+            return false;
+          }
+
+          if (
+            !Number.isInteger(
+              selectedRegionNumber,
+            ) ||
+            selectedRegionNumber <= 0
+          ) {
+            return true;
+          }
+
+          const neighborhoodRegionId = Number(
+            neighborhood?.regionId ??
+              neighborhood?.RegionId,
+          );
+
+          return (
+            Number.isInteger(
+              neighborhoodRegionId,
+            ) &&
+            neighborhoodRegionId ===
+              selectedRegionNumber
+          );
+        })
+        .sort((first, second) =>
+          getLocationName(first).localeCompare(
+            getLocationName(second),
+            "tr-TR",
+          ),
+        );
+    }, [
+      neighborhoods,
+      selectedHomeRegionId,
+    ]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const usableRegions = regions.filter(
+      (region) => {
+        const regionId =
+          getLocationId(region);
+
+        return (
+          Number.isInteger(regionId) &&
+          regionId > 0
+        );
+      },
+    );
+
+    if (usableRegions.length === 0) {
+      setReportNeighborhoods([]);
+
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    async function loadReportNeighborhoods() {
+      const results = await Promise.allSettled(
+        usableRegions.map((region) =>
+          getNeighborhoods(
+            getLocationId(region),
+            getLocationName(region),
+          ),
+        ),
+      );
+
+      if (!isMounted) {
+        return;
+      }
+
+      const neighborhoodMap = new Map();
+
+      results.forEach((result) => {
+        if (
+          result.status !== "fulfilled" ||
+          !Array.isArray(result.value?.data)
+        ) {
+          return;
+        }
+
+        result.value.data.forEach(
+          (neighborhood) => {
+            const name =
+              getReportNeighborhoodName(
+                neighborhood,
+              );
+
+            if (!name) {
+              return;
+            }
+
+            const key =
+              normalizeLocationKey(name);
+
+            if (!neighborhoodMap.has(key)) {
+              neighborhoodMap.set(
+                key,
+                neighborhood,
+              );
+            }
+          },
+        );
+      });
+
+      setReportNeighborhoods(
+        Array.from(
+          neighborhoodMap.values(),
+        ).sort((first, second) =>
+          getReportNeighborhoodName(first).localeCompare(
+            getReportNeighborhoodName(second),
+            "tr-TR",
+          ),
+        ),
+      );
+    }
+
+    loadReportNeighborhoods();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [regions]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1428,6 +1990,10 @@ export default function CandidatePointsPage() {
       safeResult,
     );
 
+    setHasPersonalizationResult(true);
+
+    setActivePersonalizationTab("results");
+
     setFilteredCandidates(
       safeResult,
     );
@@ -1588,6 +2154,204 @@ export default function CandidatePointsPage() {
 
     setActiveHomeSearchIndex(
       -1,
+    );
+
+    setHomeSearchSelectionKey(
+      (currentKey) =>
+        currentKey + 1,
+    );
+  }
+
+  function handleHomeRegionSelect(
+    event,
+  ) {
+    const nextRegionId =
+      event.target.value;
+
+    setSelectedHomeRegionId(
+      nextRegionId,
+    );
+
+    setSelectedHomeNeighborhoodId(
+      "",
+    );
+
+    if (!nextRegionId) {
+      clearHomeSearch();
+
+      return;
+    }
+
+    const selectedRegion =
+      homeRegionOptions.find(
+        (region) =>
+          String(
+            getLocationId(region),
+          ) ===
+          String(nextRegionId),
+      );
+
+    if (!selectedRegion) {
+      return;
+    }
+
+    const regionName =
+      getLocationName(
+        selectedRegion,
+      );
+
+    setRegionsActive(true);
+
+    selectHomeSearchSuggestion({
+      key: `region-dropdown-${nextRegionId}`,
+      id: nextRegionId,
+      type: "region",
+      typeLabel: "Bölge",
+      label: regionName,
+      description:
+        "Bölge sınırını haritada göster",
+      regionId:
+        Number(nextRegionId),
+    });
+  }
+
+
+  function handleCandidateRegionDropdownSelect(
+    event,
+  ) {
+    const nextRegionId =
+      event.target.value;
+
+    setSelectedCandidateRegionId(
+      nextRegionId,
+    );
+
+    if (!nextRegionId) {
+      setFocusedRegionId(null);
+      setSelectedScanRegion(null);
+
+      setRegionFocusKey(
+        (currentKey) =>
+          currentKey + 1,
+      );
+
+      return;
+    }
+
+    const selectedRegion =
+      homeRegionOptions.find(
+        (region) =>
+          String(
+            getLocationId(region),
+          ) ===
+          String(nextRegionId),
+      );
+
+    if (!selectedRegion) {
+      return;
+    }
+
+    setRegionsActive(true);
+
+    handleCandidateRegionSelect(
+      selectedRegion,
+    );
+
+    setRegionFocusKey(
+      (currentKey) =>
+        currentKey + 1,
+    );
+  }
+
+  function handleHomeNeighborhoodSelect(
+    event,
+  ) {
+    const nextNeighborhoodId =
+      event.target.value;
+
+    setSelectedHomeNeighborhoodId(
+      nextNeighborhoodId,
+    );
+
+    if (!nextNeighborhoodId) {
+      if (selectedHomeRegionId) {
+        handleHomeRegionSelect({
+          target: {
+            value:
+              selectedHomeRegionId,
+          },
+        });
+      } else {
+        clearHomeSearch();
+      }
+
+      return;
+    }
+
+    const selectedNeighborhood =
+      homeNeighborhoodOptions.find(
+        (neighborhood) =>
+          String(
+            getLocationId(
+              neighborhood,
+            ),
+          ) ===
+          String(nextNeighborhoodId),
+      );
+
+    if (!selectedNeighborhood) {
+      return;
+    }
+
+    const neighborhoodName =
+      getLocationName(
+        selectedNeighborhood,
+      );
+
+    const neighborhoodRegionId =
+      Number(
+        selectedNeighborhood
+          ?.regionId ??
+          selectedNeighborhood
+            ?.RegionId ??
+          selectedHomeRegionId,
+      );
+
+    if (
+      Number.isInteger(
+        neighborhoodRegionId,
+      ) &&
+      neighborhoodRegionId > 0
+    ) {
+      setSelectedHomeRegionId(
+        String(
+          neighborhoodRegionId,
+        ),
+      );
+
+      setRegionsActive(true);
+
+      selectHomeSearchSuggestion({
+        key: `neighborhood-dropdown-${nextNeighborhoodId}`,
+        id: nextNeighborhoodId,
+        type: "region",
+        typeLabel: "Mahalle",
+        label: neighborhoodName,
+        description:
+          "Mahallenin bağlı olduğu bölgeyi haritada göster",
+        regionId:
+          neighborhoodRegionId,
+      });
+
+      return;
+    }
+
+    setStationSearch(
+      neighborhoodName,
+    );
+
+    setSelectedHomeSearchResult(
+      null,
     );
 
     setHomeSearchSelectionKey(
@@ -3092,6 +3856,8 @@ export default function CandidatePointsPage() {
     );
 
     if (!nextValue) {
+      setSelectedCandidateRegionId("");
+
       resetRegionScanState({
         clearSelectedRegion: true,
         restoreCandidateList: false,
@@ -3117,8 +3883,47 @@ export default function CandidatePointsPage() {
   }
 
   function handleOpenAdminPanel() {
-    window.location.assign("/admin");
+    navigate("/admin");
   }
+
+  const dynamicReportNeighborhoodOptions =
+    useMemo(() => {
+      const names = reportNeighborhoods
+        .map((neighborhood) =>
+          getReportNeighborhoodName(
+            neighborhood,
+          ),
+        )
+        .filter(Boolean);
+
+      return names.length > 0
+        ? names
+        : reportNeighborhoodOptions;
+    }, [reportNeighborhoods]);
+
+  useEffect(() => {
+    if (
+      dynamicReportNeighborhoodOptions.includes(
+        selectedReportNeighborhood,
+      )
+    ) {
+      return;
+    }
+
+    setSelectedReportNeighborhood(
+      dynamicReportNeighborhoodOptions[0],
+    );
+  }, [
+    dynamicReportNeighborhoodOptions,
+    selectedReportNeighborhood,
+  ]);
+
+  const selectedReportSocketDistribution =
+    getReportSocketDistribution(
+      selectedReportNeighborhood
+        || dynamicReportNeighborhoodOptions[0],
+      reportNeighborhoods,
+    );
 
   function handleLogout() {
     logoutUser();
@@ -3131,87 +3936,125 @@ export default function CandidatePointsPage() {
       data-testid="candidate-points-page"
     >
       <aside
-        className="left-menu"
+        className={
+          sidebarCollapsed
+            ? "left-menu dashboard-sidebar collapsed"
+            : "left-menu dashboard-sidebar"
+        }
         data-testid="left-menu"
       >
         <button
           type="button"
-          className={
-            activeTab === "home"
-              ? "menu-button active"
-              : "menu-button"
-          }
-          data-testid="home-tab-button"
+          className="sidebar-collapse-button"
+          data-testid="sidebar-collapse-button"
+          aria-label={sidebarCollapsed ? "Menüyü genişlet" : "Menüyü daralt"}
+          title={sidebarCollapsed ? "Menüyü genişlet" : "Menüyü daralt"}
           onClick={() =>
-            setActiveTab("home")
+            setSidebarCollapsed((currentValue) => !currentValue)
           }
-          title="Mevcut istasyon haritası"
         >
-          <Home
-            size={26}
-            strokeWidth={2.3}
-          />
+          <Menu size={20} strokeWidth={2.4} />
         </button>
+
+        <div className="sidebar-brand">
+          <span className="sidebar-brand-mark">
+            <img
+              src={SIDEBAR_LOGO_SRC}
+              alt="GeoVolt"
+              className="sidebar-brand-logo"
+            />
+          </span>
+          <strong>GeoVolt</strong>
+          <small>İstasyon Yönetimi</small>
+        </div>
+
+        <nav className="sidebar-nav" aria-label="Ana menü">
+          <button
+            type="button"
+            className={activeTab === "home" ? "menu-button active" : "menu-button"}
+            data-testid="home-tab-button"
+            onClick={() => setActiveTab("home")}
+            title="Mevcut istasyon haritası"
+          >
+            <Home size={26} strokeWidth={2.3} />
+            <span>Mevcut istasyon haritası</span>
+          </button>
+
+          <button
+            type="button"
+            className={
+              activeTab === "candidateMap"
+                ? "menu-button active"
+                : "menu-button"
+            }
+            data-testid="candidate-map-tab-button"
+            onClick={openCandidateMap}
+            title="Aday nokta haritası"
+          >
+            <Zap size={26} strokeWidth={2.3} />
+            <span>Aday nokta haritası</span>
+          </button>
+
+          <button
+            type="button"
+            className={activeTab === "saved" ? "menu-button active" : "menu-button"}
+            data-testid="saved-tab-button"
+            onClick={() => setActiveTab("saved")}
+            title="Kaydedilenler"
+          >
+            <ListChecks size={26} strokeWidth={2.3} />
+            <span>Kaydedilenler</span>
+          </button>
+
+          <button
+            type="button"
+            className={
+              activeTab === "personalization"
+                ? "menu-button active"
+                : "menu-button"
+            }
+            data-testid="personalization-tab-button"
+            onClick={() => setActiveTab("personalization")}
+            title="Kişiselleştirme"
+          >
+            <SlidersHorizontal size={26} strokeWidth={2.3} />
+            <span>Kişiselleştirme</span>
+          </button>
+
+          <button
+            type="button"
+            className={activeTab === "report" ? "menu-button active" : "menu-button"}
+            data-testid="report-tab-button"
+            onClick={() => setActiveTab("report")}
+            title="Rapor"
+          >
+            <FileText size={26} strokeWidth={2.3} />
+            <span>Rapor</span>
+          </button>
+
+          {canOpenAdminPanel && (
+            <button
+              type="button"
+              className="menu-button"
+              data-testid="admin-panel-menu-button"
+              onClick={handleOpenAdminPanel}
+              title="Yönetim Paneli"
+            >
+              <ShieldCheck size={26} strokeWidth={2.3} />
+              <span>Yönetim paneli</span>
+            </button>
+          )}
+        </nav>
 
         <button
           type="button"
-          className={
-            activeTab ===
-            "candidateMap"
-              ? "menu-button active"
-              : "menu-button"
-          }
-          data-testid="candidate-map-tab-button"
-          onClick={
-            openCandidateMap
-          }
-          title="Aday nokta haritası"
+          className="menu-button logout-menu-button"
+          data-testid="logout-menu-button"
+          onClick={handleLogout}
+          title="Çıkış"
         >
-          <Zap
-            size={26}
-            strokeWidth={2.3}
-          />
-        </button>
-
-        <button
-          type="button"
-          className={
-            activeTab === "saved"
-              ? "menu-button active"
-              : "menu-button"
-          }
-          data-testid="saved-tab-button"
-          onClick={() =>
-            setActiveTab("saved")
-          }
-          title="Kaydedilenler"
-        >
-          <ListChecks
-            size={26}
-            strokeWidth={2.3}
-          />
-        </button>
-
-        <button
-          type="button"
-          className={
-            activeTab ===
-            "personalization"
-              ? "menu-button active"
-              : "menu-button"
-          }
-          data-testid="personalization-tab-button"
-          onClick={() =>
-            setActiveTab(
-              "personalization",
-            )
-          }
-          title="Kişiselleştirme"
-        >
-          <SlidersHorizontal
-            size={26}
-            strokeWidth={2.3}
-          />
+          <Power size={26} strokeWidth={2.4} />
+          <span>Çıkış</span>
         </button>
       </aside>
 
@@ -3227,7 +4070,8 @@ export default function CandidatePointsPage() {
       <main
         className="page-content"
         style={
-          activeTab === "personalization"
+          activeTab === "personalization" ||
+          activeTab === "report"
             ? {
                 height: "100vh",
                 overflowY: "auto",
@@ -3241,224 +4085,55 @@ export default function CandidatePointsPage() {
             className="map-screen"
             data-testid="home-map-screen"
           >
-            <div className="map-topbar">
+            <div className="map-topbar dashboard-header">
               <div
-                className="home-search-shell"
-                data-testid="home-search-shell"
+                className="home-location-controls"
+                data-testid="home-location-controls"
               >
-                <input
-                  className="map-search home-search-input"
-                  data-testid="home-search-input"
-                  placeholder="İstasyon, mahalle veya konum ara"
-                  value={stationSearch}
-                  autoComplete="off"
-                  spellCheck={false}
-                  role="combobox"
-                  aria-autocomplete="list"
-                  aria-expanded={
-                    homeSearchOpen
-                  }
-                  aria-controls="home-search-suggestions"
-                  aria-activedescendant={
-                    activeHomeSearchIndex >=
-                    0
-                      ? `home-search-option-${
-                          homeSearchSuggestions[
-                            activeHomeSearchIndex
-                          ]?.key
-                        }`
-                      : undefined
-                  }
-                  onFocus={() => {
-                    if (
-                      normalizeSearchText(
-                        stationSearch,
-                      ).length >= 2
-                    ) {
-                      setHomeSearchOpen(
-                        true,
+                <label className="home-location-select">
+                  <span>Bölge</span>
+                  <select
+                    value={selectedHomeRegionId}
+                    onChange={handleHomeRegionSelect}
+                    data-testid="home-region-select"
+                  >
+                    <option value="">Bölge Seçin</option>
+                    {homeRegionOptions.map((region) => {
+                      const regionId = getLocationId(region);
+
+                      return (
+                        <option key={regionId} value={regionId}>
+                          {getLocationName(region)}
+                        </option>
                       );
-                    }
-                  }}
-                  onBlur={() => {
-                    window.setTimeout(
-                      () => {
-                        setHomeSearchOpen(
-                          false,
-                        );
-
-                        setActiveHomeSearchIndex(
-                          -1,
-                        );
-                      },
-                      120,
-                    );
-                  }}
-                  onKeyDown={
-                    handleHomeSearchKeyDown
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    handleHomeSearchChange(
-                      event.target.value,
-                    )
-                  }
-                />
-
-                {stationSearch && (
-                  <button
-                    type="button"
-                    className="candidate-search-clear-button"
-                    aria-label="Aramayı temizle"
-                    title="Aramayı temizle"
-                    data-testid="home-search-clear-button"
-                    onMouseDown={(
-                      event,
-                    ) =>
-                      event.preventDefault()
-                    }
-                    onClick={
-                      clearHomeSearch
-                    }
-                  >
-                    ×
-                  </button>
-                )}
-
-                {homeSearchOpen && (
-                  <div
-                    id="home-search-suggestions"
-                    className="candidate-search-suggestions"
-                    role="listbox"
-                    data-testid="home-search-suggestions"
-                  >
-                    {homeSearchSuggestions.map(
-                      (
-                        suggestion,
-                        index,
-                      ) => {
-                        const testIdPart =
-                          createSearchTestIdPart(
-                            suggestion.id,
-                          );
-
-                        const isActive =
-                          index ===
-                          activeHomeSearchIndex;
-
-                        return (
-                          <button
-                            key={
-                              suggestion.key
-                            }
-                            id={`home-search-option-${suggestion.key}`}
-                            type="button"
-                            role="option"
-                            aria-selected={
-                              isActive
-                            }
-                            className={
-                              isActive
-                                ? "candidate-search-suggestion active"
-                                : "candidate-search-suggestion"
-                            }
-                            data-testid={`home-search-suggestion-${suggestion.type}-${testIdPart}`}
-                            onMouseDown={(
-                              event,
-                            ) =>
-                              event.preventDefault()
-                            }
-                            onMouseEnter={() =>
-                              setActiveHomeSearchIndex(
-                                index,
-                              )
-                            }
-                            onClick={() =>
-                              selectHomeSearchSuggestion(
-                                suggestion,
-                              )
-                            }
-                          >
-                            <span className="candidate-search-suggestion-main">
-                              <strong>
-                                {
-                                  suggestion.label
-                                }
-                              </strong>
-
-                              <small>
-                                {
-                                  suggestion.description
-                                }
-                              </small>
-                            </span>
-
-                            <em>
-                              {
-                                suggestion.typeLabel
-                              }
-                            </em>
-                          </button>
-                        );
-                      },
-                    )}
-
-                    {homeSearchSuggestions.length ===
-                      0 && (
-                      <div
-                        className="candidate-search-empty"
-                        data-testid="home-search-no-results"
-                      >
-                        Eşleşen istasyon,
-                        mahalle veya konum
-                        bulunamadı.
-                      </div>
-                    )}
-                  </div>
-                )}
+                    })}
+                  </select>
+                </label>
               </div>
 
               <button
                 type="button"
                 className={
                   regionsActive
-                    ? "region-toggle active"
-                    : "region-toggle"
+                    ? "region-toggle active dashboard-region-toggle"
+                    : "region-toggle dashboard-region-toggle"
                 }
                 data-testid="home-region-toggle-button"
                 onClick={() =>
-                  setRegionsActive(
-                    (
-                      currentValue,
-                    ) =>
-                      !currentValue,
-                  )
+                  setRegionsActive((currentValue) => !currentValue)
                 }
               >
-                {regionsActive
-                  ? "Bölgeler aktif"
-                  : "Bölgeler inaktif"}
+                {regionsActive ? "Bölgeler Aktif" : "Bölgeler İnaktif"}
               </button>
             </div>
 
             <div className="mock-map">
               <ExistingStationsMap
-                searchTerm={
-                  stationSearch
-                }
-                searchSelection={
-                  selectedHomeSearchResult
-                }
-                searchSelectionKey={
-                  homeSearchSelectionKey
-                }
-                onSearchSuggestionsChange={
-                  setHomeSearchSuggestions
-                }
-                mapStep={
-                  regionsActive ? 2 : 1
-                }
+                searchTerm={stationSearch}
+                searchSelection={selectedHomeSearchResult}
+                searchSelectionKey={homeSearchSelectionKey}
+                onSearchSuggestionsChange={setHomeSearchSuggestions}
+                mapStep={regionsActive ? 2 : 1}
               />
             </div>
           </section>
@@ -3470,192 +4145,43 @@ export default function CandidatePointsPage() {
             className="map-screen"
             data-testid="candidate-map-screen"
           >
-            <div className="map-topbar">
+            <div className="map-topbar dashboard-header">
               <div
-                className="candidate-search-shell"
-                data-testid="candidate-search-shell"
+                className="home-location-controls candidate-location-controls"
+                data-testid="candidate-location-controls"
               >
-                <input
-                  className="map-search candidate-search-input"
-                  data-testid="candidate-search-input"
-                  placeholder="Aday nokta veya mahalle ara"
-                  value={
-                    candidateSearch
-                  }
-                  autoComplete="off"
-                  spellCheck={false}
-                  role="combobox"
-                  aria-autocomplete="list"
-                  aria-expanded={
-                    candidateSearchOpen
-                  }
-                  aria-controls="candidate-search-suggestions"
-                  aria-activedescendant={
-                    activeSearchSuggestionIndex >=
-                    0
-                      ? `candidate-search-option-${
-                          candidateSearchSuggestions[
-                            activeSearchSuggestionIndex
-                          ]?.key
-                        }`
-                      : undefined
-                  }
-                  onFocus={() => {
-                    if (
-                      normalizeSearchText(
-                        candidateSearch,
-                      ).length >= 2
-                    ) {
-                      setCandidateSearchOpen(
-                        true,
+                <label className="home-location-select">
+                  <span>Bölge</span>
+
+                  <select
+                    value={selectedCandidateRegionId}
+                    onChange={handleCandidateRegionDropdownSelect}
+                    data-testid="candidate-region-select"
+                  >
+                    <option value="">Bölge Seçin</option>
+
+                    {homeRegionOptions.map((region) => {
+                      const regionId =
+                        getLocationId(region);
+
+                      return (
+                        <option
+                          key={regionId}
+                          value={regionId}
+                        >
+                          {getLocationName(region)}
+                        </option>
                       );
-                    }
-                  }}
-                  onBlur={() => {
-                    window.setTimeout(
-                      () => {
-                        setCandidateSearchOpen(
-                          false,
-                        );
-
-                        setActiveSearchSuggestionIndex(
-                          -1,
-                        );
-                      },
-                      120,
-                    );
-                  }}
-                  onKeyDown={
-                    handleCandidateSearchKeyDown
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    handleCandidateSearchChange(
-                      event.target.value,
-                    )
-                  }
-                />
-
-                {candidateSearch && (
-                  <button
-                    type="button"
-                    className="candidate-search-clear-button"
-                    aria-label="Aramayı temizle"
-                    title="Aramayı temizle"
-                    data-testid="candidate-search-clear-button"
-                    onMouseDown={(
-                      event,
-                    ) =>
-                      event.preventDefault()
-                    }
-                    onClick={
-                      clearCandidateSearch
-                    }
-                  >
-                    ×
-                  </button>
-                )}
-
-                {candidateSearchOpen && (
-                  <div
-                    id="candidate-search-suggestions"
-                    className="candidate-search-suggestions"
-                    role="listbox"
-                    data-testid="candidate-search-suggestions"
-                  >
-                    {candidateSearchSuggestions.map(
-                      (
-                        suggestion,
-                        index,
-                      ) => {
-                        const testIdPart =
-                          createSearchTestIdPart(
-                            suggestion.id,
-                          );
-
-                        const isActive =
-                          index ===
-                          activeSearchSuggestionIndex;
-
-                        return (
-                          <button
-                            key={
-                              suggestion.key
-                            }
-                            id={`candidate-search-option-${suggestion.key}`}
-                            type="button"
-                            role="option"
-                            aria-selected={
-                              isActive
-                            }
-                            className={
-                              isActive
-                                ? "candidate-search-suggestion active"
-                                : "candidate-search-suggestion"
-                            }
-                            data-testid={`candidate-search-suggestion-${suggestion.type}-${testIdPart}`}
-                            onMouseDown={(
-                              event,
-                            ) =>
-                              event.preventDefault()
-                            }
-                            onMouseEnter={() =>
-                              setActiveSearchSuggestionIndex(
-                                index,
-                              )
-                            }
-                            onClick={() =>
-                              selectCandidateSearchSuggestion(
-                                suggestion,
-                              )
-                            }
-                          >
-                            <span className="candidate-search-suggestion-main">
-                              <strong>
-                                {
-                                  suggestion.label
-                                }
-                              </strong>
-
-                              <small>
-                                {
-                                  suggestion.description
-                                }
-                              </small>
-                            </span>
-
-                            <em>
-                              {
-                                suggestion.typeLabel
-                              }
-                            </em>
-                          </button>
-                        );
-                      },
-                    )}
-
-                    {candidateSearchSuggestions.length ===
-                      0 && (
-                      <div
-                        className="candidate-search-empty"
-                        data-testid="candidate-search-no-results"
-                      >
-                        Eşleşen aday nokta
-                        veya mahalle
-                        bulunamadı.
-                      </div>
-                    )}
-                  </div>
-                )}
+                    })}
+                  </select>
+                </label>
               </div>
-
               <button
                 type="button"
                 className={
                   regionsActive
-                    ? "region-toggle active"
-                    : "region-toggle"
+                    ? "region-toggle active dashboard-region-toggle"
+                    : "region-toggle dashboard-region-toggle"
                 }
                 data-testid="candidate-region-toggle-button"
                 onClick={
@@ -3663,8 +4189,8 @@ export default function CandidatePointsPage() {
                 }
               >
                 {regionsActive
-                  ? "Bölgeler aktif"
-                  : "Bölgeler inaktif"}
+                  ? "Bölgeler Aktif"
+                  : "Bölgeler İnaktif"}
               </button>
             </div>
 
@@ -4345,19 +4871,51 @@ export default function CandidatePointsPage() {
             className="standalone-panel personalization-screen"
             data-testid="personalization-screen"
           >
-            <h1>
-              Kişiselleştirme
-            </h1>
+            <nav
+              className="personalization-tabs"
+              aria-label="Kişiselleştirme bölümleri"
+              role="tablist"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activePersonalizationTab === "form"}
+                className={activePersonalizationTab === "form" ? "active" : ""}
+                onClick={() => setActivePersonalizationTab("form")}
+              >
+                <SlidersHorizontal size={18} strokeWidth={2.2} />
+                <span>Kişiselleştirme Formu</span>
+              </button>
 
-            <p className="page-description">
-              Firma bütçesi, sistem
-              tipi, mekân türü ve
-              bölgeye göre aday
-              noktalar
-              kişiselleştirilir.
-            </p>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activePersonalizationTab === "layers"}
+                className={activePersonalizationTab === "layers" ? "active" : ""}
+                onClick={() => {
+                  setActivePersonalizationTab("layers");
+                  setDataLayersOpen(true);
+                }}
+              >
+                <LayoutDashboard size={18} strokeWidth={2.2} />
+                <span>Veri Katmanları Özeti</span>
+              </button>
 
-            <PersonalizationForm
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activePersonalizationTab === "results"}
+                className={activePersonalizationTab === "results" ? "active" : ""}
+                onClick={() => setActivePersonalizationTab("results")}
+              >
+                <ListChecks size={18} strokeWidth={2.2} />
+                <span>Kişiselleştirilmiş Sonuçlar</span>
+              </button>
+            </nav>
+
+            {activePersonalizationTab === "form" && (
+              <>
+                <PersonalizationForm
               candidates={
                 candidates
               }
@@ -4376,7 +4934,7 @@ export default function CandidatePointsPage() {
               }
             />
 
-            {selectedRegionSummary && (
+                {selectedRegionSummary && (
               <section
                 className="region-summary-card"
                 data-testid="region-summary-card"
@@ -4512,8 +5070,11 @@ export default function CandidatePointsPage() {
                   )}
                 </div>
               </section>
+                )}
+              </>
             )}
 
+            {activePersonalizationTab === "layers" && (
             <section
               className="data-layers-section"
               data-testid="data-layers-section"
@@ -4637,6 +5198,52 @@ export default function CandidatePointsPage() {
                 </span>
               </div>
 
+              <nav
+                className="data-layer-subtabs"
+                aria-label="Veri katmanları"
+                role="tablist"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeSubTab === "poi"}
+                  className={activeSubTab === "poi" ? "active" : ""}
+                  onClick={() => {
+                    setActiveSubTab("poi");
+                    setDataLayersOpen(true);
+                  }}
+                >
+                  <span aria-hidden="true">●</span>
+                  POI Talep Verisi Özeti
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeSubTab === "trafo"}
+                  className={activeSubTab === "trafo" ? "active" : ""}
+                  onClick={() => {
+                    setActiveSubTab("trafo");
+                    setDataLayersOpen(true);
+                  }}
+                >
+                  <span aria-hidden="true">⚡</span>
+                  Trafo Enerji Verisi Özeti
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeSubTab === "road"}
+                  className={activeSubTab === "road" ? "active" : ""}
+                  onClick={() => {
+                    setActiveSubTab("road");
+                    setDataLayersOpen(true);
+                  }}
+                >
+                  <span aria-hidden="true">━</span>
+                  Yol Erişilebilirlik Verisi Özeti
+                </button>
+              </nav>
+
               {dataLayersOpen && (
                 <div
                   id="data-layers-accordion-content"
@@ -4645,6 +5252,7 @@ export default function CandidatePointsPage() {
                     marginTop: "18px",
                   }}
                 >
+                  {activeSubTab === "poi" && (
                   <PoiSummary
                     filterBoundaryGeoJson={
                       summarySpatialFilter.boundaryGeoJson
@@ -4653,6 +5261,8 @@ export default function CandidatePointsPage() {
                     filterLevel={summarySpatialFilter.level}
                     filterLoading={summarySpatialFilter.loading}
                   />
+                  )}
+                  {activeSubTab === "trafo" && (
                   <TrafoSummary
                     filterBoundaryGeoJson={
                       summarySpatialFilter.boundaryGeoJson
@@ -4661,6 +5271,8 @@ export default function CandidatePointsPage() {
                     filterLevel={summarySpatialFilter.level}
                     filterLoading={summarySpatialFilter.loading}
                   />
+                  )}
+                  {activeSubTab === "road" && (
                   <RoadSummary
                     filterBoundaryGeoJson={
                       summarySpatialFilter.boundaryGeoJson
@@ -4669,10 +5281,14 @@ export default function CandidatePointsPage() {
                     filterLevel={summarySpatialFilter.level}
                     filterLoading={summarySpatialFilter.loading}
                   />
+                  )}
                 </div>
               )}
             </section>
+            )}
 
+            {activePersonalizationTab === "results" && (
+            <section className="personalization-results-panel" role="tabpanel">
             <h2 className="section-title">
               Kişiselleştirilmiş
               Sonuçlar
@@ -4682,8 +5298,14 @@ export default function CandidatePointsPage() {
               className="personalized-card-grid"
               data-testid="personalized-candidate-list"
             >
-              {personalizedCandidates.length ===
-              0 ? (
+              {!hasPersonalizationResult ? (
+                <div
+                  className="region-summary-empty personalization-results-empty"
+                  data-testid="personalized-candidate-initial"
+                >
+                  Kişiselleştirilmiş sonuçları görmek için önce tercihlerinizi belirleyip formu uygulayın.
+                </div>
+              ) : personalizedCandidates.length === 0 ? (
                 <div
                   className="region-summary-empty"
                   data-testid="personalized-candidate-empty"
@@ -4693,7 +5315,7 @@ export default function CandidatePointsPage() {
                   bulunamadı.
                 </div>
               ) : (
-                personalizedCandidates.map(
+                personalizedCandidates.slice(0, 5).map(
                   (candidate) => (
                     <div
                       key={
@@ -4815,6 +5437,142 @@ export default function CandidatePointsPage() {
                   ),
                 )
               )}
+            </div>
+            </section>
+            )}
+          </section>
+        )}
+
+        {activeTab === "report" && (
+          <section
+            className="report-screen"
+            data-testid="report-screen"
+          >
+            <header className="report-page-header">
+              <span>Rapor Merkezi</span>
+              <h1>
+                {"\u0130stasyon analiz raporlar\u0131"}
+              </h1>
+              <p>
+                {"B\u00F6lge, mahalle ve soket tiplerine g\u00F6re da\u011F\u0131l\u0131m\u0131 tek ekranda takip edin."}
+              </p>
+            </header>
+
+            <div className="report-chart-grid">
+              <article className="report-chart-card">
+                <div className="report-card-heading">
+                  <span>{"Genel da\u011F\u0131l\u0131m"}</span>
+                  <h2>
+                    {"Semtlere G\u00F6re \u0130stasyon Da\u011F\u0131l\u0131m\u0131"}
+                  </h2>
+                  <p>
+                    {"Mevcut istasyonlar\u0131n b\u00F6lgesel pay\u0131."}
+                  </p>
+                </div>
+
+                <ReportPieChart
+                  data={reportDistrictDistribution}
+                />
+
+                <div className="report-legend">
+                  {reportDistrictDistribution.map(
+                    (item) => (
+                      <div
+                        className="report-legend-row"
+                        key={item.label}
+                      >
+                        <span
+                          className="report-dot"
+                          style={{
+                            backgroundColor:
+                              item.color,
+                          }}
+                        />
+                        <strong>
+                          {item.label}
+                        </strong>
+                        <em>
+                          %{item.value}
+                        </em>
+                      </div>
+                    ),
+                  )}
+                </div>
+              </article>
+
+              <article className="report-chart-card">
+                <div className="report-card-heading report-card-heading-row">
+                  <div>
+                    <span>Mahalle analizi</span>
+                    <h2>
+                      {"Mahalle Bazl\u0131 Soket Da\u011F\u0131l\u0131m\u0131"}
+                    </h2>
+                    <p>
+                      {"Se\u00E7ilen mahalleye g\u00F6re AC/DC oran\u0131."}
+                    </p>
+                  </div>
+
+                  <label className="report-select-shell">
+                    <span>{"Mahalle se\u00E7"}</span>
+                    <select
+                      value={
+                        selectedReportNeighborhood
+                      }
+                      onChange={(event) =>
+                        setSelectedReportNeighborhood(
+                          event.target.value,
+                        )
+                      }
+                    >
+                      {dynamicReportNeighborhoodOptions.map(
+                        (neighborhood) => (
+                          <option
+                            key={neighborhood}
+                            value={neighborhood}
+                          >
+                            {neighborhood}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </label>
+                </div>
+
+                <ReportDonutChart
+                  data={selectedReportSocketDistribution}
+                  centerLabel={
+                    selectedReportNeighborhood
+                  }
+                />
+
+                <div className="report-analysis-bars">
+                  {selectedReportSocketDistribution.map(
+                    (item) => (
+                      <div
+                        className="report-analysis-row"
+                        key={item.label}
+                      >
+                        <div className="report-analysis-label">
+                          <span
+                            className="report-dot"
+                            style={{ backgroundColor: item.color }}
+                          />
+                          <strong>{item.label}</strong>
+                          <em>%{item.value}</em>
+                        </div>
+                        <div className="report-analysis-track">
+                          <span
+                            style={{
+                              width: `${item.value}%`,
+                              backgroundColor: item.color,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ),
+                  )}
+                </div>
+              </article>
             </div>
           </section>
         )}
