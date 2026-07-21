@@ -7,7 +7,6 @@ using GeoVolt.Application.Regions.Dtos;
 using GeoVolt.Domain.Entities;
 using NetTopologySuite.Geometries;
 
-// Bölge ve istasyon verilerini yönetmek için servis sınıfı
 namespace GeoVolt.Application.Regions;
 
 public sealed class RegionService : IRegionService
@@ -29,11 +28,9 @@ public sealed class RegionService : IRegionService
     public async Task<IReadOnlyList<RegionResponseDto>> GetAllAsync(
         CancellationToken cancellationToken = default)
     {
-        // Tüm bölgeleri repository üzerinden alır
         var regions = await _regionRepository.GetAllAsync(
             cancellationToken);
 
-        // Entity listesini DTO listesine dönüştürür
         return regions
             .Select(MapToResponseDto)
             .ToList();
@@ -43,18 +40,15 @@ public sealed class RegionService : IRegionService
         int sourceId,
         CancellationToken cancellationToken = default)
     {
-        // Id değerine göre bölgeyi getirir
         var region = await _regionRepository.GetBySourceIdAsync(
             sourceId,
             cancellationToken);
 
-        // Bölge bulunamazsa null döner
         if (region is null)
         {
             throw new NotFoundException("Bölge bulunamadı.");
         }
 
-        // Entity nesnesini DTO'ya dönüştürür
         return MapToResponseDto(region);
     }
 
@@ -62,30 +56,82 @@ public sealed class RegionService : IRegionService
         int sourceId,
         CancellationToken cancellationToken = default)
     {
-        // Id değerine göre bölgeyi getirir
         var region = await _regionRepository.GetBySourceIdAsync(
             sourceId,
             cancellationToken);
 
-        // Bölge bulunamazsa null döner
         if (region is null)
         {
             throw new NotFoundException("Bölge bulunamadı.");
         }
 
-        // Seçilen bölgedeki tüm istasyonları getirir
-        // Mahalle filtresi uygulanmaz
+        // Seçilen semtteki istasyonları getirir
         var stations = await _chargingStationRepository.GetAllAsync(
             regionSourceId: sourceId,
             neighborhoodSourceId: null,
             cancellationToken: cancellationToken);
 
-        // Repository connector verilerini istasyonlarla birlikte topluca getirir.
+        // Sistemdeki tüm istasyonları getirir
+        var allStations = await _chargingStationRepository.GetAllAsync(
+            regionSourceId: null,
+            neighborhoodSourceId: null,
+            cancellationToken: cancellationToken);
+
         var connectors = stations
             .SelectMany(station => station.Connectors)
             .ToList();
 
-        // Firmalara göre istasyon dağılımını hesaplar
+        var chargingStationCount = stations.Count;
+        var totalChargingStationCount = allStations.Count;
+
+        // Seçilen semtin toplam istasyonlar içindeki payını hesaplar
+        var chargingStationPercentage =
+            totalChargingStationCount == 0
+                ? 0
+                : Math.Round(
+                    chargingStationCount * 100.0 /
+                    totalChargingStationCount,
+                    2,
+                    MidpointRounding.AwayFromZero);
+
+        // AC soketlerin toplam adedini hesaplar
+        var acCount = connectors
+            .Where(connector =>
+                string.Equals(
+                    connector.SocketType.Trim(),
+                    "AC",
+                    StringComparison.OrdinalIgnoreCase))
+            .Sum(connector => connector.Quantity);
+
+        // DC soketlerin toplam adedini hesaplar
+        var dcCount = connectors
+            .Where(connector =>
+                string.Equals(
+                    connector.SocketType.Trim(),
+                    "DC",
+                    StringComparison.OrdinalIgnoreCase))
+            .Sum(connector => connector.Quantity);
+
+        var totalAcDcCount = acCount + dcCount;
+
+        // Semtteki AC soket oranını hesaplar
+        var acPercentage =
+            totalAcDcCount == 0
+                ? 0
+                : Math.Round(
+                    acCount * 100.0 / totalAcDcCount,
+                    2,
+                    MidpointRounding.AwayFromZero);
+
+        // Semtteki DC soket oranını hesaplar
+        var dcPercentage =
+            totalAcDcCount == 0
+                ? 0
+                : Math.Round(
+                    dcCount * 100.0 / totalAcDcCount,
+                    2,
+                    MidpointRounding.AwayFromZero);
+
         var companyDistribution = stations
             .GroupBy(station => station.OperatorName)
             .Select(group => new CompanyDistributionResponseDto
@@ -97,14 +143,11 @@ public sealed class RegionService : IRegionService
             .ThenBy(company => company.CompanyName)
             .ToList();
 
-        // En yaygın soket tipini hesaplar
         var mostCommonSocketType = connectors
             .GroupBy(connector => connector.SocketType)
             .Select(group => new
             {
                 SocketType = group.Key,
-
-                // Connector adetlerini dikkate alır
                 TotalQuantity = group.Sum(
                     connector => connector.Quantity)
             })
@@ -113,14 +156,11 @@ public sealed class RegionService : IRegionService
             .Select(item => item.SocketType)
             .FirstOrDefault();
 
-        // En yaygın güç kapasitesini hesaplar
         var mostCommonPowerKw = connectors
             .GroupBy(connector => connector.PowerKw)
             .Select(group => new
             {
                 PowerKw = group.Key,
-
-                // Connector adetlerini dikkate alır
                 TotalQuantity = group.Sum(
                     connector => connector.Quantity)
             })
@@ -129,25 +169,23 @@ public sealed class RegionService : IRegionService
             .Select(item => (double?)item.PowerKw)
             .FirstOrDefault();
 
-        // Hesaplanan verileri response DTO'ya dönüştürür
         return new RegionSummaryResponseDto
         {
             RegionId = region.SourceId,
             RegionName = region.Name,
 
-            // PostGIS repository'sindeki gerçek istasyon sayısını kullanır
-            ChargingStationCount = stations.Count,
+            ChargingStationCount = chargingStationCount,
+            TotalChargingStationCount = totalChargingStationCount,
+            ChargingStationPercentage = chargingStationPercentage,
 
-            // Gerçek trafik veri seti henüz sisteme bağlı değildir.
+            AcCount = acCount,
+            DcCount = dcCount,
+            AcPercentage = acPercentage,
+            DcPercentage = dcPercentage,
+
             TrafficLevel = "Veri hazırlanıyor",
-
-            // Connector verilerinden hesaplanır
             MostCommonSocketType = mostCommonSocketType,
-
-            // Connector verilerinden hesaplanır
             MostCommonPowerKw = mostCommonPowerKw,
-
-            // İstasyon verilerinden hesaplanır
             CompanyDistribution = companyDistribution
         };
     }
@@ -167,7 +205,10 @@ public sealed class RegionService : IRegionService
         }
 
         var point = region.Boundary.Factory.CreatePoint(
-            new Coordinate(request.Longitude, request.Latitude));
+            new Coordinate(
+                request.Longitude,
+                request.Latitude));
+
         var isInsideRegion = region.Boundary.Covers(point);
 
         Neighborhood? neighborhood = null;
@@ -198,7 +239,6 @@ public sealed class RegionService : IRegionService
     private static RegionResponseDto MapToResponseDto(
         Region region)
     {
-        // Region entity'sini response DTO'ya dönüştürür
         return new RegionResponseDto
         {
             Id = region.SourceId,
@@ -211,7 +251,6 @@ public sealed class RegionService : IRegionService
     private static string ToGeoJson(
         Geometry geometry)
     {
-        // Polygon geometrisini GeoJSON'a çevirir
         if (geometry is Polygon polygon)
         {
             return JsonSerializer.Serialize(new
@@ -221,7 +260,6 @@ public sealed class RegionService : IRegionService
             });
         }
 
-        // MultiPolygon geometrisini GeoJSON'a çevirir
         if (geometry is MultiPolygon multiPolygon)
         {
             var coordinates = Enumerable
@@ -238,7 +276,6 @@ public sealed class RegionService : IRegionService
             });
         }
 
-        // Desteklenmeyen geometri tipinde hata verir
         throw new NotSupportedException(
             $"Desteklenmeyen geometri tipi: {geometry.GeometryType}");
     }
@@ -246,14 +283,11 @@ public sealed class RegionService : IRegionService
     private static double[][][] GetPolygonCoordinates(
         Polygon polygon)
     {
-        var rings = new List<double[][]>();
+        var rings = new List<double[][]>
+        {
+            GetRingCoordinates(polygon.ExteriorRing)
+        };
 
-        // Polygon dış sınırını ekler
-        rings.Add(
-            GetRingCoordinates(
-                polygon.ExteriorRing));
-
-        // Varsa iç boşlukları ekler
         for (var i = 0; i < polygon.NumInteriorRings; i++)
         {
             rings.Add(
@@ -267,7 +301,6 @@ public sealed class RegionService : IRegionService
     private static double[][] GetRingCoordinates(
         LineString ring)
     {
-        // Koordinatları [longitude, latitude] formatına çevirir
         return ring.Coordinates
             .Select(coordinate => new[]
             {
