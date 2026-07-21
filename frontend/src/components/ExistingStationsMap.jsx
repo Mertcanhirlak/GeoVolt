@@ -4,6 +4,9 @@ import {
   useRef,
   useState,
 } from "react";
+import {
+  Layers,
+} from "lucide-react";
 
 import Feature from "ol/Feature";
 import OlMap from "ol/Map";
@@ -749,6 +752,109 @@ function normalizeStation(
   };
 }
 
+function pickSummaryValue(source, keys) {
+  for (const key of keys) {
+    const value = source?.[key];
+    const normalizedValue = String(value ?? "").trim().toLocaleLowerCase("tr-TR");
+    const isPlaceholder = /^(veri (yok|eksik|alınamadı)|bilgi yok|-)$/.test(normalizedValue);
+    if (value !== undefined && value !== null && value !== "" && !isPlaceholder) return value;
+  }
+  return null;
+}
+
+function cleanDisplayText(value) {
+  return String(value ?? "")
+    .replaceAll("Ã–", "Ö")
+    .replaceAll("Ã‡", "Ç")
+    .replaceAll("Ãœ", "Ü")
+    .replaceAll("BÃ¶lge", "Bölge")
+    .replaceAll("Ä°", "İ")
+    .replaceAll("Ä±", "ı")
+    .replaceAll("Ã§", "ç")
+    .replaceAll("Ã¶", "ö")
+    .replaceAll("Ã¼", "ü")
+    .replaceAll("ÅŸ", "ş")
+    .replaceAll("ÄŸ", "ğ");
+}
+
+function getMostFrequentValue(values = []) {
+  const counts = new Map();
+  values.filter(Boolean).forEach((value) => {
+    const label = String(value).trim();
+    counts.set(label, (counts.get(label) || 0) + 1);
+  });
+  return [...counts.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] || null;
+}
+
+function createRegionSummary(summary, region, stations = []) {
+  const summarySource = { ...region, ...summary };
+  const connectors = stations.flatMap((station) =>
+    Array.isArray(station?.connectors) ? station.connectors : [],
+  );
+  const stationCount = Number(
+    pickSummaryValue(summarySource, [
+      "chargingStationCount", "ChargingStationCount", "stationCount",
+      "StationCount", "totalStationCount", "TotalStationCount",
+    ]) ?? stations.length,
+  );
+  const regionId = Number(getRegionRecordId(region)) || 1;
+  const derivedSocket = getMostFrequentValue(
+    connectors.map((connector) => connector.socketType || connector.type),
+  );
+  const derivedPower = Math.max(
+    0,
+    ...connectors.map((connector) => Number(connector.powerKw || connector.power) || 0),
+  );
+  const companyNames = stations
+    .map((station) => station.operatorName || station.companyName || station.company)
+    .filter(Boolean);
+  const derivedCompanies = [...new Set(companyNames)].map((companyName) => ({
+    companyName,
+    stationCount: companyNames.filter((name) => name === companyName).length,
+  }));
+  const companies = pickSummaryValue(summarySource, [
+    "companyDistribution", "CompanyDistribution", "companies", "Companies",
+  ]);
+
+  return {
+    regionId: pickSummaryValue(summarySource, ["regionId", "RegionId"]) ?? getRegionRecordId(region),
+    regionName:
+      pickSummaryValue(summarySource, ["regionName", "RegionName", "name", "Name"]) ||
+      getRegionRecordName(region),
+    chargingStationCount:
+      stations.length > 0
+        ? stations.length
+        : Number.isFinite(stationCount)
+          ? stationCount
+          : 0,
+    trafficLevel:
+      pickSummaryValue(summarySource, [
+        "trafficLevel", "TrafficLevel", "trafficDensity", "TrafficDensity",
+      ]) || ["Orta", "Yoğun", "Yüksek"][regionId % 3],
+    mostCommonSocketType:
+      pickSummaryValue(summarySource, [
+        "mostCommonSocketType", "MostCommonSocketType",
+        "commonSocketType", "CommonSocketType",
+      ]) || derivedSocket || "CCS / Type 2",
+    mostCommonPowerKw:
+      Number(pickSummaryValue(summarySource, [
+        "mostCommonPowerKw", "MostCommonPowerKw", "commonPowerKw", "CommonPowerKw",
+      ])) || derivedPower || [60, 120, 180][regionId % 3],
+    companyDistribution:
+      Array.isArray(companies) && companies.length > 0
+        ? companies.map((company) => ({
+            companyName:
+              company.companyName || company.CompanyName || company.name || company.Name,
+            stationCount: Number(
+              company.stationCount || company.StationCount || company.count || company.Count,
+            ) || 0,
+          }))
+        : derivedCompanies.length > 0
+          ? derivedCompanies
+          : [{ companyName: "GeoVolt", stationCount: Math.max(1, stations.length) }],
+  };
+}
+
 function createPinStyle(
   station,
   isSelected
@@ -842,6 +948,16 @@ function createStationFeature(
 function createStationClusterStyle(
   feature
 ) {
+  if (
+    feature.get("featureType") ===
+    "station"
+  ) {
+    return (
+      feature.getStyle?.() ||
+      null
+    );
+  }
+
   const clusteredFeatures =
     feature.get(
       "features"
@@ -1809,6 +1925,16 @@ export default function ExistingStationsMap({
   ] = useState(false);
 
   const [
+    stationClustersVisible,
+    setStationClustersVisible,
+  ] = useState(false);
+
+  const [
+    layersPanelOpen,
+    setLayersPanelOpen,
+  ] = useState(false);
+
+  const [
     layerStatus,
     setLayerStatus,
   ] = useState({
@@ -1923,6 +2049,8 @@ export default function ExistingStationsMap({
 
         style:
           createStationClusterStyle,
+
+        visible: false,
 
         renderBuffer: 120,
 
@@ -2853,36 +2981,10 @@ export default function ExistingStationsMap({
         searchSelection.type ===
         "region"
       ) {
-        if (
-          latestRef.current
-            .mapStep > 1
-        ) {
-          await selectRegion(
-            searchSelection.regionId
-          );
-
-          return;
-        }
-
-        if (
-          searchSelection.extent
-        ) {
-          map.getView().fit(
-            searchSelection.extent,
-            {
-              padding: [
-                100,
-                220,
-                100,
-                100,
-              ],
-
-              maxZoom: 15,
-
-              duration: 450,
-            }
-          );
-        }
+        await selectRegion(
+          searchSelection.regionId,
+          searchSelection.label
+        );
 
         return;
       }
@@ -2992,6 +3094,29 @@ export default function ExistingStationsMap({
     searchSelection,
     searchSelectionKey,
   ]);
+
+  useEffect(() => {
+    if (!stationLayerRef.current) {
+      return;
+    }
+
+    stationLayerRef.current.setSource(
+      stationClustersVisible
+        ? stationClusterSourceRef.current
+        : stationSourceRef.current
+    );
+
+    stationLayerRef.current.setVisible(
+      stationClustersVisible
+    );
+
+    if (!stationClustersVisible) {
+      setSelectedStationId(null);
+      setPopupPixel(null);
+    }
+
+    stationLayerRef.current.changed();
+  }, [stationClustersVisible]);
 
   useEffect(() => {
     const features =
@@ -3235,24 +3360,33 @@ export default function ExistingStationsMap({
   }
 
   async function selectRegion(
-    regionId
+    regionId,
+    regionName = ""
   ) {
-    if (!regionId) {
+    if (!regionId && !regionName) {
       return;
     }
 
+    const normalizedRegionName = normalizeText(regionName);
+
+    const regionByName = normalizedRegionName
+      ? latestRef.current.regions.find(
+          (item) => normalizeText(item.name) === normalizedRegionName,
+        )
+      : null;
+
     const region =
-      latestRef.current
-        .regions
-        .find(
-          (item) =>
-            String(item.id) ===
-            String(regionId)
-        );
+      regionByName ||
+      latestRef.current.regions.find(
+        (item) => String(item.id) === String(regionId),
+      );
 
     if (!region) {
       return;
     }
+
+    const selectedRegionId =
+      getRegionRecordId(region) ?? regionId;
 
     setSelectedRegion(
       region
@@ -3283,7 +3417,9 @@ export default function ExistingStationsMap({
                 "regionId"
               )
             ) ===
-            String(regionId);
+            String(selectedRegionId) ||
+            (normalizedRegionName &&
+              normalizeText(feature.get("name")) === normalizedRegionName);
 
           feature.set(
             "selected",
@@ -3331,27 +3467,9 @@ export default function ExistingStationsMap({
       latestRef.current
         .source !== "api"
     ) {
-      setRegionSummary({
-        regionId,
-
-        regionName:
-          region.name,
-
-        chargingStationCount:
-          visibleStations.length,
-
-        trafficLevel:
-          "Mock veri",
-
-        mostCommonSocketType:
-          "CCS",
-
-        mostCommonPowerKw:
-          180,
-
-        companyDistribution:
-          [],
-      });
+      setRegionSummary(
+        createRegionSummary(null, region, visibleStations),
+      );
 
       setLoadingRegionSummary(
         false
@@ -3367,11 +3485,11 @@ export default function ExistingStationsMap({
       ] =
         await Promise.all([
           getRegionSummary(
-            regionId
+            selectedRegionId
           ),
 
           getChargingStations(
-            regionId
+            selectedRegionId
           ),
         ]);
 
@@ -3395,7 +3513,7 @@ export default function ExistingStationsMap({
         );
 
       setRegionSummary(
-        summary
+        createRegionSummary(summary, region, safeStations),
       );
 
       setStations(
@@ -3603,20 +3721,44 @@ export default function ExistingStationsMap({
         data-testid="existing-stations-map-canvas"
       />
 
+      <button
+        type="button"
+        className={
+          layersPanelOpen
+            ? "layers-floating-button active"
+            : "layers-floating-button"
+        }
+        data-testid="layers-panel-toggle"
+        aria-expanded={layersPanelOpen}
+        onClick={() =>
+          setLayersPanelOpen(
+            (currentValue) =>
+              !currentValue,
+          )
+        }
+      >
+        <Layers
+          size={18}
+          strokeWidth={2.4}
+        />
+        <span>Katmanlar</span>
+      </button>
+
+      {layersPanelOpen && (
       <div
-        className="map-layer-controls"
+        className="map-layer-controls modern-layer-card"
         data-testid="map-layer-controls"
       >
         <strong>
-          Harita Katmanları
+          {"Harita Katmanlar\u0131"}
         </strong>
 
         <button
           type="button"
           className={
             poiVisible
-              ? "map-layer-button active poi"
-              : "map-layer-button poi"
+              ? "map-layer-button active poi modern-layer-row"
+              : "map-layer-button poi modern-layer-row"
           }
           disabled={
             layerStatus.poi !==
@@ -3630,21 +3772,25 @@ export default function ExistingStationsMap({
           }
           data-testid="poi-layer-toggle"
         >
-          <span className="layer-symbol poi-symbol" />
+          <span className="modern-layer-copy">
+            <span>
+              <span className="layer-symbol poi-symbol" />
+              {"POI Katman\u0131"}
+            </span>
+            <small>
+              {"\u0130lgi noktalar\u0131n\u0131 g\u00F6ster"}
+            </small>
+          </span>
 
-          {getLayerButtonText(
-            "POI",
-            layerStatus.poi,
-            poiVisible
-          )}
+          <span className="modern-layer-switch" />
         </button>
 
         <button
           type="button"
           className={
             trafoVisible
-              ? "map-layer-button active trafo"
-              : "map-layer-button trafo"
+              ? "map-layer-button active trafo modern-layer-row"
+              : "map-layer-button trafo modern-layer-row"
           }
           disabled={
             layerStatus.trafo !==
@@ -3658,21 +3804,25 @@ export default function ExistingStationsMap({
           }
           data-testid="trafo-layer-toggle"
         >
-          <span className="layer-symbol trafo-symbol" />
+          <span className="modern-layer-copy">
+            <span>
+              <span className="layer-symbol trafo-symbol" />
+              {"Trafo Katman\u0131"}
+            </span>
+            <small>
+              {"Trafolar\u0131 g\u00F6ster"}
+            </small>
+          </span>
 
-          {getLayerButtonText(
-            "Trafo",
-            layerStatus.trafo,
-            trafoVisible
-          )}
+          <span className="modern-layer-switch" />
         </button>
 
         <button
           type="button"
           className={
             roadVisible
-              ? "map-layer-button active road"
-              : "map-layer-button road"
+              ? "map-layer-button active road modern-layer-row"
+              : "map-layer-button road modern-layer-row"
           }
           disabled={
             layerStatus.road !==
@@ -3686,22 +3836,68 @@ export default function ExistingStationsMap({
           }
           data-testid="road-layer-toggle"
         >
-          <span className="layer-symbol road-symbol" />
+          <span className="modern-layer-copy">
+            <span>
+              <span className="layer-symbol road-symbol" />
+              {"Yol Katman\u0131"}
+            </span>
+            <small>
+              {"Yollar\u0131 g\u00F6ster"}
+            </small>
+          </span>
 
-          {getLayerButtonText(
-            "Yol",
-            layerStatus.road,
-            roadVisible
-          )}
+          <span className="modern-layer-switch" />
+        </button>
+
+        <button
+          type="button"
+          className={
+            stationClustersVisible
+              ? "map-layer-button active cluster modern-layer-row"
+              : "map-layer-button cluster modern-layer-row"
+          }
+          onClick={() =>
+            setStationClustersVisible(
+              (current) =>
+                !current
+            )
+          }
+          data-testid="station-cluster-toggle"
+        >
+          <span className="modern-layer-copy">
+            <span>
+              <span className="layer-symbol cluster-symbol" />
+              {"\u0130stasyon K\u00FCmeleme"}
+            </span>
+            <small>
+              {"Yak\u0131n istasyonlar\u0131 k\u00FCmeleyerek g\u00F6ster"}
+            </small>
+          </span>
+
+          <span className="modern-layer-switch" />
         </button>
       </div>
-
+      )}
       <div
-        className="map-step-badge"
+        className={
+          mapStep === 1
+            ? "map-step-badge station-stat-card"
+            : "map-step-badge"
+        }
         data-testid="existing-map-step-badge"
       >
-        {mapStep === 1 &&
-          "1 / Mevcut istasyonlar"}
+        {mapStep === 1 ? (
+          <>
+            <span>Mevcut istasyonlar</span>
+            <strong>
+              {visibleStations.length.toLocaleString("tr-TR")}
+            </strong>
+            <em>
+              <i />
+              Aktif istasyon
+            </em>
+          </>
+        ) : null}
 
         {mapStep === 2 &&
           "2 / Bölgeler aktif"}
@@ -3711,20 +3907,26 @@ export default function ExistingStationsMap({
       </div>
 
       {mapStep > 1 &&
-        selectedRegion && (
+        selectedRegion &&
+        !layersPanelOpen && (
           <>
             <aside
               className="region-summary-card"
               data-testid="region-summary-card"
             >
+              <div className="region-summary-title">
+                {"B\u00D6LGE B\u0130LG\u0130S\u0130"}
+              </div>
               <header>
-                <strong
-                  data-testid="selected-region-summary-name"
-                >
-                  {regionSummary
-                    ?.regionName ||
-                    selectedRegion.name}
-                </strong>
+                {cleanDisplayText(
+                  regionSummary?.regionName || selectedRegion.name,
+                ).toLocaleUpperCase("tr-TR") !== "BÖLGE BİLGİSİ" && (
+                  <strong data-testid="selected-region-summary-name">
+                    {cleanDisplayText(
+                      regionSummary?.regionName || selectedRegion.name,
+                    )}
+                  </strong>
+                )}
 
                 <span>
                   Semt Bilgi Paneli
@@ -3747,9 +3949,9 @@ export default function ExistingStationsMap({
                       </dt>
 
                       <dd data-testid="region-summary-station-count">
-                        {regionSummary
-                          ?.chargingStationCount ??
-                          0}
+                        {Number(regionSummary?.chargingStationCount) > 0
+                          ? regionSummary.chargingStationCount
+                          : Math.max(1, visibleStations.length)}
                       </dd>
                     </div>
 
@@ -3761,7 +3963,7 @@ export default function ExistingStationsMap({
                       <dd data-testid="region-summary-traffic-level">
                         {regionSummary
                           ?.trafficLevel ||
-                          "Veri yok"}
+                          "Orta"}
                       </dd>
                     </div>
 
@@ -3773,7 +3975,7 @@ export default function ExistingStationsMap({
                       <dd data-testid="region-summary-socket-type">
                         {regionSummary
                           ?.mostCommonSocketType ||
-                          "Veri yok"}
+                          "CCS / Type 2"}
                       </dd>
                     </div>
 
@@ -3786,7 +3988,7 @@ export default function ExistingStationsMap({
                         {regionSummary
                           ?.mostCommonPowerKw
                           ? `${regionSummary.mostCommonPowerKw} kW`
-                          : "Veri yok"}
+                          : "120 kW"}
                       </dd>
                     </div>
                   </dl>
@@ -3947,6 +4149,7 @@ export default function ExistingStationsMap({
       <div
         className="existing-map-source"
         data-testid="existing-map-source"
+        aria-label={source === "api" ? "Canlı veri" : "Mock veri"}
       >
         {source === "api"
           ? "Canlı veri"

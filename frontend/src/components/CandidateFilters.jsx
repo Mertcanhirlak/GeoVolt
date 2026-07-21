@@ -150,4 +150,4 @@ export default function CandidateFilters({ filters, setFilters, onApply }) {
       </div>
     </div>
   );
-}
+}       
