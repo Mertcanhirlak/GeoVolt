@@ -47,7 +47,8 @@ import {
 import {
   getChargingStationDetail,
   getChargingStations,
-  getRegions,
+  getChargingStationsWithSource,
+  getRegionsWithSource,
   getRegionSummary,
 } from "../services/mapDataApi";
 
@@ -2296,13 +2297,16 @@ export default function ExistingStationsMap({
     async function loadMapData() {
       try {
         const [
-          stationData,
-          regionData,
+          stationResult,
+          regionResult,
         ] =
           await Promise.all([
-            getChargingStations(),
-            getRegions(),
+            getChargingStationsWithSource(),
+            getRegionsWithSource(),
           ]);
+
+        const stationData = stationResult.data;
+        const regionData = regionResult.data;
 
         if (!isMounted) {
           return;
@@ -2375,7 +2379,14 @@ export default function ExistingStationsMap({
           )
         );
 
-        setSource("api");
+        setSource(
+          stationResult.source === "api" &&
+          regionResult.source === "api"
+            ? "api"
+            : stationResult.source === "mock"
+              ? "mock"
+              : "local"
+        );
       } catch (error) {
         console.error(
           "Harita API verileri alınamadı:",
@@ -4149,11 +4160,19 @@ export default function ExistingStationsMap({
       <div
         className="existing-map-source"
         data-testid="existing-map-source"
-        aria-label={source === "api" ? "Canlı veri" : "Mock veri"}
+        aria-label={
+          source === "api"
+            ? "Canlı veri"
+            : source === "local"
+              ? "Yerel veri"
+              : "Mock veri"
+        }
       >
         {source === "api"
           ? "Canlı veri"
-          : "Mock veri"}
+          : source === "local"
+            ? "Yerel veri"
+            : "Mock veri"}
       </div>
     </div>
   );
