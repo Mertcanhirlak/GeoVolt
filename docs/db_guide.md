@@ -175,7 +175,125 @@ olarak bölmeyin; önce veri formatı/aktarımı geliştiren ekiple konuşun.
 - POI, trafo ve yol kayıtları kaynak ID üzerinden upsert edilir. Aynı kaynak
   ID'siyle güncel veri aktarılırsa mevcut kayıt güncellenir.
 
-## 7. Aktarım sonrası kontroller
+## 7. Eğim rasterını (GeoTIFF) yükleme
+
+Eğim dosyası GeoJSON değildir; `/api/admin/data-imports` endpointleriyle
+yüklenmez. GeoVolt, eğim değerini PostGIS raster tablosu
+`gis.slope_raster_tiles` üzerinden okur. Bu bölümdeki işlem yalnızca tüm EF
+migration'ları uygulandıktan sonra yapılmalıdır; ilgili migration
+`postgis_raster` eklentisini ve hedef tabloyu oluşturur.
+
+Kaynak paketinde iki gösterim bulunur:
+
+- `Kendi_Sinirim_Yuzde_UTM36N.tif`: yüzde eğim. Analiz/skorlama için **bu
+  dosyayı** yükleyin.
+- `Kendi_Sinirim_Derece_UTM36N.tif`: aynı eğimin derece gösterimidir. Mevcut
+  skor eşikleri yüzde birimindedir; bu dosyayı aynı tabloya ayrıca yüklemeyin.
+
+Raster SRID'si EPSG:32636 (UTM 36N), çözünürlüğü 30 metredir. Uygulama analiz
+noktalarını örnekleme sırasında bu SRID'ye dönüştürür; rasterı EPSG:4326'ya
+yeniden projekte etmeyin.
+
+### 7.1 Gerekli araçları kontrol etme
+
+PostgreSQL/PostGIS kurulumuyla gelen `raster2pgsql.exe` ve `psql.exe`
+komutlarının kullanılabildiğini doğrulayın. PATH'te değillerse genellikle şu
+klasördedir: `C:\Program Files\PostgreSQL\18\bin`.
+
+```powershell
+raster2pgsql.exe -G
+psql --version
+```
+
+GeoTIFF'in koordinat sistemi ve NoData bilgisini GDAL ile inceleyin. `gdalinfo`
+PostGIS/GDAL kurulumunda yoksa QGIS'in terminalinden de çalıştırılabilir.
+
+```powershell
+gdalinfo 'C:\veri\Kendi_Sinirim_Yuzde_UTM36N.tif'
+```
+
+Çıktıda EPSG:32636 görünmelidir. Çıktı bir `NoData Value` gösteriyorsa aşağıdaki
+yükleme komutuna `-N <NoData-değeri>` ekleyin. NoData değeri kesinleşmeden
+rastgele bir değer yazmayın.
+
+### 7.2 Rasterı tabloya yazma
+
+Bu işlem mevcut eğim rasterını silip yüzde rasterını yeniden yükler. Yalnızca
+`gis.slope_raster_tiles` hedeflenir; GeoJSON tablolarını etkilemez. Önce yerel
+parolayı ve dosya yolunu kendi ortamınıza göre ayarlayın:
+
+```powershell
+$pgPassword = 'BURAYA_POSTGRES_PAROLASI'
+$rasterFile = 'C:\veri\Kendi_Sinirim_Yuzde_UTM36N.tif'
+$raster2pgsql = 'C:\Program Files\PostgreSQL\18\bin\raster2pgsql.exe'
+$psql = 'C:\Program Files\PostgreSQL\18\bin\psql.exe'
+$env:PGPASSWORD = $pgPassword
+```
+
+Önce hedef tablonun hazır olduğunu doğrulayın:
+
+```powershell
+& $psql -h localhost -p 5432 -U postgres -d geovolt_db -v ON_ERROR_STOP=1 -c 'SELECT PostGIS_Raster_Lib_Version();'
+& $psql -h localhost -p 5432 -U postgres -d geovolt_db -v ON_ERROR_STOP=1 -c 'SELECT to_regclass(''gis.slope_raster_tiles'');'
+```
+
+İkinci komut `gis.slope_raster_tiles` döndürmelidir. Boş/yarım kalmış eski
+yüklemeyi temizleyip yüklemeyi başlatın:
+
+```powershell
+& $psql -h localhost -p 5432 -U postgres -d geovolt_db -v ON_ERROR_STOP=1 -c 'TRUNCATE TABLE gis.slope_raster_tiles;'
+& $raster2pgsql -a -F -s 32636 -t 256x256 -Y $rasterFile gis.slope_raster_tiles |
+  & $psql -h localhost -p 5432 -U postgres -d geovolt_db -v ON_ERROR_STOP=1
+```
+
+Komuttaki seçenekler: `-a` migration'ın oluşturduğu tabloya ekler, `-F` zorunlu
+dosya adı bilgisini yazar, `-s 32636` raster SRID'sini tanımlar, `-t 256x256`
+rasterı makul boyutlu tile'lara böler, `-Y` ise hızlı `COPY` aktarımını kullanır.
+Mevcut tabloda zaten indeks bulunduğundan bu komutta `-I` veya `-C`
+kullanmayın.
+
+Dosyada doğrulanmış bir NoData değeri varsa yukarıdaki `raster2pgsql` satırını
+örneğin `-N -9999` ekleyerek çalıştırın. Değer yalnızca örnektir; `gdalinfo`
+çıktısındaki gerçek değer kullanılmalıdır.
+
+Son olarak kaynak dosyanın SHA-256 bilgisini tile kayıtlarına yazın. Bu metadata
+analiz sonucunda hangi rasterın kullanıldığını izlemek içindir:
+
+```powershell
+$sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $rasterFile).Hash.ToLowerInvariant()
+& $psql -h localhost -p 5432 -U postgres -d geovolt_db -v ON_ERROR_STOP=1 -c "UPDATE gis.slope_raster_tiles SET filename = 'Kendi_Sinirim_Yuzde_UTM36N.tif', sha256 = '$sha256', source_srid = 32636;"
+Remove-Item Env:PGPASSWORD
+```
+
+### 7.3 Raster aktarımını doğrulama
+
+```sql
+SELECT
+    count(*) AS tile_count,
+    min(filename) AS filename,
+    min(source_srid) AS source_srid,
+    min(ST_SRID(rast)) AS raster_srid,
+    min(ST_BandNoDataValue(rast, 1)) AS nodata_value,
+    round(sum(ST_Width(rast) * ST_Height(rast)) / 1000000.0, 2) AS million_pixels
+FROM gis.slope_raster_tiles;
+
+SELECT
+    count(*) AS tiles,
+    ST_AsText(ST_Envelope(ST_Collect(ST_ConvexHull(rast)))) AS raster_extent_utm36n
+FROM gis.slope_raster_tiles;
+```
+
+İlk sorguda `source_srid` ve `raster_srid` 32636 olmalı, `tile_count` sıfırdan
+büyük olmalıdır. Başarılı yüklemeden sonra yeni veya mevcut bir uygunluk analizi
+için metrik hesaplama çalıştırıldığında hücrelerde `slope_percent` değeri
+oluşur. Eğim rasterını değiştirdikten sonra daha önce hesaplanmış metrikler
+kendiliğinden güncellenmez; metrik ve skor hesaplamasını yeniden çalıştırın.
+
+`TRUNCATE` komutu yanlışlıkla çalıştırıldıysa yalnızca eğim tile'larını siler;
+tekrar yüklemek için bu bölümdeki aynı komutu kullanın. Yine de canlı/ortak
+veritabanında işlem öncesi yedek alın.
+
+## 8. Aktarım sonrası kontroller
 
 `psql` ile aşağıdaki sorgular, tabloların dolduğunu hızlıca kontrol eder:
 
@@ -199,7 +317,7 @@ Başarılı importlarda `Status` değeri `Promoted` olmalıdır. `Failed` ise
 Şarj istasyonlarında hata varsa önce `gis.neighborhoods` içinde 124 mahalle
 olduğunu ve istasyon noktasının bir mahalle içinde kaldığını kontrol edin.
 
-## 8. Sık karşılaşılan sorunlar
+## 9. Sık karşılaşılan sorunlar
 
 - **PostGIS bulunamadı:** PostgreSQL'e sadece sunucu değil PostGIS bileşenini
   de kurun. `SELECT PostGIS_Version();` çalışmalıdır.
@@ -215,10 +333,16 @@ olduğunu ve istasyon noktasının bir mahalle içinde kaldığını kontrol edi
 - **Migration hatası:** API kapalıyken `dotnet build` çalıştırın, bağlantı
   bilgisini doğrulayın, ardından `dotnet ef database update` komutunu tekrar
   çalıştırın.
+- **`raster2pgsql` bulunamadı:** PostGIS istemci araçlarını kurun veya
+  `C:\Program Files\PostgreSQL\18\bin\raster2pgsql.exe` tam yolunu kullanın.
+- **Raster sorgusunda SRID/NoData hatası:** Kaynak GeoTIFF'i `gdalinfo` ile
+  kontrol edin; SRID 32636 olmalı ve varsa gerçek NoData değeri `-N` ile
+  verilmelidir. Yüzde ve derece rasterlarını aynı hedef tabloya birlikte
+  yüklemeyin.
 
-## 9. Güncelleme yaklaşımı
+## 10. Güncelleme yaklaşımı
 
 Yeni kaynak veri geldiğinde önce ayrı bir yedek alın. Ardından dosyayı
 validate → stage → promote akışıyla içeri aktarın. Kaynak ID'ler kalıcı kabul
-edildiğinden promotion işlemi upsert yapar. Her güncellemeden sonra bölüm 7'deki
+edildiğinden promotion işlemi upsert yapar. Her güncellemeden sonra bölüm 8'deki
 sayımlar ve `gis.dataset_imports` durumu kontrol edilmelidir.
