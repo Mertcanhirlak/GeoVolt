@@ -45,22 +45,6 @@ function getTopSubCategory(trafos) {
   return distribution.length > 0 ? distribution[0] : null;
 }
 
-function createSourceMessage(source, filterLabel, isFilterRequested) {
-  let sourceMessage = "";
-
-  if (source === "local-geojson") {
-    sourceMessage = "TRAFO.geojson verisi kullanılıyor.";
-  } else if (source === "local-mock") {
-    sourceMessage = "Yerel trafo deneme verileri kullanılıyor.";
-  }
-
-  if (sourceMessage && isFilterRequested && filterLabel) {
-    return `${sourceMessage} Seçili alan: ${filterLabel}.`;
-  }
-
-  return sourceMessage;
-}
-
 export default function TrafoSummary({
   filterBoundaryGeoJson = "",
   filterLabel = "Tümü",
@@ -131,12 +115,6 @@ export default function TrafoSummary({
     [visibleTrafos],
   );
 
-  const message = createSourceMessage(
-    source,
-    filterLabel,
-    isFilterRequested,
-  );
-
   const boundaryMissing =
     isFilterRequested && !filterLoading && !spatialBoundary;
 
@@ -151,11 +129,6 @@ export default function TrafoSummary({
           </p>
         </div>
 
-        {message && (
-          <span className="trafo-source-badge" data-testid="trafo-source-badge">
-            {message}
-          </span>
-        )}
       </div>
 
       <div className="trafo-summary-grid">

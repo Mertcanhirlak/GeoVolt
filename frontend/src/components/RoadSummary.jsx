@@ -54,22 +54,6 @@ function getTopRoadType(roads) {
   return distribution.length > 0 ? distribution[0] : null;
 }
 
-function createSourceMessage(source, filterLabel, isFilterRequested) {
-  let sourceMessage = "";
-
-  if (source === "local-geojson") {
-    sourceMessage = "YOL.geojson verisi kullanılıyor.";
-  } else if (source === "local-mock") {
-    sourceMessage = "Yerel yol deneme verileri kullanılıyor.";
-  }
-
-  if (sourceMessage && isFilterRequested && filterLabel) {
-    return `${sourceMessage} Seçili alan: ${filterLabel}.`;
-  }
-
-  return sourceMessage;
-}
-
 export default function RoadSummary({
   filterBoundaryGeoJson = "",
   filterLabel = "Tümü",
@@ -141,12 +125,6 @@ export default function RoadSummary({
     [visibleRoads],
   );
 
-  const message = createSourceMessage(
-    source,
-    filterLabel,
-    isFilterRequested,
-  );
-
   const boundaryMissing =
     isFilterRequested && !filterLoading && !spatialBoundary;
 
@@ -161,11 +139,6 @@ export default function RoadSummary({
           </p>
         </div>
 
-        {message && (
-          <span className="road-source-badge" data-testid="road-source-badge">
-            {message}
-          </span>
-        )}
       </div>
 
       <div className="road-summary-grid">

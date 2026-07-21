@@ -429,6 +429,7 @@ function ReportDonutChart({
       </svg>
 
       <div className="report-donut-center">
+        <b>{total}%</b>
         <strong>{centerLabel}</strong>
         <span>{"Soket oran\u0131"}</span>
       </div>
@@ -852,6 +853,11 @@ export default function CandidatePointsPage() {
   ] = useState("home");
 
   const [
+    activePersonalizationTab,
+    setActivePersonalizationTab,
+  ] = useState("form");
+
+  const [
     selectedReportNeighborhood,
     setSelectedReportNeighborhood,
   ] = useState(reportNeighborhoodOptions[0]);
@@ -859,7 +865,12 @@ export default function CandidatePointsPage() {
   const [
     dataLayersOpen,
     setDataLayersOpen,
-  ] = useState(false);
+  ] = useState(true);
+
+  const [
+    activeSubTab,
+    setActiveSubTab,
+  ] = useState("poi");
 
   const [
     selectedCandidate,
@@ -4548,19 +4559,48 @@ export default function CandidatePointsPage() {
             className="standalone-panel personalization-screen"
             data-testid="personalization-screen"
           >
-            <h1>
-              Kişiselleştirme
-            </h1>
+            <nav
+              className="personalization-tabs"
+              aria-label="Kişiselleştirme bölümleri"
+              role="tablist"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activePersonalizationTab === "form"}
+                className={activePersonalizationTab === "form" ? "active" : ""}
+                onClick={() => setActivePersonalizationTab("form")}
+              >
+                <SlidersHorizontal size={18} strokeWidth={2.2} />
+                <span>Kişiselleştirme Formu</span>
+              </button>
 
-            <p className="page-description">
-              Firma bütçesi, sistem
-              tipi, mekân türü ve
-              bölgeye göre aday
-              noktalar
-              kişiselleştirilir.
-            </p>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activePersonalizationTab === "layers"}
+                className={activePersonalizationTab === "layers" ? "active" : ""}
+                onClick={() => setActivePersonalizationTab("layers")}
+              >
+                <LayoutDashboard size={18} strokeWidth={2.2} />
+                <span>Veri Katmanları Özeti</span>
+              </button>
 
-            <PersonalizationForm
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activePersonalizationTab === "results"}
+                className={activePersonalizationTab === "results" ? "active" : ""}
+                onClick={() => setActivePersonalizationTab("results")}
+              >
+                <ListChecks size={18} strokeWidth={2.2} />
+                <span>Kişiselleştirilmiş Sonuçlar</span>
+              </button>
+            </nav>
+
+            {activePersonalizationTab === "form" && (
+              <>
+                <PersonalizationForm
               candidates={
                 candidates
               }
@@ -4579,7 +4619,7 @@ export default function CandidatePointsPage() {
               }
             />
 
-            {selectedRegionSummary && (
+                {selectedRegionSummary && (
               <section
                 className="region-summary-card"
                 data-testid="region-summary-card"
@@ -4715,8 +4755,11 @@ export default function CandidatePointsPage() {
                   )}
                 </div>
               </section>
+                )}
+              </>
             )}
 
+            {activePersonalizationTab === "layers" && (
             <section
               className="data-layers-section"
               data-testid="data-layers-section"
@@ -4840,6 +4883,43 @@ export default function CandidatePointsPage() {
                 </span>
               </div>
 
+              <nav
+                className="data-layer-subtabs"
+                aria-label="Veri katmanları"
+                role="tablist"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeSubTab === "poi"}
+                  className={activeSubTab === "poi" ? "active" : ""}
+                  onClick={() => setActiveSubTab("poi")}
+                >
+                  <span aria-hidden="true">📍</span>
+                  POI Talep Verisi Özeti
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeSubTab === "trafo"}
+                  className={activeSubTab === "trafo" ? "active" : ""}
+                  onClick={() => setActiveSubTab("trafo")}
+                >
+                  <span aria-hidden="true">⚡</span>
+                  Trafo Enerji Verisi Özeti
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeSubTab === "road"}
+                  className={activeSubTab === "road" ? "active" : ""}
+                  onClick={() => setActiveSubTab("road")}
+                >
+                  <span aria-hidden="true">🛣️</span>
+                  Yol Erişilebilirlik Verisi Özeti
+                </button>
+              </nav>
+
               {dataLayersOpen && (
                 <div
                   id="data-layers-accordion-content"
@@ -4848,6 +4928,7 @@ export default function CandidatePointsPage() {
                     marginTop: "18px",
                   }}
                 >
+                  {activeSubTab === "poi" && (
                   <PoiSummary
                     filterBoundaryGeoJson={
                       summarySpatialFilter.boundaryGeoJson
@@ -4856,6 +4937,8 @@ export default function CandidatePointsPage() {
                     filterLevel={summarySpatialFilter.level}
                     filterLoading={summarySpatialFilter.loading}
                   />
+                  )}
+                  {activeSubTab === "trafo" && (
                   <TrafoSummary
                     filterBoundaryGeoJson={
                       summarySpatialFilter.boundaryGeoJson
@@ -4864,6 +4947,8 @@ export default function CandidatePointsPage() {
                     filterLevel={summarySpatialFilter.level}
                     filterLoading={summarySpatialFilter.loading}
                   />
+                  )}
+                  {activeSubTab === "road" && (
                   <RoadSummary
                     filterBoundaryGeoJson={
                       summarySpatialFilter.boundaryGeoJson
@@ -4872,10 +4957,14 @@ export default function CandidatePointsPage() {
                     filterLevel={summarySpatialFilter.level}
                     filterLoading={summarySpatialFilter.loading}
                   />
+                  )}
                 </div>
               )}
             </section>
+            )}
 
+            {activePersonalizationTab === "results" && (
+            <section className="personalization-results-panel" role="tabpanel">
             <h2 className="section-title">
               Kişiselleştirilmiş
               Sonuçlar
@@ -5019,6 +5108,8 @@ export default function CandidatePointsPage() {
                 )
               )}
             </div>
+            </section>
+            )}
           </section>
         )}
 
@@ -5124,26 +5215,29 @@ export default function CandidatePointsPage() {
                   }
                 />
 
-                <div className="report-legend">
+                <div className="report-analysis-bars">
                   {selectedReportSocketDistribution.map(
                     (item) => (
                       <div
-                        className="report-legend-row"
+                        className="report-analysis-row"
                         key={item.label}
                       >
-                        <span
-                          className="report-dot"
-                          style={{
-                            backgroundColor:
-                              item.color,
-                          }}
-                        />
-                        <strong>
-                          {item.label}
-                        </strong>
-                        <em>
-                          %{item.value}
-                        </em>
+                        <div className="report-analysis-label">
+                          <span
+                            className="report-dot"
+                            style={{ backgroundColor: item.color }}
+                          />
+                          <strong>{item.label}</strong>
+                          <em>%{item.value}</em>
+                        </div>
+                        <div className="report-analysis-track">
+                          <span
+                            style={{
+                              width: `${item.value}%`,
+                              backgroundColor: item.color,
+                            }}
+                          />
+                        </div>
                       </div>
                     ),
                   )}
