@@ -56,6 +56,28 @@ export function AuthProvider({ children }) {
     }
   }, [token]);
 
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      setToken(null);
+      setUser(null);
+
+      if (window.location.pathname !== "/login") {
+        window.location.assign("/login?reason=session-expired");
+      }
+    };
+
+    window.addEventListener("geovolt:unauthorized", handleUnauthorized);
+
+    return () => {
+      window.removeEventListener(
+        "geovolt:unauthorized",
+        handleUnauthorized,
+      );
+    };
+  }, []);
+
   const loginUser = (newToken, userData = null) => {
     const tokenUser = decodeMockToken(newToken);
     const nextUser = tokenUser ?? userData;

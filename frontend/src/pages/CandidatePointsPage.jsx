@@ -8,11 +8,10 @@ import React, {
 import { createPortal } from "react-dom";
 
 import {
-  Bell,
   ChevronDown,
   FileText,
-  Home,
   Menu,
+  MapPin,
   Search,
   ShieldCheck,
   Zap,
@@ -40,6 +39,7 @@ import {
   getNeighborhoods,
   getRegions,
   getRegionSummary,
+  getRegionSummaries,
 } from "../services/regionsApi";
 
 import CandidateFilters from "../components/CandidateFilters";
@@ -115,27 +115,12 @@ const defaultDataFilter = {
   budgetMax: "",
 };
 
-const reportDistrictDistribution = [
-  {
-    label: "\u00C7ankaya",
-    value: 40,
-    color: "#2563eb",
-  },
-  {
-    label: "Yenimahalle",
-    value: 25,
-    color: "#22c55e",
-  },
-  {
-    label: "Ke\u00E7i\u00F6ren",
-    value: 15,
-    color: "#f97316",
-  },
-  {
-    label: "Di\u011Fer",
-    value: 20,
-    color: "#8b5cf6",
-  },
+const REPORT_CHART_COLORS = [
+  "#3B54C4",
+  "#4A63CE",
+  "#5A78D6",
+  "#6E93E0",
+  "#84A9E6",
 ];
 
 const reportSocketDistributionByNeighborhood = {
@@ -343,7 +328,7 @@ function buildConicGradient(data) {
     .join(", ")})`;
 }
 
-function ReportPieChart({ data }) {
+function ReportPieChart({ data, centerValue }) {
   return (
     <div
       className="report-pie-chart"
@@ -353,14 +338,30 @@ function ReportPieChart({ data }) {
       aria-hidden="true"
     >
       <span>
-        {data.reduce(
-          (sum, item) => sum + Number(item.value || 0),
-          0,
-        )}
-        %
+        <b>{Math.round(parseReportNumber(centerValue))}</b>
+        <small>Toplam İstasyon</small>
       </span>
     </div>
   );
+}
+
+function parseReportNumber(value) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  const parsedValue = Number.parseFloat(
+    String(value ?? "0").replace(",", "."),
+  );
+
+  return Number.isFinite(parsedValue) ? parsedValue : 0;
+}
+
+function formatReportPercentage(value) {
+  return parseReportNumber(value)
+    .toFixed(2)
+    .replace(/\.00$/, "")
+    .replace(/(\.\d)0$/, "$1");
 }
 
 function ReportDonutChart({
@@ -429,7 +430,7 @@ function ReportDonutChart({
       </svg>
 
       <div className="report-donut-center">
-        <b>{total}%</b>
+        <b>{Math.round(total)}%</b>
         <strong>{centerLabel}</strong>
         <span>{"Soket oran\u0131"}</span>
       </div>
@@ -834,7 +835,7 @@ function createManualCandidate(
 
 export default function CandidatePointsPage() {
   const {
-    user,
+    token,
     isAdmin,
     logoutUser,
   } = useAuth();
@@ -958,8 +959,8 @@ export default function CandidatePointsPage() {
   ] = useState([]);
 
   const [
-    reportNeighborhoods,
-    setReportNeighborhoods,
+    reportRegionSummaries,
+    setReportRegionSummaries,
   ] = useState([]);
 
 
@@ -1489,8 +1490,7 @@ export default function CandidatePointsPage() {
 
     const usableRegions = regions.filter(
       (region) => {
-        const regionId =
-          getLocationId(region);
+        const regionId = Number(region?.regionId);
 
         return (
           Number.isInteger(regionId) &&
@@ -1500,79 +1500,41 @@ export default function CandidatePointsPage() {
     );
 
     if (usableRegions.length === 0) {
-      setReportNeighborhoods([]);
+      setReportRegionSummaries([]);
 
       return () => {
         isMounted = false;
       };
     }
 
-    async function loadReportNeighborhoods() {
-      const results = await Promise.allSettled(
-        usableRegions.map((region) =>
-          getNeighborhoods(
-            getLocationId(region),
-            getLocationName(region),
-          ),
-        ),
+    async function loadReportRegionSummaries() {
+      const response = await getRegionSummaries(
+        usableRegions,
+        token,
       );
 
       if (!isMounted) {
         return;
       }
 
-      const neighborhoodMap = new Map();
+      if (!Array.isArray(response.data)) {
+        setReportRegionSummaries([]);
+        return;
+      }
 
-      results.forEach((result) => {
-        if (
-          result.status !== "fulfilled" ||
-          !Array.isArray(result.value?.data)
-        ) {
-          return;
-        }
-
-        result.value.data.forEach(
-          (neighborhood) => {
-            const name =
-              getReportNeighborhoodName(
-                neighborhood,
-              );
-
-            if (!name) {
-              return;
-            }
-
-            const key =
-              normalizeLocationKey(name);
-
-            if (!neighborhoodMap.has(key)) {
-              neighborhoodMap.set(
-                key,
-                neighborhood,
-              );
-            }
-          },
-        );
-      });
-
-      setReportNeighborhoods(
-        Array.from(
-          neighborhoodMap.values(),
-        ).sort((first, second) =>
-          getReportNeighborhoodName(first).localeCompare(
-            getReportNeighborhoodName(second),
-            "tr-TR",
-          ),
-        ),
+      console.debug(
+        "[GeoVolt][Report] Direct response.data assigned to state",
+        response.data,
       );
+      setReportRegionSummaries(response.data);
     }
 
-    loadReportNeighborhoods();
+    loadReportRegionSummaries();
 
     return () => {
       isMounted = false;
     };
-  }, [regions]);
+  }, [regions, token]);
 
   useEffect(() => {
     let isMounted = true;
@@ -3552,18 +3514,14 @@ export default function CandidatePointsPage() {
 
   const dynamicReportNeighborhoodOptions =
     useMemo(() => {
-      const names = reportNeighborhoods
-        .map((neighborhood) =>
-          getReportNeighborhoodName(
-            neighborhood,
-          ),
-        )
+      const names = reportRegionSummaries
+        .map((summary) => summary.regionName)
         .filter(Boolean);
 
       return names.length > 0
         ? names
         : reportNeighborhoodOptions;
-    }, [reportNeighborhoods]);
+    }, [reportRegionSummaries]);
 
   useEffect(() => {
     if (
@@ -3582,12 +3540,92 @@ export default function CandidatePointsPage() {
     selectedReportNeighborhood,
   ]);
 
+  const selectedReportRegionSummary =
+    reportRegionSummaries.find(
+      (summary) =>
+        summary.regionName === selectedReportNeighborhood,
+    ) ?? null;
+
+  const reportStationTotal = reportRegionSummaries.reduce(
+    (total, summary) =>
+      total + parseReportNumber(summary.chargingStationCount),
+    0,
+  );
+
+  const selectedAcCount = parseReportNumber(
+    selectedReportRegionSummary?.acCount,
+  );
+  const selectedDcCount = parseReportNumber(
+    selectedReportRegionSummary?.dcCount,
+  );
+  const selectedSocketTotal = selectedAcCount + selectedDcCount;
+
+  const reportAcSocketTotal = reportRegionSummaries.reduce(
+    (total, summary) => total + parseReportNumber(summary.acCount),
+    0,
+  );
+  const reportDcSocketTotal = reportRegionSummaries.reduce(
+    (total, summary) => total + parseReportNumber(summary.dcCount),
+    0,
+  );
+  const reportSocketTotal = reportAcSocketTotal + reportDcSocketTotal;
+  const formatReportCount = (value) =>
+    Math.round(parseReportNumber(value)).toLocaleString("tr-TR");
+
+  const dynamicReportRegionDistribution =
+    reportRegionSummaries.map((summary, index) => {
+      const parsedPercentage = Number.parseFloat(
+        String(summary.chargingStationPercentage ?? "0").replace(",", "."),
+      );
+      const percentage = Number.isFinite(parsedPercentage)
+        ? parsedPercentage
+        : 0;
+
+      return {
+          label: summary.regionName,
+          value:
+            percentage ||
+            (reportStationTotal > 0
+              ? (parseReportNumber(summary.chargingStationCount) /
+                  reportStationTotal) *
+                100
+              : 0),
+          color:
+            REPORT_CHART_COLORS[
+              index % REPORT_CHART_COLORS.length
+            ],
+        };
+    });
+
   const selectedReportSocketDistribution =
-    getReportSocketDistribution(
-      selectedReportNeighborhood
-        || dynamicReportNeighborhoodOptions[0],
-      reportNeighborhoods,
-    );
+    selectedReportRegionSummary
+      ? [
+          {
+            label: "AC (Yavaş)",
+            value:
+              parseReportNumber(
+                selectedReportRegionSummary.acPercentage,
+              ) ||
+              (selectedSocketTotal > 0
+                ? (selectedAcCount / selectedSocketTotal) * 100
+                : 0),
+            color: "#3B54C4",
+          },
+          {
+            label: "DC (Hızlı)",
+            value:
+              parseReportNumber(
+                selectedReportRegionSummary.dcPercentage,
+              ) ||
+              (selectedSocketTotal > 0
+                ? (selectedDcCount / selectedSocketTotal) * 100
+                : 0),
+            color: "#6EA0E0",
+          },
+        ]
+      : getFallbackSocketDistribution(
+          selectedReportNeighborhood,
+        );
 
   function handleLogout() {
     logoutUser();
@@ -3627,10 +3665,7 @@ export default function CandidatePointsPage() {
             )
           }
         >
-          <Menu
-            size={20}
-            strokeWidth={2.4}
-          />
+          <Menu size={20} strokeWidth={2.3} />
         </button>
 
         <div className="sidebar-brand">
@@ -3666,7 +3701,7 @@ export default function CandidatePointsPage() {
             }
             title="Mevcut istasyon haritası"
           >
-            <Home
+            <MapPin
               size={26}
               strokeWidth={2.3}
             />
@@ -5128,6 +5163,34 @@ export default function CandidatePointsPage() {
               </p>
             </header>
 
+            <div className="report-dashboard-layout">
+              <div className="report-kpi-column report-kpi-left">
+              <article className="report-kpi-card report-kpi-stations">
+                <span className="report-kpi-icon"><LayoutDashboard size={20} /></span>
+                <p>Toplam İstasyon</p>
+                <strong>{formatReportCount(reportStationTotal)}</strong>
+                <small>Canlı bölge verisi</small>
+              </article>
+              <article className="report-kpi-card report-kpi-sockets">
+                <span className="report-kpi-icon"><Zap size={20} /></span>
+                <p>Toplam Soket</p>
+                <strong>{formatReportCount(reportSocketTotal)}</strong>
+                <small>AC ve DC toplamı</small>
+              </article>
+              <article className="report-kpi-card report-kpi-ac">
+                <span className="report-kpi-icon"><Power size={20} /></span>
+                <p>AC Soket</p>
+                <strong>{formatReportCount(reportAcSocketTotal)}</strong>
+                <small>Yavaş şarj soketi</small>
+              </article>
+              <article className="report-kpi-card report-kpi-dc">
+                <span className="report-kpi-icon"><Zap size={20} /></span>
+                <p>DC Soket</p>
+                <strong>{formatReportCount(reportDcSocketTotal)}</strong>
+                <small>Hızlı şarj soketi</small>
+              </article>
+              </div>
+
             <div className="report-chart-grid">
               <article className="report-chart-card">
                 <div className="report-card-heading">
@@ -5141,31 +5204,51 @@ export default function CandidatePointsPage() {
                 </div>
 
                 <ReportPieChart
-                  data={reportDistrictDistribution}
+                  data={dynamicReportRegionDistribution}
+                  centerValue={reportStationTotal}
                 />
 
                 <div className="report-legend">
-                  {reportDistrictDistribution.map(
-                    (item) => (
+                  {reportRegionSummaries.map(
+                    (summary, index) => {
+                      const parsedPercentage = Number.parseFloat(
+                        String(
+                          summary.chargingStationPercentage ?? "0",
+                        ).replace(",", "."),
+                      );
+                      const percentage = Number.isFinite(parsedPercentage)
+                        ? parsedPercentage
+                        : 0;
+
+                      return (
                       <div
                         className="report-legend-row"
-                        key={item.label}
+                        key={summary.regionId ?? summary.regionName}
                       >
                         <span
                           className="report-dot"
                           style={{
                             backgroundColor:
-                              item.color,
+                              REPORT_CHART_COLORS[
+                                index % REPORT_CHART_COLORS.length
+                              ],
                           }}
                         />
                         <strong>
-                          {item.label}
+                          {summary.regionName}
                         </strong>
                         <em>
-                          %{item.value}
+                          %{percentage.toFixed(2)}
                         </em>
                       </div>
-                    ),
+                      );
+                    },
+                  )}
+                  {reportRegionSummaries.length === 0 && (
+                    <p className="report-legend-empty">
+                      Semt rapor verileri yüklenemedi. Oturum ve API
+                      isteğini kontrol edin.
+                    </p>
                   )}
                 </div>
               </article>
@@ -5173,17 +5256,17 @@ export default function CandidatePointsPage() {
               <article className="report-chart-card">
                 <div className="report-card-heading report-card-heading-row">
                   <div>
-                    <span>Mahalle analizi</span>
+                    <span>Semt analizi</span>
                     <h2>
-                      {"Mahalle Bazl\u0131 Soket Da\u011F\u0131l\u0131m\u0131"}
+                      {"Semt Bazlı Soket Dağılımı"}
                     </h2>
                     <p>
-                      {"Se\u00E7ilen mahalleye g\u00F6re AC/DC oran\u0131."}
+                      {"Se\u00E7ilen semte g\u00F6re AC/DC oran\u0131."}
                     </p>
                   </div>
 
                   <label className="report-select-shell">
-                    <span>{"Mahalle se\u00E7"}</span>
+                    <span>{"Semt se\u00E7"}</span>
                     <select
                       value={
                         selectedReportNeighborhood
@@ -5208,15 +5291,14 @@ export default function CandidatePointsPage() {
                   </label>
                 </div>
 
-                <ReportDonutChart
-                  data={selectedReportSocketDistribution}
-                  centerLabel={
-                    selectedReportNeighborhood
-                  }
-                />
+                <div className="report-socket-layout">
+                  <ReportDonutChart
+                    data={selectedReportSocketDistribution}
+                    centerLabel={selectedReportNeighborhood}
+                  />
 
-                <div className="report-analysis-bars">
-                  {selectedReportSocketDistribution.map(
+                  <div className="report-analysis-bars">
+                    {selectedReportSocketDistribution.map(
                     (item) => (
                       <div
                         className="report-analysis-row"
@@ -5228,21 +5310,29 @@ export default function CandidatePointsPage() {
                             style={{ backgroundColor: item.color }}
                           />
                           <strong>{item.label}</strong>
-                          <em>%{item.value}</em>
+                          <em>%{formatReportPercentage(item.value)}</em>
                         </div>
                         <div className="report-analysis-track">
                           <span
                             style={{
-                              width: `${item.value}%`,
+                              width: `${Math.min(
+                                100,
+                                Math.max(
+                                  0,
+                                  parseReportNumber(item.value),
+                                ),
+                              )}%`,
                               backgroundColor: item.color,
                             }}
                           />
                         </div>
                       </div>
                     ),
-                  )}
+                    )}
+                  </div>
                 </div>
               </article>
+            </div>
             </div>
           </section>
         )}

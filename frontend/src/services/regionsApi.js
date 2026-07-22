@@ -90,8 +90,52 @@ function getStoredToken() {
   );
 }
 
-function createHeaders() {
-  const token = getStoredToken();
+function normalizeBearerToken(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/^"|"$/g, "")
+    .replace(/^Bearer\s+/i, "")
+    .trim();
+}
+
+function isUsableJwtToken(token) {
+  try {
+    const parts = token.split(".");
+
+    if (parts.length !== 3) {
+      return false;
+    }
+
+    const payloadBase64 = parts[1]
+      .replace(/-/g, "+")
+      .replace(/_/g, "/");
+    const paddedPayload = payloadBase64.padEnd(
+      payloadBase64.length + ((4 - (payloadBase64.length % 4)) % 4),
+      "=",
+    );
+    const payload = JSON.parse(atob(paddedPayload));
+    const expiresAt = Number(payload.exp);
+
+    return Number.isFinite(expiresAt) && expiresAt * 1000 > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+function notifyUnauthorized(url, status = 401) {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("geovolt:unauthorized", {
+        detail: { url, status },
+      }),
+    );
+  }
+}
+
+function createHeaders(explicitToken = null) {
+  const token = normalizeBearerToken(
+    explicitToken || getStoredToken(),
+  );
 
   return {
     Accept: "application/json",
@@ -104,7 +148,22 @@ function createHeaders() {
   };
 }
 
-async function requestJson(url) {
+async function requestJson(url, explicitToken = null) {
+  const activeToken = normalizeBearerToken(
+    explicitToken || getStoredToken(),
+  );
+
+  if (!isUsableJwtToken(activeToken)) {
+    console.error("[GeoVolt][API] Missing or expired JWT", {
+      url,
+      hasToken: Boolean(activeToken),
+    });
+    notifyUnauthorized(url);
+    throw new Error(
+      "Aktif oturum token'ı eksik veya süresi dolmuş. Yeniden giriş yapmalısınız.",
+    );
+  }
+
   const abortController = new AbortController();
 
   const timeoutId = globalThis.setTimeout(() => {
@@ -115,11 +174,34 @@ async function requestJson(url) {
     const response = await fetch(url, {
       method: "GET",
       mode: "cors",
-      headers: createHeaders(),
+      headers: createHeaders(activeToken),
       signal: abortController.signal,
     });
 
+    const responseText = await response.text();
+    let responseData = null;
+
+    if (responseText) {
+      try {
+        responseData = JSON.parse(responseText);
+      } catch {
+        responseData = responseText;
+      }
+    }
+
+    if (!response.ok) {
+      console.error("[GeoVolt][API] Request failed", {
+        url,
+        status: response.status,
+        statusText: response.statusText,
+        response: responseData,
+        hasBearerToken: Boolean(explicitToken || getStoredToken()),
+      });
+    }
+
     if (response.status === 401) {
+      notifyUnauthorized(url, response.status);
+
       throw new Error(
         "Bu veriyi görüntülemek için yeniden giriş yapmalısınız.",
       );
@@ -137,7 +219,7 @@ async function requestJson(url) {
       );
     }
 
-    return await response.json();
+    return responseData;
   } catch (error) {
     if (error?.name === "AbortError") {
       throw new Error(
@@ -366,6 +448,7 @@ function normalizeRegion(region, index) {
 
   return {
     id: id ?? index + 1,
+    regionId: id ?? index + 1,
     name,
 
     population: parseNumberOrDefault(
@@ -616,6 +699,18 @@ function normalizeSummary(
     return null;
   }
 
+  const parseSummaryNumber = (value) => {
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : 0;
+    }
+
+    const parsedValue = Number.parseFloat(
+      String(value ?? "0").replace(",", "."),
+    );
+
+    return Number.isFinite(parsedValue) ? parsedValue : 0;
+  };
+
   return {
     regionId:
       summary.regionId ??
@@ -629,11 +724,48 @@ function normalizeSummary(
       summary.name ??
       "Bölge",
 
-    chargingStationCount:
+    chargingStationCount: parseSummaryNumber(
       summary.chargingStationCount ??
       summary.ChargingStationCount ??
       summary.stationCount ??
       0,
+    ),
+
+    totalChargingStationCount: parseSummaryNumber(
+      summary.totalChargingStationCount ??
+      summary.TotalChargingStationCount ??
+      0,
+    ),
+
+    chargingStationPercentage: parseSummaryNumber(
+      summary.chargingStationPercentage ??
+      summary.ChargingStationPercentage ??
+      0,
+    ),
+
+    acCount: parseSummaryNumber(
+      summary.acCount ??
+      summary.AcCount ??
+      0,
+    ),
+
+    dcCount: parseSummaryNumber(
+      summary.dcCount ??
+      summary.DcCount ??
+      0,
+    ),
+
+    acPercentage: parseSummaryNumber(
+      summary.acPercentage ??
+      summary.AcPercentage ??
+      0,
+    ),
+
+    dcPercentage: parseSummaryNumber(
+      summary.dcPercentage ??
+      summary.DcPercentage ??
+      0,
+    ),
 
     trafficLevel:
       summary.trafficLevel ??
@@ -928,6 +1060,7 @@ export async function getNeighborhoods(
 
 export async function getRegionSummary(
   regionId,
+  token = null,
 ) {
   const numericRegionId =
     parsePositiveInteger(regionId);
@@ -943,10 +1076,29 @@ export async function getRegionSummary(
   try {
     const result = await requestJson(
       `${API_BASE_URL}/api/regions/${numericRegionId}/summary`,
+      token,
     );
 
-    const summaryObject =
-      extractObject(result);
+    const directSummaryArray = Array.isArray(result)
+      ? result
+      : Array.isArray(result?.data)
+        ? result.data
+        : null;
+
+    const summaryObject = directSummaryArray
+      ? directSummaryArray.find(
+          (summary) =>
+            parsePositiveInteger(
+              summary?.regionId ?? summary?.RegionId,
+            ) === numericRegionId,
+        ) ?? null
+      : extractObject(result);
+
+    console.debug("[GeoVolt][Report] Raw region summary", {
+      regionId: numericRegionId,
+      response: result,
+      extracted: summaryObject,
+    });
 
     return {
       data: normalizeSummary(
@@ -973,4 +1125,50 @@ export async function getRegionSummary(
           : "Bölge özeti alınamadı.",
     };
   }
+}
+
+export async function getRegionSummaries(regions = [], token = null) {
+  const uniqueRegionIds = Array.from(
+    new Set(
+      regions
+        .map((item) => parsePositiveInteger(item?.regionId))
+        .filter(Boolean),
+    ),
+  );
+
+  if (uniqueRegionIds.length === 0) {
+    return {
+      data: [],
+      source: "validation",
+      error: null,
+    };
+  }
+
+  const responses = await Promise.allSettled(
+    uniqueRegionIds.map((regionId) => getRegionSummary(regionId, token)),
+  );
+
+  const data = responses
+    .filter(
+      (response) =>
+        response.status === "fulfilled" && response.value?.data,
+    )
+    .map((response) => response.value.data)
+    .sort((first, second) =>
+      String(first.regionName).localeCompare(
+        String(second.regionName),
+        "tr-TR",
+      ),
+    );
+
+  console.debug("[GeoVolt][Report] Direct summaries array", data);
+
+  return {
+    data,
+    source: data.length > 0 ? "api" : "none",
+    error:
+      data.length > 0
+        ? null
+        : "Semt rapor verileri API'den alınamadı.",
+  };
 }

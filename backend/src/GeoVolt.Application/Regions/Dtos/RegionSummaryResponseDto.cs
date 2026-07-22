@@ -11,6 +11,18 @@ public sealed class RegionSummaryResponseDto
     // Bölgedeki toplam şarj istasyonu sayısı
     public int ChargingStationCount { get; set; }
 
+    public int TotalChargingStationCount { get; set; }
+
+    public double ChargingStationPercentage { get; set; }
+
+    public int AcCount { get; set; }
+
+    public int DcCount { get; set; }
+
+    public double AcPercentage { get; set; }
+
+    public double DcPercentage { get; set; }
+
     // Bölgenin trafik yoğunluk seviyesi
     public string TrafficLevel { get; set; } = string.Empty;
 
