@@ -21,6 +21,8 @@ public sealed class ManualPinEvaluateResponseDto
 
     public int PowerKw { get; set; }
 
+    public int ConnectorCount { get; set; }
+
     public string VenueType { get; set; } = string.Empty;
 
     // GIS üzerinden bulunan değerler.
@@ -31,6 +33,10 @@ public sealed class ManualPinEvaluateResponseDto
     // Hesaplanan maliyet kırılımları.
     public decimal? EstimatedCableLengthMeters { get; set; }
 
+    // Tek konnektörün cihaz maliyeti.
+    public decimal? UnitEquipmentCost { get; set; }
+
+    // Seçilen konnektörlerin toplam cihaz maliyeti.
     public decimal? EquipmentCost { get; set; }
 
     public decimal? ElectricalInfrastructureCost { get; set; }
@@ -43,6 +49,10 @@ public sealed class ManualPinEvaluateResponseDto
 
     public decimal? SubtotalCost { get; set; }
 
+    // Tek konnektör için hesaplanan standart maliyet.
+    public decimal? StandardEstimatedCost { get; set; }
+
+    // Seçilen konnektör sayısına göre hesaplanan net maliyet.
     public decimal? EstimatedCost { get; set; }
 
     // Bütçe kontrolü.

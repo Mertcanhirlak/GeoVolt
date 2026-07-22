@@ -1,11 +1,15 @@
 ﻿namespace GeoVolt.Application.CostEstimations.Dtos;
-//maliyet tahmini için gerekli olan tüm girdileri temsil eden DTO
+
+// Maliyet tahmini için gerekli olan tüm girdileri temsil eder.
 public sealed class CostEstimationInputDto
 {
     // GIS verileri
     public double DistanceToTransformerMeters { get; set; }
 
     public double SlopePercent { get; set; }
+
+    // Kurulum bilgileri
+    public int ConnectorCount { get; set; }
 
     // Genel model ayarları
     public string CostModelVersion { get; set; } = string.Empty;
@@ -16,7 +20,7 @@ public sealed class CostEstimationInputDto
 
     public decimal RoundingStep { get; set; }
 
-    // Güç profili değerleri
+    // Tek konnektör için güç profili değerleri
     public decimal EquipmentCost { get; set; }
 
     public decimal FixedElectricalInfrastructureCost { get; set; }

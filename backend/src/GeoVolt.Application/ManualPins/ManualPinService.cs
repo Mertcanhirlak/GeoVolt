@@ -45,6 +45,11 @@ public sealed class ManualPinService : IManualPinService
                 "Longitude bilgisi zorunludur.",
                 nameof(request));
 
+        var connectorCount = request.ConnectorCount
+            ?? throw new ArgumentException(
+                "Konnektör sayısı zorunludur.",
+                nameof(request));
+
         var systemType =
             request.SystemType.Trim().ToUpperInvariant();
 
@@ -65,6 +70,7 @@ public sealed class ManualPinService : IManualPinService
         {
             return CreateResponse(
                 request,
+                connectorCount,
                 location,
                 transformerDistance: null,
                 slopePercent: null,
@@ -93,6 +99,7 @@ public sealed class ManualPinService : IManualPinService
         {
             return CreateResponse(
                 request,
+                connectorCount,
                 location,
                 transformerDistance,
                 slopePercent,
@@ -135,6 +142,7 @@ public sealed class ManualPinService : IManualPinService
         {
             return CreateResponse(
                 request,
+                connectorCount,
                 location,
                 transformerDistance,
                 slopePercent,
@@ -156,6 +164,9 @@ public sealed class ManualPinService : IManualPinService
             SlopePercent =
                 slopePercent.Value,
 
+            ConnectorCount =
+                connectorCount,
+
             CostModelVersion =
                 modelSetting.Version,
 
@@ -168,6 +179,7 @@ public sealed class ManualPinService : IManualPinService
             RoundingStep =
                 modelSetting.RoundingStep,
 
+            // Tek konnektörün cihaz maliyeti.
             EquipmentCost =
                 costProfile.EquipmentCost,
 
@@ -193,12 +205,13 @@ public sealed class ManualPinService : IManualPinService
                 venueMultiplier.Multiplier
         };
 
-        // Saf matematiksel maliyet hesabı yapılır.
+        // Konnektör sayısını da içeren maliyet hesabı yapılır.
         var costResult =
             _costEstimationService.Calculate(input);
 
         return CreateResponse(
             request,
+            connectorCount,
             location,
             transformerDistance,
             slopePercent,
@@ -211,6 +224,7 @@ public sealed class ManualPinService : IManualPinService
 
     private static ManualPinEvaluateResponseDto CreateResponse(
         ManualPinEvaluateRequestDto request,
+        int connectorCount,
         LocateRegionPointResponseDto location,
         double? transformerDistance,
         double? slopePercent,
@@ -278,6 +292,9 @@ public sealed class ManualPinService : IManualPinService
             PowerKw =
                 request.PowerKw,
 
+            ConnectorCount =
+                connectorCount,
+
             VenueType =
                 request.VenueType.Trim(),
 
@@ -290,6 +307,11 @@ public sealed class ManualPinService : IManualPinService
             EstimatedCableLengthMeters =
                 costResult?.EstimatedCableLengthMeters,
 
+            // Tek konnektörün cihaz maliyeti.
+            UnitEquipmentCost =
+                costResult?.UnitEquipmentCost,
+
+            // Seçilen konnektörlerin toplam cihaz maliyeti.
             EquipmentCost =
                 costResult?.EquipmentCost,
 
@@ -308,6 +330,11 @@ public sealed class ManualPinService : IManualPinService
             SubtotalCost =
                 costResult?.SubtotalCost,
 
+            // Tek konnektörlü standart nihai maliyet.
+            StandardEstimatedCost =
+                costResult?.StandardEstimatedCost,
+
+            // Seçilen konnektör sayısına göre net maliyet.
             EstimatedCost =
                 estimatedCost,
 

@@ -40,18 +40,43 @@ public sealed class CostEstimationService : ICostEstimationService
             (baseCivilWorksCost + slopeExtraCost)
             * input.VenueMultiplier;
 
-        var subtotalCost =
-            input.EquipmentCost
+        // Cost profile içindeki cihaz maliyeti tek konnektör içindir.
+        var unitEquipmentCost =
+            input.EquipmentCost;
+
+        // Seçilen konnektör sayısına göre toplam cihaz maliyeti.
+        var totalEquipmentCost =
+            unitEquipmentCost * input.ConnectorCount;
+
+        // Tek konnektör için standart ara toplam.
+        var standardSubtotalCost =
+            unitEquipmentCost
             + electricalInfrastructureCost
             + adjustedCivilWorksCost;
 
-        // Risk oranı toplam maliyete uygulanır.
+        // Tek konnektör için standart nihai maliyet.
+        var standardUnroundedEstimatedCost =
+            standardSubtotalCost * (1m + input.RiskRate);
+
+        var standardEstimatedCost =
+            RoundToStep(
+                standardUnroundedEstimatedCost,
+                input.RoundingStep);
+
+        // Seçilen konnektör sayısına göre net ara toplam.
+        var subtotalCost =
+            totalEquipmentCost
+            + electricalInfrastructureCost
+            + adjustedCivilWorksCost;
+
+        // Risk oranı net ara toplama uygulanır.
         var unroundedEstimatedCost =
             subtotalCost * (1m + input.RiskRate);
 
-        var estimatedCost = RoundToStep(
-            unroundedEstimatedCost,
-            input.RoundingStep);
+        var estimatedCost =
+            RoundToStep(
+                unroundedEstimatedCost,
+                input.RoundingStep);
 
         return new CostEstimationResultDto
         {
@@ -61,8 +86,14 @@ public sealed class CostEstimationService : ICostEstimationService
             EstimatedCableLengthMeters =
                 estimatedCableLengthMeters,
 
+            ConnectorCount =
+                input.ConnectorCount,
+
+            UnitEquipmentCost =
+                unitEquipmentCost,
+
             EquipmentCost =
-                input.EquipmentCost,
+                totalEquipmentCost,
 
             ElectricalInfrastructureCost =
                 electricalInfrastructureCost,
@@ -78,6 +109,9 @@ public sealed class CostEstimationService : ICostEstimationService
 
             SubtotalCost =
                 subtotalCost,
+
+            StandardEstimatedCost =
+                standardEstimatedCost,
 
             EstimatedCost =
                 estimatedCost,
@@ -118,6 +152,13 @@ public sealed class CostEstimationService : ICostEstimationService
             throw new ArgumentOutOfRangeException(
                 nameof(input.SlopePercent),
                 "Eğim yüzdesi sıfırdan küçük olamaz.");
+        }
+
+        if (input.ConnectorCount is < 1 or > 20)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(input.ConnectorCount),
+                "Konnektör sayısı 1 ile 20 arasında olmalıdır.");
         }
 
         if (input.RouteMultiplier <= 0)

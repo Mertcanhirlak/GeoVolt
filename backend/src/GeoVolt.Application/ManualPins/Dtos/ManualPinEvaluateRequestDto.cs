@@ -10,21 +10,24 @@ public sealed class ManualPinEvaluateRequestDto : IValidatableObject
         ErrorMessage = "Geçerli bir bölge kimliği gönderilmelidir.")]
     public int RegionId { get; set; }
 
-    [Required]
+    [Required(
+        ErrorMessage = "Enlem bilgisi zorunludur.")]
     [Range(
         -90,
         90,
         ErrorMessage = "Enlem -90 ile 90 arasında olmalıdır.")]
     public double? Latitude { get; set; }
 
-    [Required]
+    [Required(
+        ErrorMessage = "Boylam bilgisi zorunludur.")]
     [Range(
         -180,
         180,
         ErrorMessage = "Boylam -180 ile 180 arasında olmalıdır.")]
     public double? Longitude { get; set; }
 
-    [Required]
+    [Required(
+        ErrorMessage = "Sistem tipi zorunludur.")]
     [RegularExpression(
         "^(AC|DC)$",
         ErrorMessage = "Sistem tipi AC veya DC olmalıdır.")]
@@ -36,7 +39,16 @@ public sealed class ManualPinEvaluateRequestDto : IValidatableObject
         ErrorMessage = "Güç değeri geçerli bir kW değeri olmalıdır.")]
     public int PowerKw { get; set; }
 
-    [Required]
+    [Required(
+        ErrorMessage = "Konnektör sayısı zorunludur.")]
+    [Range(
+        1,
+        20,
+        ErrorMessage = "Konnektör sayısı 1 ile 20 arasında olmalıdır.")]
+    public int? ConnectorCount { get; set; }
+
+    [Required(
+        ErrorMessage = "Mekân türü zorunludur.")]
     [RegularExpression(
         "^(Workplace|Mall|Highway)$",
         ErrorMessage =
