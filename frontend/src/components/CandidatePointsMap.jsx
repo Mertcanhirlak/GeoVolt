@@ -68,7 +68,7 @@ const GEOJSON_URLS = {
 const DEFAULT_MANUAL_PIN_PREFERENCES = {
   systemType: "",
   placeType: "",
-  powerKw: "120",
+  powerKw: "",
   connectorCount: "2",
   budget: "",
 };
@@ -2568,12 +2568,23 @@ export default function CandidatePointsMap({
       return "Mekân tipi seçmelisiniz.";
     }
 
+    const allowedPowerValues =
+      systemType === "AC"
+        ? [22]
+        : systemType === "DC"
+          ? [60, 120]
+          : [];
+
     if (
-      !Number.isFinite(powerKw) ||
-      powerKw <= 0 ||
-      powerKw > 1000
+      !allowedPowerValues.includes(
+        powerKw,
+      )
     ) {
-      return "Güç değeri 1 ile 1000 kW arasında olmalıdır.";
+      return systemType === "AC"
+        ? "AC şarj için güç 22 kW olmalıdır."
+        : systemType === "DC"
+          ? "DC şarj için güç 60 veya 120 kW olmalıdır."
+          : "Geçerli bir sistem tipi ve güç seçmelisiniz.";
     }
 
     if (

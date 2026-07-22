@@ -57,6 +57,7 @@ export default function SuitabilityResultsPanel({
         </div>
 
         <button
+          data-suitability-close-button="true"
           type="button"
           onClick={onClose}
           aria-label="Konum analizi panelini kapat"
@@ -192,15 +193,6 @@ export default function SuitabilityResultsPanel({
                 <em>{formatScore(recommendation.suitabilityScore)}</em>
               </button>
             ))}
-
-            <small className="suitability-recommendation-help">
-              Bir öneriye tıkladığınızda harita yakınlaşır ve gerçek analiz
-              detayları alt bilgi alanında gösterilir.
-            </small>
-
-            <small className="suitability-provisional-note">
-              Öneriler veri kapsamı doğrulanana kadar geçicidir.
-            </small>
           </>
         ) : (
           <div className="suitability-recommendations-empty">

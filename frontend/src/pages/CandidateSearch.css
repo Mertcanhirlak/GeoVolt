@@ -2656,3 +2656,43 @@
   .dashboard-region-toggle {
   background: #ffffff !important;
 }
+/* SUITABILITY CLOSE BUTTON FIX */
+button[data-suitability-close-button="true"] {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 34px !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  text-align: center !important;
+  box-shadow: none !important;
+  transform: none !important;
+  cursor: pointer !important;
+}
+
+button[data-suitability-close-button="true"]:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+  transform: none !important;
+}
+
+button[data-suitability-close-button="true"]:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.22) !important;
+  outline-offset: 2px !important;
+}
+
+button[data-suitability-close-button="true"] > * {
+  margin: 0 !important;
+  line-height: 1 !important;
+}

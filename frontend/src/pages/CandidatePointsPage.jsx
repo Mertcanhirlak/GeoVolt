@@ -20,6 +20,7 @@ import {
   LayoutDashboard,
   Power,
   MapPin,
+  Navigation,
   Layers,
   Search,
 } from "lucide-react";
@@ -52,6 +53,7 @@ import CandidateFilters from "../components/CandidateFilters";
 import SavedCandidates from "../components/SavedCandidates";
 import PersonalizationForm from "../components/PersonalizationForm";
 import ExistingStationsMap from "../components/ExistingStationsMap";
+import NearbyStationsMap from "../components/NearbyStationsMap";
 import CandidatePointsMap from "../components/CandidatePointsMap";
 import SuitabilityResultsPanel from "../components/SuitabilityResultsPanel";
 import PoiSummary from "../components/PoiSummary";
@@ -870,12 +872,18 @@ export default function CandidatePointsPage() {
   const navigate = useNavigate();
   const {
     user,
+    role,
     isAdmin,
+    isCompanyUser,
     canAccessManagement,
     logoutUser,
   } = useAuth();
 
   const canOpenAdminPanel = isAdmin || canAccessManagement;
+
+  const canOpenNearbyStations =
+    !canOpenAdminPanel &&
+    !isCompanyUser;
 
   const scanRequestIdRef =
     useRef(0);
@@ -1119,7 +1127,7 @@ export default function CandidatePointsPage() {
   const [
     sidebarCollapsed,
     setSidebarCollapsed,
-  ] = useState(false);
+  ] = useState(true);
 
   const [
     focusedRegionId,
@@ -3994,6 +4002,29 @@ export default function CandidatePointsPage() {
             <Zap size={26} strokeWidth={2.3} />
             <span>Aday nokta haritası</span>
           </button>
+          {canOpenNearbyStations && (
+            <button
+              type="button"
+              className={
+                activeTab === "nearbyStations"
+                  ? "menu-button active"
+                  : "menu-button"
+              }
+              data-testid="nearby-stations-tab-button"
+              onClick={() =>
+                setActiveTab("nearbyStations")
+              }
+              title="Yakınımdaki şarj istasyonları"
+            >
+              <Navigation
+                size={26}
+                strokeWidth={2.3}
+              />
+              <span>
+                Yakınımdaki istasyonlar
+              </span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -4139,6 +4170,16 @@ export default function CandidatePointsPage() {
           </section>
         )}
 
+        {canOpenNearbyStations &&
+          activeTab ===
+            "nearbyStations" && (
+            <section
+              className="map-screen"
+              data-testid="nearby-stations-screen"
+            >
+              <NearbyStationsMap />
+            </section>
+          )}
         {activeTab ===
           "candidateMap" && (
           <section
