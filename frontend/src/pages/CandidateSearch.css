@@ -1331,7 +1331,7 @@
   margin-top: 7px;
   color: #64748b;
   font-size: 10px;
-  font-weight: 750;
+  font-weight: 600;
 }
 
 .report-pie-slice-label {
@@ -1418,8 +1418,8 @@
 .report-donut-center span {
   margin-top: 4px;
   color: #64748b;
-  font-size: 11px;
-  font-weight: 800;
+  font-size: 10px;
+  font-weight: 600;
 }
 
 .report-legend {
@@ -1485,7 +1485,7 @@
 .report-select-shell span {
   color: #64748b;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 650;
 }
 
 .report-select-shell select {
