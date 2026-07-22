@@ -42,6 +42,8 @@ import {
   getRegions,
 } from "../services/regionsApi";
 
+import ManualPinPreferencesPanel from "./ManualPinPreferencesPanel";
+
 import "./CandidatePointsMap.css";
 
 const CANKAYA_CENTER =
@@ -61,6 +63,14 @@ const GEOJSON_URLS = {
   poi: "/data/POI.geojson",
   trafo: "/data/TRAFO.geojson",
   road: "/data/YOL.geojson",
+};
+
+const DEFAULT_MANUAL_PIN_PREFERENCES = {
+  systemType: "",
+  placeType: "",
+  powerKw: "120",
+  connectorCount: "2",
+  budget: "",
 };
 
 const regionColors = [
@@ -1968,6 +1978,70 @@ function showDetailValue(value) {
     "Veri yok";
 }
 
+function formatSuitabilityScore(value) {
+  const score = Number(value);
+
+  if (!Number.isFinite(score)) {
+    return "Veri Eksik";
+  }
+
+  return score.toFixed(2);
+}
+
+function formatSuitabilityDistance(value) {
+  const meters = Number(value);
+
+  if (!Number.isFinite(meters)) {
+    return "Veri Eksik";
+  }
+
+  if (meters >= 1000) {
+    return `${(meters / 1000).toFixed(2)} km`;
+  }
+
+  return `${Math.round(meters)} m`;
+}
+
+function formatSuitabilityPopulation(value) {
+  const density = Number(value);
+
+  if (!Number.isFinite(density)) {
+    return "Veri Eksik";
+  }
+
+  return `${new Intl.NumberFormat("tr-TR", {
+    maximumFractionDigits: 0,
+  }).format(density)} kişi/km²`;
+}
+
+function formatSuitabilityPoi(metrics) {
+  const count1000 = Number(metrics?.poiCount1000Meters);
+
+  if (!Number.isFinite(count1000)) {
+    return "Veri Eksik";
+  }
+
+  return `${count1000} POI / 1 km`;
+}
+
+function formatSuitabilitySlope(value) {
+  const slope = Number(value);
+
+  if (!Number.isFinite(slope)) {
+    return "Veri Eksik";
+  }
+
+  return `%${slope.toFixed(2)}`;
+}
+
+function getSuitabilityLocationLabel(cell) {
+  return (
+    [cell?.neighborhoodName, cell?.regionName]
+      .filter(Boolean)
+      .join(" / ") || "Konum bilgisi yok"
+  );
+}
+
 export default function CandidatePointsMap({
   points = [],
   regions = [],
@@ -1998,6 +2072,11 @@ export default function CandidatePointsMap({
 
   const selectedRegionRef =
     useRef(null);
+
+  const manualPinPreferencesRef =
+    useRef(
+      DEFAULT_MANUAL_PIN_PREFERENCES
+    );
 
   const candidateSourceRef =
     useRef(
@@ -2139,6 +2218,23 @@ export default function CandidatePointsMap({
   ] = useState("");
 
   const [
+    manualPinPanelOpen,
+    setManualPinPanelOpen,
+  ] = useState(false);
+
+  const [
+    manualPinPreferences,
+    setManualPinPreferences,
+  ] = useState(
+    DEFAULT_MANUAL_PIN_PREFERENCES
+  );
+
+  const [
+    manualPinValidationError,
+    setManualPinValidationError,
+  ] = useState("");
+
+  const [
     poiVisible,
     setPoiVisible,
   ] = useState(false);
@@ -2239,6 +2335,29 @@ export default function CandidatePointsMap({
     manualPinMessage ||
     manualPinHint;
 
+  const focusedSuitabilityRecommendation = useMemo(() => {
+    const recommendations = Array.isArray(
+      suitabilityEvaluation?.recommendations,
+    )
+      ? suitabilityEvaluation.recommendations
+      : [];
+
+    if (focusedRecommendationCellId == null) {
+      return null;
+    }
+
+    return (
+      recommendations.find(
+        (recommendation) =>
+          String(recommendation?.cellId) ===
+          String(focusedRecommendationCellId),
+      ) || null
+    );
+  }, [
+    suitabilityEvaluation,
+    focusedRecommendationCellId,
+  ]);
+
   function closeLayerDetail() {
     layerDetailCoordinateRef.current =
       null;
@@ -2270,6 +2389,11 @@ export default function CandidatePointsMap({
     selectedRegionRef.current =
       selectedRegion;
   }, [selectedRegion]);
+
+  useEffect(() => {
+    manualPinPreferencesRef.current =
+      manualPinPreferences;
+  }, [manualPinPreferences]);
 
   useEffect(() => {
     interactionRef.current = {
@@ -2468,6 +2592,114 @@ export default function CandidatePointsMap({
     };
   }, []);
 
+  function validateManualPinPreferences() {
+    const systemType =
+      String(
+        manualPinPreferences.systemType ?? ""
+      ).trim();
+
+    const placeType =
+      String(
+        manualPinPreferences.placeType ?? ""
+      ).trim();
+
+    const powerKw =
+      Number(
+        manualPinPreferences.powerKw
+      );
+
+    const connectorCount =
+      Number(
+        manualPinPreferences.connectorCount
+      );
+
+    const budget =
+      Number(
+        manualPinPreferences.budget
+      );
+
+    if (!systemType) {
+      return "Sistem tipi seçmelisiniz.";
+    }
+
+    if (!placeType) {
+      return "Mekân tipi seçmelisiniz.";
+    }
+
+    if (
+      !Number.isFinite(powerKw) ||
+      powerKw <= 0 ||
+      powerKw > 1000
+    ) {
+      return "Güç değeri 1 ile 1000 kW arasında olmalıdır.";
+    }
+
+    if (
+      !Number.isInteger(connectorCount) ||
+      connectorCount <= 0 ||
+      connectorCount > 50
+    ) {
+      return "Konnektör sayısı 1 ile 50 arasında tam sayı olmalıdır.";
+    }
+
+    if (
+      !Number.isFinite(budget) ||
+      budget < 0
+    ) {
+      return "Geçerli bir kurulum bütçesi girmelisiniz.";
+    }
+
+    return "";
+  }
+
+  function handleManualPinPreferenceChange(
+    fieldName,
+    value
+  ) {
+    setManualPinPreferences(
+      (currentValues) => ({
+        ...currentValues,
+        [fieldName]: value,
+      })
+    );
+
+    setManualPinValidationError("");
+  }
+
+  function closeManualPinPreferences() {
+    if (manualPinLoading) {
+      return;
+    }
+
+    setManualPinPanelOpen(false);
+    setManualPinValidationError("");
+  }
+
+  function startManualPinSelection(event) {
+    event.preventDefault();
+
+    const validationError =
+      validateManualPinPreferences();
+
+    if (validationError) {
+      setManualPinValidationError(
+        validationError
+      );
+
+      return;
+    }
+
+    closeLayerDetail();
+
+    setManualPinPanelOpen(false);
+    setManualPinValidationError("");
+    setManualPinMode(true);
+
+    setManualPinHint(
+      `${selectedRegionName} içinde manuel pin bırakmak için haritaya tıklayın.`
+    );
+  }
+
   function toggleManualPinMode() {
     if (
       !regionsActive
@@ -2497,21 +2729,30 @@ export default function CandidatePointsMap({
 
     closeLayerDetail();
 
-    setManualPinMode(
-      (
-        currentValue
-      ) => {
-        const nextValue =
-          !currentValue;
+    if (manualPinMode) {
+      setManualPinMode(false);
+      setManualPinPanelOpen(false);
+      setManualPinValidationError("");
+      setManualPinHint(
+        "Manuel pin modu kapatıldı."
+      );
 
-        setManualPinHint(
-          nextValue
-            ? `${selectedRegionName} içinde manuel pin bırakmak için haritaya tıklayın.`
-            : "Manuel pin modu kapatıldı."
-        );
+      return;
+    }
 
-        return nextValue;
-      }
+    if (manualPinPanelOpen) {
+      closeManualPinPreferences();
+      setManualPinHint(
+        "Kurulum tercihleri kapatıldı."
+      );
+
+      return;
+    }
+
+    setManualPinValidationError("");
+    setManualPinPanelOpen(true);
+    setManualPinHint(
+      "Kurulum tercihlerini doldurup Haritada Nokta Seç butonuna basın."
     );
   }
 
@@ -2863,6 +3104,14 @@ export default function CandidatePointsMap({
           false
         );
 
+        setManualPinPanelOpen(
+          false
+        );
+
+        setManualPinValidationError(
+          ""
+        );
+
         setManualPinHint(
           `${getRegionName(
             region
@@ -2945,6 +3194,33 @@ export default function CandidatePointsMap({
 
               latitude,
               longitude,
+
+              preferences: {
+                systemType:
+                  String(
+                    manualPinPreferencesRef.current.systemType
+                  ).trim(),
+
+                placeType:
+                  String(
+                    manualPinPreferencesRef.current.placeType
+                  ).trim(),
+
+                powerKw:
+                  Number(
+                    manualPinPreferencesRef.current.powerKw
+                  ),
+
+                connectorCount:
+                  Number(
+                    manualPinPreferencesRef.current.connectorCount
+                  ),
+
+                budget:
+                  Number(
+                    manualPinPreferencesRef.current.budget
+                  ),
+              },
             });
 
           return;
@@ -3667,6 +3943,14 @@ export default function CandidatePointsMap({
         false
       );
 
+      setManualPinPanelOpen(
+        false
+      );
+
+      setManualPinValidationError(
+        ""
+      );
+
       setManualPinHint(
         ""
       );
@@ -3755,6 +4039,14 @@ export default function CandidatePointsMap({
         false
       );
 
+      setManualPinPanelOpen(
+        false
+      );
+
+      setManualPinValidationError(
+        ""
+      );
+
       setManualPinHint(
         ""
       );
@@ -3823,6 +4115,14 @@ export default function CandidatePointsMap({
         false
       );
 
+      setManualPinPanelOpen(
+        false
+      );
+
+      setManualPinValidationError(
+        ""
+      );
+
       setManualPinHint(
         ""
       );
@@ -3875,6 +4175,14 @@ export default function CandidatePointsMap({
 
     setManualPinMode(
       false
+    );
+
+    setManualPinPanelOpen(
+      false
+    );
+
+    setManualPinValidationError(
+      ""
     );
 
     setManualPinHint(
@@ -4081,47 +4389,54 @@ export default function CandidatePointsMap({
         className="candidate-left-controls"
         data-testid="candidate-left-controls"
       >
-        <div
-          className="candidate-manual-controls"
-          data-testid="candidate-manual-controls"
-        >
-          <div className="candidate-selected-region">
-            <strong>
-              Seçili Bölge
-            </strong>
-
-            <span
-              data-testid="candidate-selected-region-name"
-            >
-              {selectedRegionName ||
-                "Bölge seçilmedi"}
-            </span>
-          </div>
-
-          <button
-            type="button"
-            className={
-              manualPinMode
-                ? "manual-pin-button active"
-                : "manual-pin-button"
-            }
-            disabled={
-              !regionsActive ||
-              !selectedRegionId ||
-              manualPinLoading
-            }
-            onClick={
-              toggleManualPinMode
-            }
-            data-testid="manual-pin-mode-button"
+        {!manualPinCandidate && (
+          <div
+            className="candidate-manual-controls"
+            data-testid="candidate-manual-controls"
           >
-            {manualPinLoading
-              ? "Değerlendiriliyor..."
-              : manualPinMode
-                ? "Manuel Pin Modunu Kapat"
-                : "Manuel Pin Ekle"}
-          </button>
-        </div>
+            <div className="candidate-selected-region">
+              <strong>
+                Seçili Bölge
+              </strong>
+
+              <span
+                data-testid="candidate-selected-region-name"
+              >
+                {selectedRegionName ||
+                  "Bölge seçilmedi"}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              className={
+                manualPinMode
+                  ? "manual-pin-button active"
+                  : "manual-pin-button"
+              }
+              disabled={
+                !regionsActive ||
+                !selectedRegionId ||
+                manualPinLoading
+              }
+              aria-expanded={
+                manualPinPanelOpen
+              }
+              onClick={
+                toggleManualPinMode
+              }
+              data-testid="manual-pin-mode-button"
+            >
+              {manualPinLoading
+                ? "Değerlendiriliyor..."
+                : manualPinMode
+                  ? "Nokta Seçimini İptal Et"
+                  : manualPinPanelOpen
+                    ? "Tercih Panelini Kapat"
+                    : "Manuel Pin Ekle"}
+            </button>
+          </div>
+        )}
 
         <div
           className="candidate-layer-controls"
@@ -4219,6 +4534,32 @@ export default function CandidatePointsMap({
           </button>
         </div>
       </div>
+
+      {manualPinPanelOpen && (
+        <ManualPinPreferencesPanel
+          selectedRegionName={
+            selectedRegionName
+          }
+          values={
+            manualPinPreferences
+          }
+          error={
+            manualPinValidationError
+          }
+          disabled={
+            manualPinLoading
+          }
+          onChange={
+            handleManualPinPreferenceChange
+          }
+          onSubmit={
+            startManualPinSelection
+          }
+          onClose={
+            closeManualPinPreferences
+          }
+        />
+      )}
 
       {layerDetail &&
         layerDetailPosition && (
@@ -4436,16 +4777,151 @@ export default function CandidatePointsMap({
           </div>
         )}
 
-      {displayedManualPinMessage && (
+      {focusedSuitabilityRecommendation ? (
+        <section
+          className="manual-pin-message recommendation-analysis-details"
+          data-testid="focused-recommendation-analysis-details"
+        >
+          <div className="recommendation-analysis-heading">
+            <div>
+              <span>
+                Öneri #{focusedSuitabilityRecommendation.recommendationRank}
+              </span>
+              <strong>
+                {getSuitabilityLocationLabel(
+                  focusedSuitabilityRecommendation,
+                )}
+              </strong>
+            </div>
+
+            <div className="recommendation-analysis-summary">
+              <span>
+                Uygunluk
+                <strong>
+                  {formatSuitabilityScore(
+                    focusedSuitabilityRecommendation.suitabilityScore,
+                  )}
+                </strong>
+              </span>
+
+              <span>
+                Mesafe
+                <strong>
+                  {formatSuitabilityDistance(
+                    focusedSuitabilityRecommendation.distanceMeters,
+                  )}
+                </strong>
+              </span>
+
+              <span>
+                Maliyet
+                <strong>Veri Eksik</strong>
+              </span>
+            </div>
+          </div>
+
+          <div className="recommendation-analysis-components">
+            <article>
+              <span>Trafoya yakınlık</span>
+              <strong>
+                {formatSuitabilityDistance(
+                  focusedSuitabilityRecommendation.metrics
+                    ?.nearestTransformerMeters,
+                )}
+              </strong>
+              <small>
+                Puan: {formatSuitabilityScore(
+                  focusedSuitabilityRecommendation.scores
+                    ?.transformerScore,
+                )} · Ağırlık: %25
+              </small>
+            </article>
+
+            <article>
+              <span>Ana yola yakınlık</span>
+              <strong>
+                {formatSuitabilityDistance(
+                  focusedSuitabilityRecommendation.metrics
+                    ?.nearestMajorRoadMeters,
+                )}
+              </strong>
+              <small>
+                Puan: {formatSuitabilityScore(
+                  focusedSuitabilityRecommendation.scores
+                    ?.majorRoadScore,
+                )} · Ağırlık: %20
+              </small>
+            </article>
+
+            <article>
+              <span>POI yoğunluğu</span>
+              <strong>
+                {formatSuitabilityPoi(
+                  focusedSuitabilityRecommendation.metrics,
+                )}
+              </strong>
+              <small>
+                Puan: {formatSuitabilityScore(
+                  focusedSuitabilityRecommendation.scores?.poiScore,
+                )} · Ağırlık: %15
+              </small>
+            </article>
+
+            <article>
+              <span>Nüfus yoğunluğu</span>
+              <strong>
+                {formatSuitabilityPopulation(
+                  focusedSuitabilityRecommendation.metrics
+                    ?.populationDensityPerSquareKilometer,
+                )}
+              </strong>
+              <small>
+                Puan: {formatSuitabilityScore(
+                  focusedSuitabilityRecommendation.scores
+                    ?.populationScore,
+                )} · Ağırlık: %15
+              </small>
+            </article>
+
+            <article>
+              <span>İstasyon hizmet açığı</span>
+              <strong>
+                {formatSuitabilityDistance(
+                  focusedSuitabilityRecommendation.metrics
+                    ?.nearestStationMeters,
+                )}
+              </strong>
+              <small>
+                Puan: {formatSuitabilityScore(
+                  focusedSuitabilityRecommendation.scores
+                    ?.stationGapScore,
+                )} · Ağırlık: %15
+              </small>
+            </article>
+
+            <article>
+              <span>Düşük eğim</span>
+              <strong>
+                {formatSuitabilitySlope(
+                  focusedSuitabilityRecommendation.metrics?.slopePercent,
+                )}
+              </strong>
+              <small>
+                Puan: {formatSuitabilityScore(
+                  focusedSuitabilityRecommendation.scores?.slopeScore,
+                )} · Ağırlık: %10
+              </small>
+            </article>
+          </div>
+        </section>
+      ) : displayedManualPinMessage ? (
         <div
           className="manual-pin-message"
           data-testid="manual-pin-message"
         >
-          {
-            displayedManualPinMessage
-          }
+          {displayedManualPinMessage}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

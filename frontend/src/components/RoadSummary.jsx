@@ -160,12 +160,6 @@ export default function RoadSummary({
             yakınlığını değerlendirmek için kullanılabilir.
           </p>
         </div>
-
-        {message && (
-          <span className="road-source-badge" data-testid="road-source-badge">
-            {message}
-          </span>
-        )}
       </div>
 
       <div className="road-summary-grid">

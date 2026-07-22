@@ -510,6 +510,61 @@ function validateCoordinate(
   };
 }
 
+function validateRequiredText(
+  value,
+  fieldLabel
+) {
+  const text =
+    String(value ?? "").trim();
+
+  if (!text) {
+    throw new Error(
+      `${fieldLabel} seçilmelidir.`
+    );
+  }
+
+  return text;
+}
+
+function validateNumber(
+  value,
+  fieldLabel,
+  {
+    integer = false,
+    min = null,
+    max = null,
+  } = {}
+) {
+  const numericValue =
+    Number(value);
+
+  if (
+    !Number.isFinite(
+      numericValue
+    ) ||
+    (
+      integer &&
+      !Number.isInteger(
+        numericValue
+      )
+    ) ||
+    (
+      min !== null &&
+      numericValue < min
+    ) ||
+    (
+      max !== null &&
+      numericValue > max
+    )
+  ) {
+    throw new Error(
+      `${fieldLabel} geçersiz.`
+    );
+  }
+
+  return numericValue;
+}
+
 function validateRegionId(
   regionId
 ) {
@@ -573,6 +628,11 @@ export async function evaluateManualPin({
   regionId,
   latitude,
   longitude,
+  systemType,
+  placeType,
+  powerKw,
+  connectorCount,
+  budget,
 }) {
   const numericRegionId =
     validateRegionId(
@@ -584,6 +644,50 @@ export async function evaluateManualPin({
       latitude,
       longitude
     );
+
+  const normalizedPreferences = {
+    systemType:
+      validateRequiredText(
+        systemType,
+        "Sistem tipi"
+      ),
+
+    placeType:
+      validateRequiredText(
+        placeType,
+        "Mekân tipi"
+      ),
+
+    powerKw:
+      validateNumber(
+        powerKw,
+        "Güç değeri",
+        {
+          min: 1,
+          max: 1000,
+        }
+      ),
+
+    connectorCount:
+      validateNumber(
+        connectorCount,
+        "Konnektör sayısı",
+        {
+          integer: true,
+          min: 1,
+          max: 50,
+        }
+      ),
+
+    budget:
+      validateNumber(
+        budget,
+        "Kurulum bütçesi",
+        {
+          min: 0,
+        }
+      ),
+  };
 
   const response =
     await requestJson(
@@ -600,6 +704,8 @@ export async function evaluateManualPin({
 
           longitude:
             coordinates.longitude,
+
+          ...normalizedPreferences,
         }),
       }
     );

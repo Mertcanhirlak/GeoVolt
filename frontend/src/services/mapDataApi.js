@@ -738,13 +738,36 @@ async function getRegionsFromLocalGeoJson() {
 }
 
 export async function getChargingStations(regionId) {
+  const result = await getChargingStationsWithSource(regionId);
+  return result.data;
+}
+
+export async function getChargingStationsWithSource(regionId) {
   try {
-    return await getChargingStationsFromApi(regionId);
+    const apiStations = await getChargingStationsFromApi(regionId);
+
+    if (apiStations.length > 0) {
+      return {
+        data: apiStations,
+        source: "api"
+      };
+    }
+
+    return {
+      data: await getChargingStationsFromLocalGeoJson(),
+      source: "local"
+    };
   } catch {
     try {
-      return await getChargingStationsFromLocalGeoJson();
+      return {
+        data: await getChargingStationsFromLocalGeoJson(),
+        source: "local"
+      };
     } catch {
-      return getChargingStationsFromMock();
+      return {
+        data: getChargingStationsFromMock(),
+        source: "mock"
+      };
     }
   }
 }
@@ -760,16 +783,27 @@ export async function getChargingStationDetail(id) {
 }
 
 export async function getRegions() {
+  const result = await getRegionsWithSource();
+  return result.data;
+}
+
+export async function getRegionsWithSource() {
   try {
     const apiRegions = await getRegionsFromApi();
 
     if (apiRegions.length > 0 && apiRegions.some((region) => region.boundaryGeoJson)) {
-      return apiRegions;
+      return { data: apiRegions, source: "api" };
     }
 
-    return await getRegionsFromLocalGeoJson();
+    return {
+      data: await getRegionsFromLocalGeoJson(),
+      source: "local"
+    };
   } catch {
-    return await getRegionsFromLocalGeoJson();
+    return {
+      data: await getRegionsFromLocalGeoJson(),
+      source: "local"
+    };
   }
 }
 
