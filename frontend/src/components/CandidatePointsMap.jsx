@@ -4734,7 +4734,28 @@ export default function CandidatePointsMap({
 
               <span>
                 Maliyet
-                <strong>Veri Eksik</strong>
+                <strong>
+                  {focusedSuitabilityRecommendation.estimatedCost == null
+                    ? "Hesaplanmadı"
+                    : `${Number(
+                        focusedSuitabilityRecommendation.estimatedCost,
+                      ).toLocaleString("tr-TR")} TL`}
+                </strong>
+
+                {focusedSuitabilityRecommendation.isWithinBudget ===
+                  false && (
+                  <small
+                    data-testid={`recommendation-budget-warning-${focusedSuitabilityRecommendation.cellId}`}
+                    style={{
+                      display: "block",
+                      marginTop: "4px",
+                      color: "#dc2626",
+                      fontWeight: 800,
+                    }}
+                  >
+                    Bütçe aşıldı
+                  </small>
+                )}
               </span>
             </div>
           </div>

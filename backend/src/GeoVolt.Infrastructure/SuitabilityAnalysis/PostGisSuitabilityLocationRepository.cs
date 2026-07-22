@@ -181,6 +181,13 @@ public sealed partial class PostGisSuitabilityAnalysisRepository
                     WHERE cell.analysis_run_id = {analysisRunId}
                       AND cell.suitability_score IS NOT NULL
                       AND NOT cell.has_hard_exclusion
+                      AND cell.evaluation_status <> {SiteEvaluationStatuses.HardExclusion}
+                      AND cell.nearest_transformer_meters IS NOT NULL
+                      AND cell.nearest_major_road_meters IS NOT NULL
+                      AND cell.nearest_station_meters IS NOT NULL
+                      AND cell.poi_count_500_meters IS NOT NULL
+                      AND cell.population_density_per_square_kilometer IS NOT NULL
+                      AND cell.slope_percent IS NOT NULL
                       AND COALESCE(
                           (cell.metric_details -> 'scoring' ->> 'provisionalRecommendation')::boolean,
                           FALSE)

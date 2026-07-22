@@ -16,6 +16,7 @@ public sealed class GlobalExceptionHandler(
     {
         var traceId = Activity.Current?.Id
             ?? httpContext.TraceIdentifier;
+
         var isNotFound = exception is NotFoundException;
         var isConflict = exception is ConflictException;
 
@@ -44,14 +45,17 @@ public sealed class GlobalExceptionHandler(
             new ApiErrorResponse
             {
                 Success = false,
+
                 Message = isNotFound || isConflict
                     ? exception.Message
                     : "Beklenmeyen bir hata oluştu.",
+
                 ErrorCode = isNotFound
                     ? "NOT_FOUND"
                     : isConflict
                         ? "CONFLICT"
-                    : "INTERNAL_SERVER_ERROR",
+                        : "INTERNAL_SERVER_ERROR",
+
                 TraceId = traceId
             },
             cancellationToken);

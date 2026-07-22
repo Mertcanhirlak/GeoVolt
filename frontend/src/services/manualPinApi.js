@@ -439,9 +439,44 @@ function normalizeEvaluateResponse(
       "",
 
     placeType:
+      response?.venueType ??
+      response?.VenueType ??
       response?.placeType ??
       response?.PlaceType ??
       "",
+
+    budgetMax:
+      toNullableNumber(
+        response?.budgetMax ??
+          response?.BudgetMax
+      ),
+
+    isWithinBudget:
+      response?.isWithinBudget ??
+      response?.IsWithinBudget ??
+      null,
+
+    standardEstimatedCost:
+      toNullableNumber(
+        response?.standardEstimatedCost ??
+          response?.StandardEstimatedCost
+      ),
+
+    currencyCode:
+      response?.currencyCode ??
+      response?.CurrencyCode ??
+      "TRY",
+
+    warnings:
+      Array.isArray(
+        response?.warnings ??
+          response?.Warnings
+      )
+        ? (
+            response?.warnings ??
+            response?.Warnings
+          )
+        : [],
 
     status:
       response?.status ??
@@ -624,6 +659,36 @@ export async function locateRegionPoint(
   );
 }
 
+function normalizeManualPinVenueType(value) {
+  const normalizedValue = validateRequiredText(
+    value,
+    "Mekân tipi",
+  );
+
+  const venueTypeMap = {
+    "İş Merkezi": "Workplace",
+    "İş Yeri": "Workplace",
+    Workplace: "Workplace",
+
+    AVM: "Mall",
+    Mall: "Mall",
+
+    Otoyol: "Highway",
+    Highway: "Highway",
+  };
+
+  const venueType =
+    venueTypeMap[normalizedValue];
+
+  if (!venueType) {
+    throw new Error(
+      "Mekân tipi İş Merkezi, AVM veya Otoyol olmalıdır.",
+    );
+  }
+
+  return venueType;
+}
+
 export async function evaluateManualPin({
   regionId,
   latitude,
@@ -652,11 +717,11 @@ export async function evaluateManualPin({
         "Sistem tipi"
       ),
 
-    placeType:
-      validateRequiredText(
+    venueType:
+      normalizeManualPinVenueType(
         placeType,
-        "Mekân tipi"
       ),
+
 
     powerKw:
       validateNumber(
@@ -675,17 +740,17 @@ export async function evaluateManualPin({
         {
           integer: true,
           min: 1,
-          max: 50,
+          max: 20,
         }
       ),
 
-    budget:
+    budgetMax:
       validateNumber(
         budget,
         "Kurulum bütçesi",
         {
-          min: 0,
-        }
+          min: 0.01,
+        },
       ),
   };
 
