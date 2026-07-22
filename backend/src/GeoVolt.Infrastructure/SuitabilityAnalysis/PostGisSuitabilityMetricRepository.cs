@@ -129,7 +129,13 @@ public sealed partial class PostGisSuitabilityAnalysisRepository
                     poi_count_300_meters = poi_counts.count_300,
                     poi_count_500_meters = poi_counts.count_500,
                     poi_count_1000_meters = poi_counts.count_1000,
-                    slope_percent = ROUND(slope.value::numeric, 2),
+                    slope_percent =
+                        CASE
+                            WHEN slope.value IS NULL
+                              OR slope.value::text IN ('NaN', 'Infinity', '-Infinity')
+                                THEN NULL
+                            ELSE ROUND(slope.value::numeric, 2)
+                        END,
                     population_density_per_square_kilometer =
                         CASE
                             WHEN neighborhood.id IS NULL
@@ -186,9 +192,12 @@ public sealed partial class PostGisSuitabilityAnalysisRepository
                         || CASE WHEN neighborhood.id IS NULL OR neighborhood.population IS NULL
                             THEN jsonb_build_array({SiteEvaluationReasonCodes.PopulationDensityMissing})
                             ELSE '[]'::jsonb END
-                        || CASE WHEN slope.value IS NULL
-                            THEN jsonb_build_array({SiteEvaluationReasonCodes.SlopeDataMissing})
-                            ELSE '[]'::jsonb END
+                        || CASE
+                            WHEN slope.value IS NULL
+                              OR slope.value::text IN ('NaN', 'Infinity', '-Infinity')
+                                THEN jsonb_build_array({SiteEvaluationReasonCodes.SlopeDataMissing})
+                            ELSE '[]'::jsonb
+                        END
                         || CASE WHEN road.distance_meters > {SuitabilityAdvisoryDefaults.MajorRoadWarningDistanceMeters}
                             THEN jsonb_build_array({SiteEvaluationReasonCodes.MajorRoadDistanceWarning})
                             ELSE '[]'::jsonb END

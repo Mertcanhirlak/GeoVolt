@@ -29,6 +29,7 @@ public sealed class RegionRepository : IRegionRepository
     {
         return await _dbContext.Regions
             .AsNoTracking()
+            .Include(region => region.District)
             .FirstOrDefaultAsync(
                 region => region.SourceId == sourceId,
                 cancellationToken);

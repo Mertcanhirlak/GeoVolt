@@ -5,5 +5,7 @@ namespace GeoVolt.Application.CandidatePoints.Abstractions;
 
 public interface ICandidatePointService
 {
-    Task<ApiResponse<IReadOnlyList<CandidatePointResponse>>> GetCandidatePointsAsync(CancellationToken cancellationToken);
+    Task<ApiResponse<IReadOnlyList<CandidatePointResponse>>> GetCandidatePointsAsync(
+        CandidatePointQuery query,
+        CancellationToken cancellationToken);
 }

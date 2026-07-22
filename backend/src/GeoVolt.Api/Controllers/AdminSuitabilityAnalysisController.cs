@@ -41,6 +41,29 @@ public sealed class AdminSuitabilityAnalysisController : ControllerBase
             "Uygunluk analiz grid'i oluşturuldu."));
     }
 
+    [HttpPost("regions/{regionSourceId:int}/run")]
+    [Authorize(Policy = PermissionNames.DataImportExecute)]
+    [ProducesResponseType(typeof(ApiResponse<SuitabilityFullAnalysisResult>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ApiResponse<SuitabilityFullAnalysisResult>>> RunFullAnalysisForRegion(
+        int regionSourceId,
+        [FromBody] GenerateSuitabilityGridRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _service.RunFullAnalysisForRegionAsync(
+            regionSourceId,
+            request,
+            cancellationToken);
+
+        return Ok(ApiResponse<SuitabilityFullAnalysisResult>.Ok(
+            result,
+            "Bölgenin ilçe uygunluk analizi tamamlandı."));
+    }
+
     [HttpPost("{analysisRunId:int}/metrics")]
     [Authorize(Policy = PermissionNames.DataImportExecute)]
     [ProducesResponseType(typeof(ApiResponse<SuitabilityMetricCalculationResult>), StatusCodes.Status200OK)]

@@ -78,7 +78,7 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IAdminRepository, AdminRepository>();
-        services.AddScoped<ICandidatePointRepository, MockCandidatePointRepository>();
+        services.AddScoped<ICandidatePointRepository, CandidatePointRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<ITokenService, JwtTokenService>();

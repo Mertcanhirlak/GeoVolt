@@ -3793,7 +3793,7 @@ export default function ExistingStationsMap({
             </small>
           </span>
 
-          <span className="modern-layer-switch" />
+
         </button>
 
         <button
@@ -3825,7 +3825,7 @@ export default function ExistingStationsMap({
             </small>
           </span>
 
-          <span className="modern-layer-switch" />
+
         </button>
 
         <button
@@ -3857,7 +3857,7 @@ export default function ExistingStationsMap({
             </small>
           </span>
 
-          <span className="modern-layer-switch" />
+
         </button>
 
         <button
@@ -3885,7 +3885,7 @@ export default function ExistingStationsMap({
             </small>
           </span>
 
-          <span className="modern-layer-switch" />
+
         </button>
       </div>
       )}

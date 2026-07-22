@@ -2696,3 +2696,24 @@ button[data-suitability-close-button="true"] > * {
   margin: 0 !important;
   line-height: 1 !important;
 }
+
+/* REGION SCAN SCORE BADGE COLORS */
+.candidate-scan-result-card em[data-score-level="high"] {
+  color: #ffffff !important;
+  background: #16a34a !important;
+}
+
+.candidate-scan-result-card em[data-score-level="medium"] {
+  color: #ffffff !important;
+  background: #f59e0b !important;
+}
+
+.candidate-scan-result-card em[data-score-level="low"] {
+  color: #ffffff !important;
+  background: #dc2626 !important;
+}
+
+.candidate-scan-result-card em[data-score-level="unknown"] {
+  color: #ffffff !important;
+  background: #64748b !important;
+}

@@ -1,3 +1,4 @@
+using GeoVolt.Application.CandidatePoints;
 using GeoVolt.Application.CandidatePoints.Abstractions;
 using GeoVolt.Application.CandidatePoints.Dtos;
 using GeoVolt.Application.SavedCandidatePoints.Abstractions;
@@ -31,12 +32,16 @@ public sealed class SavedCandidatePointService : ISavedCandidatePointService
             return [];
         }
 
-        var candidatePoints = await _candidatePointRepository.GetCandidatePointsAsync(cancellationToken);
-        var candidatePointMap = candidatePoints.ToDictionary(candidatePoint => candidatePoint.Id);
+        var candidatePoints = await _candidatePointRepository.GetCandidatePointsAsync(
+            cancellationToken);
+
+        var candidatePointMap = candidatePoints.ToDictionary(
+            candidatePoint => candidatePoint.Id);
 
         return savedIds
             .Where(candidatePointMap.ContainsKey)
-            .Select(candidatePointId => ToResponse(candidatePointMap[candidatePointId]))
+            .Select(candidatePointId =>
+                CandidatePointService.ToResponse(candidatePointMap[candidatePointId]))
             .ToList();
     }
 
@@ -70,7 +75,7 @@ public sealed class SavedCandidatePointService : ISavedCandidatePointService
                 cancellationToken);
         }
 
-        return ToResponse(candidatePoint);
+        return CandidatePointService.ToResponse(candidatePoint);
     }
 
     public Task<bool> DeleteAsync(
@@ -82,24 +87,5 @@ public sealed class SavedCandidatePointService : ISavedCandidatePointService
             userId,
             candidatePointId,
             cancellationToken);
-    }
-
-    private static CandidatePointResponse ToResponse(CandidatePoint candidatePoint)
-    {
-        return new CandidatePointResponse(
-            candidatePoint.Id,
-            candidatePoint.Name,
-            candidatePoint.EstimatedAddress,
-            candidatePoint.Region,
-            candidatePoint.Neighborhood,
-            candidatePoint.EstimatedCost,
-            candidatePoint.CostScore,
-            candidatePoint.DemandScore,
-            candidatePoint.GeneralScore,
-            candidatePoint.Latitude,
-            candidatePoint.Longitude,
-            candidatePoint.SystemType,
-            candidatePoint.PlaceType,
-            candidatePoint.Status);
     }
 }

@@ -74,9 +74,6 @@ import "./PersonalizationLayout.css";
 
 const SIDEBAR_LOGO_SRC = geovoltLogo;
 
-const REGION_SCAN_MIN_GENERAL_SCORE =
-  80;
-
 const FALLBACK_HOME_REGIONS = [
   "Kızılay",
   "Kavaklıdere",
@@ -3443,7 +3440,7 @@ export default function CandidatePointsPage() {
     setScanStatus("loading");
 
     setScanMessage(
-      `${regionName} için genel skoru en az ${REGION_SCAN_MIN_GENERAL_SCORE} olan adaylar aranıyor.`,
+      `${regionName} için tüm gerçek aday noktalar getiriliyor.`,
     );
 
     setScanError("");
@@ -3455,7 +3452,10 @@ export default function CandidatePointsPage() {
     const result =
       await scanCandidatePointsByRegion(
         regionId,
-        REGION_SCAN_MIN_GENERAL_SCORE,
+        {
+          regionName,
+          region,
+        },
       );
 
     if (
@@ -3498,24 +3498,11 @@ export default function CandidatePointsPage() {
     }
 
     const safeCandidates =
-      (
-        Array.isArray(
-          result.data,
-        )
-          ? result.data
-          : []
-      ).filter((candidate) => {
-        const score =
-          Number(
-            candidate?.generalScore,
-          );
-
-        return (
-          Number.isFinite(score) &&
-          score >=
-            REGION_SCAN_MIN_GENERAL_SCORE
-        );
-      });
+      Array.isArray(
+        result.data,
+      )
+        ? result.data
+        : [];
 
     setScannedCandidates(
       safeCandidates,
@@ -3544,7 +3531,8 @@ export default function CandidatePointsPage() {
       setScanStatus("empty");
 
       setScanMessage(
-        `${regionName} için genel skoru ${REGION_SCAN_MIN_GENERAL_SCORE} ve üzeri gerçek aday nokta bulunamadı.`,
+        result.message ||
+          `${regionName} bölgesinde gerçek aday nokta bulunamadı.`,
       );
 
       setScanError("");
@@ -3557,7 +3545,8 @@ export default function CandidatePointsPage() {
     setScanStatus("success");
 
     setScanMessage(
-      `${regionName} için ${safeCandidates.length} gerçek aday nokta bulundu.`,
+      result.message ||
+        `${regionName} için ${safeCandidates.length} gerçek aday nokta bulundu.`,
     );
 
     setScanError("");
@@ -5205,12 +5194,7 @@ export default function CandidatePointsPage() {
                   className="candidate-scan-threshold"
                   data-testid="candidate-scan-threshold"
                 >
-                  Yalnızca genel skoru{" "}
-                  {
-                    REGION_SCAN_MIN_GENERAL_SCORE
-                  }{" "}
-                  ve üzeri gerçek
-                  adaylar gösterilir.
+                  Seçili bölgedeki tüm gerçek aday noktalar gösterilir.
                 </small>
 
                 {scanStatus ===
@@ -5348,15 +5332,23 @@ export default function CandidatePointsPage() {
                       </div>
 
                       <small>
-                        Genel skor ≥{" "}
-                        {
-                          REGION_SCAN_MIN_GENERAL_SCORE
-                        }
+                        Tüm aday noktalar
                       </small>
                     </div>
 
                     <div className="candidate-scan-results-list">
-                      {filteredCandidates.map(
+                      {[...filteredCandidates]
+  .sort((first, second) =>
+    String(first?.name ?? "").localeCompare(
+      String(second?.name ?? ""),
+      "tr-TR",
+      {
+        numeric: true,
+        sensitivity: "base",
+      },
+    ),
+  )
+  .map(
                         (
                           candidate,
                         ) => (
@@ -5396,11 +5388,23 @@ export default function CandidatePointsPage() {
                               </small>
                             </span>
 
-                            <em>
-                              {showScore(
-                                candidate.generalScore,
-                              )}
-                            </em>
+                            <em
+  data-score-level={
+    !Number.isFinite(
+      Number(candidate.generalScore),
+    )
+      ? "unknown"
+      : Number(candidate.generalScore) >= 80
+        ? "high"
+        : Number(candidate.generalScore) >= 50
+          ? "medium"
+          : "low"
+  }
+>
+  {showScore(
+    candidate.generalScore,
+  )}
+</em>
                           </button>
                         ),
                       )}
@@ -5428,9 +5432,14 @@ export default function CandidatePointsPage() {
                   </button>
 
                   <small>
-                    {
-                      selectedCandidate.estimatedAddress
-                    }
+                    {[
+                      selectedCandidate.region,
+                      selectedCandidate.neighborhood,
+                    ]
+                      .filter(Boolean)
+                      .join(" / ") ||
+                      selectedCandidate.estimatedAddress ||
+                      "Konum bilgisi yok"}
                   </small>
 
                   <h3>

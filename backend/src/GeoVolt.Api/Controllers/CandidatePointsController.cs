@@ -18,10 +18,14 @@ public sealed class CandidatePointsController : ControllerBase
 
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<CandidatePointResponse>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<CandidatePointResponse>>>> GetCandidatePoints(
+        [FromQuery] CandidatePointQuery query,
         CancellationToken cancellationToken)
     {
-        var response = await _candidatePointService.GetCandidatePointsAsync(cancellationToken);
+        var response = await _candidatePointService.GetCandidatePointsAsync(
+            query,
+            cancellationToken);
 
         return Ok(response);
     }

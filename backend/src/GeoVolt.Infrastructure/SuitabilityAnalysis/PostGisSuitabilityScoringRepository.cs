@@ -44,11 +44,16 @@ public sealed partial class PostGisSuitabilityAnalysisRepository
             })
             .SingleAsync(cancellationToken);
 
-        if (metricCompleteness.CellCount != analysisRun.CellCount ||
-            metricCompleteness.CompleteMetricCount != analysisRun.CellCount)
+        if (metricCompleteness.CellCount != analysisRun.CellCount)
         {
             throw new ConflictException(
-                "Puanlama için gerekli metriklerin tamamı bütün hücrelerde hesaplanmış olmalıdır.");
+                "Analiz hücre sayısı ile çalışma kaydı uyuşmuyor.");
+        }
+
+        if (metricCompleteness.CompleteMetricCount == 0)
+        {
+            throw new ConflictException(
+                "Puanlama için gerekli gerçek metrikleri tamamlanmış hiçbir hücre bulunamadı.");
         }
 
         var profile = await GetOrCreateActiveScoringProfileAsync(cancellationToken);
@@ -92,6 +97,12 @@ public sealed partial class PostGisSuitabilityAnalysisRepository
                             AS slope_score
                     FROM analysis.suitability_cells cell
                     WHERE cell.analysis_run_id = {analysisRunId}
+                      AND cell.nearest_transformer_meters IS NOT NULL
+                      AND cell.nearest_major_road_meters IS NOT NULL
+                      AND cell.nearest_station_meters IS NOT NULL
+                      AND cell.poi_count_500_meters IS NOT NULL
+                      AND cell.population_density_per_square_kilometer IS NOT NULL
+                      AND cell.slope_percent IS NOT NULL
                 ),
                 weighted_scores AS (
                     SELECT
@@ -197,10 +208,10 @@ public sealed partial class PostGisSuitabilityAnalysisRepository
                     """)
                 .SingleAsync(cancellationToken);
 
-            if (statistics.ScoredCellCount != analysisRun.CellCount)
+            if (statistics.ScoredCellCount != metricCompleteness.CompleteMetricCount)
             {
                 throw new InvalidOperationException(
-                    "Puanlanan hücre sayısı analiz çalışmasının hücre sayısıyla uyuşmuyor.");
+                    "Puanlanan hücre sayısı, gerçek metrikleri tamamlanmış hücre sayısıyla uyuşmuyor.");
             }
 
             analysisRun.Status = AnalysisRunStatuses.Scored;
