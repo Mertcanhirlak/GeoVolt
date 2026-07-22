@@ -142,7 +142,8 @@ public sealed partial class PostGisSuitabilityAnalysisRepository
                             'slopeScore', ranked.slope_score,
                             'scorePercentile', ROUND(ranked.score_percentile::numeric, 6),
                             'provisionalRecommendation',
-                                ranked.score_percentile >= {profile.RecommendationPercentile},
+                                NOT cell.has_hard_exclusion
+                                AND ranked.score_percentile >= {profile.RecommendationPercentile},
                             'datasetCoverageVerified', {datasetCoverageVerified})),
                     calculated_at_utc = {calculatedAtUtc}
                 FROM ranked_scores ranked
@@ -192,6 +193,7 @@ public sealed partial class PostGisSuitabilityAnalysisRepository
                     FROM analysis.suitability_cells cell
                     WHERE cell.analysis_run_id = {analysisRunId}
                       AND (cell.metric_details -> 'scoring' ->> 'provisionalRecommendation')::boolean
+                      AND NOT cell.has_hard_exclusion
                     """)
                 .SingleAsync(cancellationToken);
 

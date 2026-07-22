@@ -12,12 +12,9 @@ const SYSTEM_TYPE_OPTIONS = [
 ];
 
 const PLACE_TYPE_OPTIONS = [
-  "AVM",
-  "Akaryakıt İstasyonu",
-  "Otopark",
-  "Kamu Alanı",
   "İş Merkezi",
-  "Konut Bölgesi",
+  "AVM",
+  "Otoyol",
 ];
 
 function getPowerRules(systemType) {
@@ -240,7 +237,7 @@ export default function ManualPinPreferencesPanel({
               name="connectorCount"
               value={values.connectorCount}
               min="1"
-              max="50"
+              max="20"
               step="1"
               inputMode="numeric"
               disabled={disabled}
@@ -260,8 +257,8 @@ export default function ManualPinPreferencesPanel({
             type="number"
             name="budget"
             value={values.budget}
-            min="0"
-            step="1000"
+              min="1"
+            step="1"
             inputMode="numeric"
             disabled={disabled}
             required

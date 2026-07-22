@@ -8,7 +8,7 @@ namespace GeoVolt.Infrastructure.SuitabilityAnalysis;
 
 public sealed partial class PostGisSuitabilityAnalysisRepository
 {
-    private const string MetricAlgorithmVersion = "metrics-v1";
+    private const string MetricAlgorithmVersion = "metrics-v2";
 
     public async Task<SuitabilityMetricCalculationResult?> CalculateMetricsAsync(
         int analysisRunId,
@@ -22,11 +22,15 @@ public sealed partial class PostGisSuitabilityAnalysisRepository
             return null;
         }
 
-        if (analysisRun.Status is not (AnalysisRunStatuses.GridReady or AnalysisRunStatuses.MetricsReady))
+        if (analysisRun.Status is not (
+            AnalysisRunStatuses.GridReady or
+            AnalysisRunStatuses.MetricsReady or
+            AnalysisRunStatuses.Scored))
         {
             throw new ConflictException(
                 $"Metrikler yalnızca {AnalysisRunStatuses.GridReady} veya " +
-                $"{AnalysisRunStatuses.MetricsReady} durumundaki çalışmalar için hesaplanabilir.");
+                $"{AnalysisRunStatuses.MetricsReady} ya da {AnalysisRunStatuses.Scored} " +
+                "durumundaki çalışmalar için hesaplanabilir.");
         }
 
         var originalStatus = analysisRun.Status;
@@ -166,23 +170,35 @@ public sealed partial class PostGisSuitabilityAnalysisRepository
                         'slopeRasterSrid', slope.source_srid,
                         'slopeSamplingMethod', 'nearest-valid-pixel-from-cell-representative-point',
                         'datasetCoverageVerified', {datasetCoverageVerified})),
-                    reason_codes = CASE
-                        WHEN {datasetCoverageVerified} AND slope.value IS NOT NULL
-                            THEN jsonb_build_array(
-                                'SCORING_NOT_CALCULATED')
-                        WHEN NOT {datasetCoverageVerified} AND slope.value IS NOT NULL
-                            THEN jsonb_build_array(
-                            'DATASET_COVERAGE_UNVERIFIED',
-                            'SCORING_NOT_CALCULATED')
-                        WHEN {datasetCoverageVerified}
-                            THEN jsonb_build_array(
-                                'SLOPE_NOT_CALCULATED',
-                                'SCORING_NOT_CALCULATED')
-                        ELSE jsonb_build_array(
-                                'DATASET_COVERAGE_UNVERIFIED',
-                                'SLOPE_NOT_CALCULATED',
-                                'SCORING_NOT_CALCULATED')
-                    END,
+                    reason_codes =
+                        CASE WHEN transformer.distance_meters IS NULL
+                            THEN jsonb_build_array({SiteEvaluationReasonCodes.TransformerDistanceMissing})
+                            ELSE '[]'::jsonb END
+                        || CASE WHEN road.distance_meters IS NULL
+                            THEN jsonb_build_array({SiteEvaluationReasonCodes.MajorRoadDistanceMissing})
+                            ELSE '[]'::jsonb END
+                        || CASE WHEN station.distance_meters IS NULL
+                            THEN jsonb_build_array({SiteEvaluationReasonCodes.StationDistanceMissing})
+                            ELSE '[]'::jsonb END
+                        || CASE WHEN poi_counts.count_500 IS NULL
+                            THEN jsonb_build_array({SiteEvaluationReasonCodes.PoiMetricMissing})
+                            ELSE '[]'::jsonb END
+                        || CASE WHEN neighborhood.id IS NULL OR neighborhood.population IS NULL
+                            THEN jsonb_build_array({SiteEvaluationReasonCodes.PopulationDensityMissing})
+                            ELSE '[]'::jsonb END
+                        || CASE WHEN slope.value IS NULL
+                            THEN jsonb_build_array({SiteEvaluationReasonCodes.SlopeDataMissing})
+                            ELSE '[]'::jsonb END
+                        || CASE WHEN road.distance_meters > {SuitabilityAdvisoryDefaults.MajorRoadWarningDistanceMeters}
+                            THEN jsonb_build_array({SiteEvaluationReasonCodes.MajorRoadDistanceWarning})
+                            ELSE '[]'::jsonb END
+                        || CASE WHEN slope.value >= {SuitabilityAdvisoryDefaults.SteepSlopeWarningPercent}
+                            THEN jsonb_build_array({SiteEvaluationReasonCodes.SteepSlopeWarning})
+                            ELSE '[]'::jsonb END
+                        || CASE WHEN NOT {datasetCoverageVerified}
+                            THEN jsonb_build_array({SiteEvaluationReasonCodes.DatasetCoverageUnverified})
+                            ELSE '[]'::jsonb END
+                        || jsonb_build_array({SiteEvaluationReasonCodes.ScoringNotCalculated}),
                     calculated_at_utc = {calculatedAtUtc}
                 FROM tmp_suitability_metric_cells metric_cell
                 LEFT JOIN LATERAL (
@@ -277,6 +293,12 @@ public sealed partial class PostGisSuitabilityAnalysisRepository
                             SELECT MIN(tile.source_srid)
                             FROM gis.slope_raster_tiles tile),
                         'slopeSamplingMethod', 'nearest-valid-pixel-from-cell-representative-point',
+                        'advisoryThresholds', jsonb_build_object(
+                            'majorRoadWarningDistanceMeters',
+                                {SuitabilityAdvisoryDefaults.MajorRoadWarningDistanceMeters},
+                            'steepSlopeWarningPercent',
+                                {SuitabilityAdvisoryDefaults.SteepSlopeWarningPercent},
+                            'hardExclusionsApplied', FALSE),
                         'datasetCoverageVerified', {datasetCoverageVerified},
                         'calculatedAtUtc', {calculatedAtUtc}))
                 WHERE run.id = {analysisRunId};

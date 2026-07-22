@@ -854,6 +854,45 @@ function createManualCandidate(
       mappedCandidate?.budget ??
       null,
 
+    budgetMax:
+      evaluation.budgetMax ??
+      preferences.budget ??
+      mappedCandidate?.budget ??
+      null,
+
+    isWithinBudget:
+      typeof evaluation.isWithinBudget ===
+      "boolean"
+        ? evaluation.isWithinBudget
+        : (
+            Number.isFinite(
+              Number(
+                evaluation.estimatedCost,
+              ),
+            ) &&
+            Number.isFinite(
+              Number(
+                evaluation.budgetMax ??
+                  preferences.budget,
+              ),
+            )
+              ? Number(
+                  evaluation.estimatedCost,
+                ) <=
+                Number(
+                  evaluation.budgetMax ??
+                    preferences.budget,
+                )
+              : null
+          ),
+
+    warnings:
+      Array.isArray(
+        evaluation.warnings,
+      )
+        ? evaluation.warnings
+        : [],
+
     costSource:
       evaluation.costSource ||
       "",
@@ -869,6 +908,421 @@ function createManualCandidate(
   };
 }
 
+function isRecommendationCoordinatePair(value) {
+  if (
+    !Array.isArray(value) ||
+    value.length < 2
+  ) {
+    return false;
+  }
+
+  const longitude = Number(value[0]);
+  const latitude = Number(value[1]);
+
+  return (
+    Number.isFinite(longitude) &&
+    Number.isFinite(latitude) &&
+    longitude >= -180 &&
+    longitude <= 180 &&
+    latitude >= -90 &&
+    latitude <= 90
+  );
+}
+
+function collectRecommendationRings(
+  node,
+  rings = [],
+) {
+  if (!Array.isArray(node)) {
+    return rings;
+  }
+
+  if (
+    node.length >= 4 &&
+    node.every(
+      isRecommendationCoordinatePair,
+    )
+  ) {
+    rings.push(
+      node.map((coordinate) => [
+        Number(coordinate[0]),
+        Number(coordinate[1]),
+      ]),
+    );
+
+    return rings;
+  }
+
+  node.forEach((child) => {
+    collectRecommendationRings(
+      child,
+      rings,
+    );
+  });
+
+  return rings;
+}
+
+function isPointInsideRecommendationRing(
+  longitude,
+  latitude,
+  ring,
+) {
+  let inside = false;
+
+  for (
+    let index = 0,
+      previousIndex =
+        ring.length - 1;
+    index < ring.length;
+    previousIndex = index++
+  ) {
+    const currentPoint =
+      ring[index];
+
+    const previousPoint =
+      ring[previousIndex];
+
+    const currentLongitude =
+      currentPoint[0];
+
+    const currentLatitude =
+      currentPoint[1];
+
+    const previousLongitude =
+      previousPoint[0];
+
+    const previousLatitude =
+      previousPoint[1];
+
+    const crossesLatitude =
+      currentLatitude > latitude !==
+      previousLatitude > latitude;
+
+    if (!crossesLatitude) {
+      continue;
+    }
+
+    const denominator =
+      previousLatitude -
+        currentLatitude ||
+      Number.EPSILON;
+
+    const intersectionLongitude =
+      ((previousLongitude -
+        currentLongitude) *
+        (latitude -
+          currentLatitude)) /
+        denominator +
+      currentLongitude;
+
+    if (
+      longitude <
+      intersectionLongitude
+    ) {
+      inside = !inside;
+    }
+  }
+
+  return inside;
+}
+
+function getRecommendationRingInteriorPoint(
+  ring,
+) {
+  if (
+    !Array.isArray(ring) ||
+    ring.length < 4
+  ) {
+    return null;
+  }
+
+  const longitudes = ring.map(
+    (coordinate) =>
+      coordinate[0],
+  );
+
+  const latitudes = ring.map(
+    (coordinate) =>
+      coordinate[1],
+  );
+
+  const minimumLongitude =
+    Math.min(...longitudes);
+
+  const maximumLongitude =
+    Math.max(...longitudes);
+
+  const minimumLatitude =
+    Math.min(...latitudes);
+
+  const maximumLatitude =
+    Math.max(...latitudes);
+
+  const centerLongitude =
+    (minimumLongitude +
+      maximumLongitude) /
+    2;
+
+  const centerLatitude =
+    (minimumLatitude +
+      maximumLatitude) /
+    2;
+
+  if (
+    isPointInsideRecommendationRing(
+      centerLongitude,
+      centerLatitude,
+      ring,
+    )
+  ) {
+    return {
+      longitude: centerLongitude,
+      latitude: centerLatitude,
+    };
+  }
+
+  const average = ring.reduce(
+    (result, coordinate) => ({
+      longitude:
+        result.longitude +
+        coordinate[0],
+
+      latitude:
+        result.latitude +
+        coordinate[1],
+    }),
+    {
+      longitude: 0,
+      latitude: 0,
+    },
+  );
+
+  const averageLongitude =
+    average.longitude /
+    ring.length;
+
+  const averageLatitude =
+    average.latitude /
+    ring.length;
+
+  if (
+    isPointInsideRecommendationRing(
+      averageLongitude,
+      averageLatitude,
+      ring,
+    )
+  ) {
+    return {
+      longitude:
+        averageLongitude,
+
+      latitude:
+        averageLatitude,
+    };
+  }
+
+  const gridSize = 30;
+
+  let bestPoint = null;
+  let bestDistance =
+    Number.POSITIVE_INFINITY;
+
+  for (
+    let longitudeIndex = 1;
+    longitudeIndex < gridSize;
+    longitudeIndex++
+  ) {
+    const longitude =
+      minimumLongitude +
+      ((maximumLongitude -
+        minimumLongitude) *
+        longitudeIndex) /
+        gridSize;
+
+    for (
+      let latitudeIndex = 1;
+      latitudeIndex < gridSize;
+      latitudeIndex++
+    ) {
+      const latitude =
+        minimumLatitude +
+        ((maximumLatitude -
+          minimumLatitude) *
+          latitudeIndex) /
+          gridSize;
+
+      if (
+        !isPointInsideRecommendationRing(
+          longitude,
+          latitude,
+          ring,
+        )
+      ) {
+        continue;
+      }
+
+      const distance =
+        Math.pow(
+          longitude -
+            centerLongitude,
+          2,
+        ) +
+        Math.pow(
+          latitude -
+            centerLatitude,
+          2,
+        );
+
+      if (
+        distance <
+        bestDistance
+      ) {
+        bestDistance =
+          distance;
+
+        bestPoint = {
+          longitude,
+          latitude,
+        };
+      }
+    }
+  }
+
+  if (bestPoint) {
+    return bestPoint;
+  }
+
+  const firstCoordinate =
+    ring[0];
+
+  if (
+    isRecommendationCoordinatePair(
+      firstCoordinate,
+    )
+  ) {
+    return {
+      longitude:
+        Number(
+          firstCoordinate[0],
+        ),
+
+      latitude:
+        Number(
+          firstCoordinate[1],
+        ),
+    };
+  }
+
+  return null;
+}
+
+function getRecommendationCostCoordinates(
+  recommendation,
+) {
+  const directLatitude =
+    Number(
+      recommendation?.latitude ??
+        recommendation?.Latitude,
+    );
+
+  const directLongitude =
+    Number(
+      recommendation?.longitude ??
+        recommendation?.Longitude,
+    );
+
+  if (
+    Number.isFinite(
+      directLatitude,
+    ) &&
+    Number.isFinite(
+      directLongitude,
+    ) &&
+    directLatitude >= -90 &&
+    directLatitude <= 90 &&
+    directLongitude >= -180 &&
+    directLongitude <= 180
+  ) {
+    return {
+      latitude:
+        directLatitude,
+
+      longitude:
+        directLongitude,
+    };
+  }
+
+  const possibleDirectCoordinates =
+    recommendation?.coordinates ??
+    recommendation?.Coordinates ??
+    recommendation?.centroid ??
+    recommendation?.Centroid ??
+    recommendation?.center ??
+    recommendation?.Center;
+
+  if (
+    isRecommendationCoordinatePair(
+      possibleDirectCoordinates,
+    )
+  ) {
+    return {
+      longitude:
+        Number(
+          possibleDirectCoordinates[0],
+        ),
+
+      latitude:
+        Number(
+          possibleDirectCoordinates[1],
+        ),
+    };
+  }
+
+  let boundary =
+    recommendation?.boundary ??
+    recommendation?.Boundary;
+
+  if (
+    typeof boundary === "string"
+  ) {
+    try {
+      boundary =
+        JSON.parse(boundary);
+    } catch {
+      boundary = null;
+    }
+  }
+
+  const coordinateTree =
+    boundary?.coordinates ??
+    boundary?.Coordinates ??
+    boundary;
+
+  const rings =
+    collectRecommendationRings(
+      coordinateTree,
+    );
+
+  rings.sort(
+    (firstRing, secondRing) =>
+      secondRing.length -
+      firstRing.length,
+  );
+
+  for (const ring of rings) {
+    const interiorPoint =
+      getRecommendationRingInteriorPoint(
+        ring,
+      );
+
+    if (interiorPoint) {
+      return interiorPoint;
+    }
+  }
+
+  return null;
+}
 export default function CandidatePointsPage() {
   const navigate = useNavigate();
   const {
@@ -3544,8 +3998,276 @@ export default function CandidatePointsPage() {
         return;
       }
 
+      const recommendationList =
+        Array.isArray(
+          suitabilityResult.recommendations,
+        )
+          ? suitabilityResult.recommendations
+          : [];
+
+      const recommendationCostResults =
+        await Promise.allSettled(
+          recommendationList.map(
+            async (
+              recommendation,
+              recommendationIndex,
+            ) => {
+              const coordinates =
+                getRecommendationCostCoordinates(
+                  recommendation,
+                );
+
+              const preferredRegionId =
+                Number(
+                  recommendation?.regionId ??
+                    recommendation?.RegionId,
+                );
+
+              if (!coordinates) {
+                throw new Error(
+                  `Öneri #${
+                    recommendation?.recommendationRank ??
+                    recommendationIndex + 1
+                  } için maliyet koordinatı bulunamadı.`,
+                );
+              }
+
+              const availableRegionIds =
+                Array.from(
+                  new Set(
+                    [
+                      preferredRegionId,
+
+                      ...regions.map(
+                        (regionItem) =>
+                          Number(
+                            getRegionId(
+                              regionItem,
+                            ),
+                          ),
+                      ),
+                    ].filter(
+                      (candidateRegionId) =>
+                        Number.isInteger(
+                          candidateRegionId,
+                        ) &&
+                        candidateRegionId > 0,
+                    ),
+                  ),
+                );
+
+              let locatedRecommendation =
+                null;
+
+              let resolvedRegionId =
+                null;
+
+              for (
+                const candidateRegionId
+                of availableRegionIds
+              ) {
+                try {
+                  const locateCandidate =
+                    await locateRegionPoint(
+                      candidateRegionId,
+                      {
+                        latitude:
+                          coordinates.latitude,
+
+                        longitude:
+                          coordinates.longitude,
+                      },
+                    );
+
+                  if (
+                    locateCandidate?.isInsideRegion
+                  ) {
+                    locatedRecommendation =
+                      locateCandidate;
+
+                    resolvedRegionId =
+                      Number(
+                        locateCandidate.regionId ??
+                          candidateRegionId,
+                      );
+
+                    break;
+                  }
+                } catch (locateError) {
+                  console.warn(
+                    `Öneri #${
+                      recommendation?.recommendationRank ??
+                      recommendationIndex + 1
+                    } için ${candidateRegionId} bölgesi doğrulanamadı:`,
+                    locateError,
+                  );
+                }
+              }
+
+              if (
+                !Number.isInteger(
+                  resolvedRegionId,
+                ) ||
+                resolvedRegionId <= 0
+              ) {
+                throw new Error(
+                  `Öneri #${
+                    recommendation?.recommendationRank ??
+                    recommendationIndex + 1
+                  } koordinatının gerçek bölgesi bulunamadı.`,
+                );
+              }
+
+              const recommendationCost =
+                await evaluateManualPin({
+                  regionId:
+                    resolvedRegionId,
+
+                  latitude:
+                    coordinates.latitude,
+
+                  longitude:
+                    coordinates.longitude,
+
+                  ...normalizedPreferences,
+                });
+
+              if (
+                !recommendationCost?.isValid ||
+                !hasNumericValue(
+                  recommendationCost?.estimatedCost,
+                )
+              ) {
+                throw new Error(
+                  recommendationCost?.message ||
+                    `Öneri #${
+                      recommendation?.recommendationRank ??
+                      recommendationIndex + 1
+                    } maliyeti hesaplanamadı.`,
+                );
+              }
+
+              return {
+                ...recommendation,
+
+                regionId:
+                  resolvedRegionId,
+
+                regionName:
+                  locatedRecommendation?.regionName ||
+                  recommendation?.regionName ||
+                  recommendation?.RegionName ||
+                  "",
+
+                neighborhoodId:
+                  locatedRecommendation?.neighborhoodId ??
+                  recommendation?.neighborhoodId ??
+                  recommendation?.NeighborhoodId ??
+                  null,
+
+                neighborhoodName:
+                  locatedRecommendation?.neighborhoodName ||
+                  recommendation?.neighborhoodName ||
+                  recommendation?.NeighborhoodName ||
+                  null,
+
+                latitude:
+                  coordinates.latitude,
+
+                longitude:
+                  coordinates.longitude,
+
+                estimatedCost:
+                  Number(
+                    recommendationCost.estimatedCost,
+                  ),
+
+                costSource:
+                  recommendationCost.costSource ||
+                  "",
+
+                budgetMax:
+                  recommendationCost.budgetMax ??
+                  normalizedPreferences.budget,
+
+                isWithinBudget:
+                  typeof recommendationCost.isWithinBudget ===
+                  "boolean"
+                    ? recommendationCost.isWithinBudget
+                    : Number(
+                        recommendationCost.estimatedCost,
+                      ) <=
+                      Number(
+                        recommendationCost.budgetMax ??
+                          normalizedPreferences.budget,
+                      ),
+
+                warnings:
+                  Array.isArray(
+                    recommendationCost.warnings,
+                  )
+                    ? recommendationCost.warnings
+                    : [],
+
+                costStatus:
+                  "success",
+              };
+            },
+          ),
+        );
+
+      if (
+        manualPinRequestIdRef.current !==
+        requestId
+      ) {
+        return;
+      }
+
+      const recommendationsWithCosts =
+        recommendationCostResults.map(
+          (result, index) => {
+            if (
+              result.status ===
+              "fulfilled"
+            ) {
+              return result.value;
+            }
+
+            console.error(
+              `Öneri #${
+                recommendationList[index]
+                  ?.recommendationRank ??
+                index + 1
+              } maliyet hesabı başarısız:`,
+              result.reason,
+            );
+
+            return {
+              ...recommendationList[index],
+
+              estimatedCost:
+                null,
+
+              costStatus:
+                "error",
+
+              costError:
+                result.reason instanceof Error
+                  ? result.reason.message
+                  : "Öneri maliyeti hesaplanamadı.",
+            };
+          },
+        );
+
+      const suitabilityResultWithCosts = {
+        ...suitabilityResult,
+
+        recommendations:
+          recommendationsWithCosts,
+      };
+
       setSuitabilityEvaluation(
-        suitabilityResult,
+        suitabilityResultWithCosts,
       );
 
       setFocusedRecommendationCellId(
@@ -3553,7 +4275,7 @@ export default function CandidatePointsPage() {
       );
 
       const selectedCell =
-        suitabilityResult.selectedCell;
+        suitabilityResultWithCosts.selectedCell;
 
       const evaluation = {
         ...costEvaluation,
@@ -3631,8 +4353,6 @@ export default function CandidatePointsPage() {
 
       const hasCompleteAnalysis =
         hasEstimatedCost &&
-        hasCostScore &&
-        hasDemandScore &&
         hasGeneralScore;
 
       const normalizedEvaluation = {
