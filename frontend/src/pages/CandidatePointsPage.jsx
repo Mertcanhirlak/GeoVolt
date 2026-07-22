@@ -59,6 +59,7 @@ import SuitabilityResultsPanel from "../components/SuitabilityResultsPanel";
 import PoiSummary from "../components/PoiSummary";
 import TrafoSummary from "../components/TrafoSummary";
 import RoadSummary from "../components/RoadSummary";
+import ReportDashboard from "../components/ReportDashboard";
 import geovoltLogo from "../assets/geovolt-logo-transparent.png";
 
 import { useAuth } from "../context/AuthContext";
@@ -871,6 +872,7 @@ function createManualCandidate(
 export default function CandidatePointsPage() {
   const navigate = useNavigate();
   const {
+    token,
     user,
     role,
     isAdmin,
@@ -5485,137 +5487,10 @@ export default function CandidatePointsPage() {
         )}
 
         {activeTab === "report" && (
-          <section
-            className="report-screen"
-            data-testid="report-screen"
-          >
-            <header className="report-page-header">
-              <span>Rapor Merkezi</span>
-              <h1>
-                {"\u0130stasyon analiz raporlar\u0131"}
-              </h1>
-              <p>
-                {"B\u00F6lge, mahalle ve soket tiplerine g\u00F6re da\u011F\u0131l\u0131m\u0131 tek ekranda takip edin."}
-              </p>
-            </header>
-
-            <div className="report-chart-grid">
-              <article className="report-chart-card">
-                <div className="report-card-heading">
-                  <span>{"Genel da\u011F\u0131l\u0131m"}</span>
-                  <h2>
-                    {"Semtlere G\u00F6re \u0130stasyon Da\u011F\u0131l\u0131m\u0131"}
-                  </h2>
-                  <p>
-                    {"Mevcut istasyonlar\u0131n b\u00F6lgesel pay\u0131."}
-                  </p>
-                </div>
-
-                <ReportPieChart
-                  data={reportDistrictDistribution}
-                />
-
-                <div className="report-legend">
-                  {reportDistrictDistribution.map(
-                    (item) => (
-                      <div
-                        className="report-legend-row"
-                        key={item.label}
-                      >
-                        <span
-                          className="report-dot"
-                          style={{
-                            backgroundColor:
-                              item.color,
-                          }}
-                        />
-                        <strong>
-                          {item.label}
-                        </strong>
-                        <em>
-                          %{item.value}
-                        </em>
-                      </div>
-                    ),
-                  )}
-                </div>
-              </article>
-
-              <article className="report-chart-card">
-                <div className="report-card-heading report-card-heading-row">
-                  <div>
-                    <span>Mahalle analizi</span>
-                    <h2>
-                      {"Mahalle Bazl\u0131 Soket Da\u011F\u0131l\u0131m\u0131"}
-                    </h2>
-                    <p>
-                      {"Se\u00E7ilen mahalleye g\u00F6re AC/DC oran\u0131."}
-                    </p>
-                  </div>
-
-                  <label className="report-select-shell">
-                    <span>{"Mahalle se\u00E7"}</span>
-                    <select
-                      value={
-                        selectedReportNeighborhood
-                      }
-                      onChange={(event) =>
-                        setSelectedReportNeighborhood(
-                          event.target.value,
-                        )
-                      }
-                    >
-                      {dynamicReportNeighborhoodOptions.map(
-                        (neighborhood) => (
-                          <option
-                            key={neighborhood}
-                            value={neighborhood}
-                          >
-                            {neighborhood}
-                          </option>
-                        ),
-                      )}
-                    </select>
-                  </label>
-                </div>
-
-                <ReportDonutChart
-                  data={selectedReportSocketDistribution}
-                  centerLabel={
-                    selectedReportNeighborhood
-                  }
-                />
-
-                <div className="report-analysis-bars">
-                  {selectedReportSocketDistribution.map(
-                    (item) => (
-                      <div
-                        className="report-analysis-row"
-                        key={item.label}
-                      >
-                        <div className="report-analysis-label">
-                          <span
-                            className="report-dot"
-                            style={{ backgroundColor: item.color }}
-                          />
-                          <strong>{item.label}</strong>
-                          <em>%{item.value}</em>
-                        </div>
-                        <div className="report-analysis-track">
-                          <span
-                            style={{
-                              width: `${item.value}%`,
-                              backgroundColor: item.color,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    ),
-                  )}
-                </div>
-              </article>
-            </div>
-          </section>
+          <ReportDashboard
+            regions={regions}
+            token={token}
+          />
         )}
 
         {activeTab === "saved" && (

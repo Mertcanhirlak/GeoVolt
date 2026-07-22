@@ -80,10 +80,53 @@ public sealed class RegionService : IRegionService
             neighborhoodSourceId: null,
             cancellationToken: cancellationToken);
 
+        var allStations = await _chargingStationRepository.GetAllAsync(
+            regionSourceId: null,
+            neighborhoodSourceId: null,
+            cancellationToken: cancellationToken);
+
         // Repository connector verilerini istasyonlarla birlikte topluca getirir.
         var connectors = stations
             .SelectMany(station => station.Connectors)
             .ToList();
+
+        var chargingStationCount = stations.Count;
+        var totalChargingStationCount = allStations.Count;
+        var chargingStationPercentage =
+            totalChargingStationCount == 0
+                ? 0
+                : Math.Round(
+                    chargingStationCount * 100.0 / totalChargingStationCount,
+                    2,
+                    MidpointRounding.AwayFromZero);
+
+        var acCount = connectors
+            .Where(connector => string.Equals(
+                connector.SocketType.Trim(),
+                "AC",
+                StringComparison.OrdinalIgnoreCase))
+            .Sum(connector => connector.Quantity);
+
+        var dcCount = connectors
+            .Where(connector => string.Equals(
+                connector.SocketType.Trim(),
+                "DC",
+                StringComparison.OrdinalIgnoreCase))
+            .Sum(connector => connector.Quantity);
+
+        var totalAcDcCount = acCount + dcCount;
+        var acPercentage = totalAcDcCount == 0
+            ? 0
+            : Math.Round(
+                acCount * 100.0 / totalAcDcCount,
+                2,
+                MidpointRounding.AwayFromZero);
+        var dcPercentage = totalAcDcCount == 0
+            ? 0
+            : Math.Round(
+                dcCount * 100.0 / totalAcDcCount,
+                2,
+                MidpointRounding.AwayFromZero);
 
         // Firmalara göre istasyon dağılımını hesaplar
         var companyDistribution = stations
@@ -136,7 +179,13 @@ public sealed class RegionService : IRegionService
             RegionName = region.Name,
 
             // PostGIS repository'sindeki gerçek istasyon sayısını kullanır
-            ChargingStationCount = stations.Count,
+            ChargingStationCount = chargingStationCount,
+            TotalChargingStationCount = totalChargingStationCount,
+            ChargingStationPercentage = chargingStationPercentage,
+            AcCount = acCount,
+            DcCount = dcCount,
+            AcPercentage = acPercentage,
+            DcPercentage = dcPercentage,
 
             // Gerçek trafik veri seti henüz sisteme bağlı değildir.
             TrafficLevel = "Veri hazırlanıyor",
