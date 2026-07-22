@@ -48,6 +48,25 @@ public sealed class SuitabilityAnalysisService : ISuitabilityAnalysisService
         return result ?? throw new NotFoundException("Uygunluk analiz çalışması bulunamadı.");
     }
 
+    public async Task<SuitabilityAnalysisMapResult> GetMapCellsAsync(
+        int analysisRunId,
+        decimal? minimumScore,
+        string? evaluationStatus,
+        bool onlyRecommended,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _repository.GetMapCellsAsync(
+            analysisRunId,
+            minimumScore,
+            evaluationStatus,
+            onlyRecommended,
+            Math.Clamp(limit, 1, 5000),
+            cancellationToken);
+
+        return result ?? throw new NotFoundException("Uygunluk analiz çalışması bulunamadı.");
+    }
+
     public Task<SuitabilityLocationEvaluationResponse> EvaluateLocationAsync(
         EvaluateSuitabilityLocationRequest request,
         CancellationToken cancellationToken = default)

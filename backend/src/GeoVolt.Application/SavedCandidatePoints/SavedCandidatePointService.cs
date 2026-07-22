@@ -31,7 +31,9 @@ public sealed class SavedCandidatePointService : ISavedCandidatePointService
             return [];
         }
 
-        var candidatePoints = await _candidatePointRepository.GetCandidatePointsAsync(cancellationToken);
+        var candidatePoints = await _candidatePointRepository.GetCandidatePointsAsync(
+            new CandidatePointQuery(),
+            cancellationToken);
         var candidatePointMap = candidatePoints.ToDictionary(candidatePoint => candidatePoint.Id);
 
         return savedIds
@@ -100,6 +102,11 @@ public sealed class SavedCandidatePointService : ISavedCandidatePointService
             candidatePoint.Longitude,
             candidatePoint.SystemType,
             candidatePoint.PlaceType,
-            candidatePoint.Status);
+            candidatePoint.Status,
+            candidatePoint.SourceType,
+            candidatePoint.CreatedByUserId,
+            candidatePoint.SourceAnalysisRunId,
+            candidatePoint.SourceSuitabilityCellId,
+            candidatePoint.CreatedAtUtc);
     }
 }

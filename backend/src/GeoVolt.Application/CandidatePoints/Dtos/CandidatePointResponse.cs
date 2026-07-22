@@ -14,4 +14,9 @@ public sealed record CandidatePointResponse(
     double Longitude,
     string SystemType,
     string PlaceType,
-    string Status);
+    string Status,
+    string SourceType,
+    int? CreatedByUserId,
+    int? SourceAnalysisRunId,
+    long? SourceSuitabilityCellId,
+    DateTime CreatedAtUtc);

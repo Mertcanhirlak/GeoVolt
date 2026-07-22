@@ -1,4 +1,5 @@
 using NetTopologySuite.Geometries;
+using GeoVolt.Domain.Constants;
 
 namespace GeoVolt.Domain.Entities;
 
@@ -73,6 +74,16 @@ public sealed class CandidatePoint
     public string PlaceType { get; set; } = string.Empty;
 
     public string Status { get; set; } = string.Empty;
+
+    public string SourceType { get; set; } = CandidatePointSourceTypes.AdminManual;
+
+    public int? CreatedByUserId { get; set; }
+
+    public int? SourceAnalysisRunId { get; set; }
+
+    public long? SourceSuitabilityCellId { get; set; }
+
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
     private double _latitude;
 

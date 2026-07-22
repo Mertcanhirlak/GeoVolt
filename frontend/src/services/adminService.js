@@ -1,10 +1,11 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000";
 
 async function requestAdmin(path, token, options = {}) {
+  const isFormData = options.body instanceof FormData;
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       Authorization: `Bearer ${token}`,
       ...(options.headers ?? {})
     }
@@ -122,5 +123,107 @@ export function assignAdminUserPermissions(token, userId, permissionIds) {
   return requestAdmin(`/api/admin/users/${userId}/permissions`, token, {
     method: "PUT",
     body: JSON.stringify({ permissionIds })
+  });
+}
+
+export function getAdminCandidatePoints(token, filters = {}) {
+  const query = new URLSearchParams();
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      query.set(key, String(value));
+    }
+  });
+
+  const queryString = query.toString();
+  return requestAdmin(`/api/admin/candidate-points${queryString ? `?${queryString}` : ""}`, token);
+}
+
+export function createAdminCandidatePoint(token, candidatePoint) {
+  return requestAdmin("/api/admin/candidate-points", token, {
+    method: "POST",
+    body: JSON.stringify(candidatePoint)
+  });
+}
+
+export function updateAdminCandidatePoint(token, candidatePointId, candidatePoint) {
+  return requestAdmin(`/api/admin/candidate-points/${candidatePointId}`, token, {
+    method: "PUT",
+    body: JSON.stringify(candidatePoint)
+  });
+}
+
+export function deleteAdminCandidatePoint(token, candidatePointId) {
+  return requestAdmin(`/api/admin/candidate-points/${candidatePointId}`, token, {
+    method: "DELETE"
+  });
+}
+
+export function getAdminDataImports(token, limit = 50) {
+  return requestAdmin(`/api/admin/data-imports?limit=${limit}`, token);
+}
+
+function uploadGeoJson(token, action, file) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  return requestAdmin(`/api/admin/data-imports/${action}`, token, {
+    method: "POST",
+    body: formData
+  });
+}
+
+export function validateAdminGeoJson(token, file) {
+  return uploadGeoJson(token, "validate", file);
+}
+
+export function stageAdminGeoJson(token, file) {
+  return uploadGeoJson(token, "stage", file);
+}
+
+export function promoteAdminDataImport(token, datasetImportId) {
+  return requestAdmin(`/api/admin/data-imports/${datasetImportId}/promote`, token, {
+    method: "POST"
+  });
+}
+
+export function generateAdminSuitabilityGrid(token, districtSourceId, gridEdgeMeters) {
+  return requestAdmin(`/api/admin/suitability-analysis/districts/${districtSourceId}/grid`, token, {
+    method: "POST",
+    body: JSON.stringify({ gridEdgeMeters })
+  });
+}
+
+export function calculateAdminSuitabilityMetrics(token, analysisRunId) {
+  return requestAdmin(`/api/admin/suitability-analysis/${analysisRunId}/metrics`, token, {
+    method: "POST"
+  });
+}
+
+export function calculateAdminSuitabilityScores(token, analysisRunId) {
+  return requestAdmin(`/api/admin/suitability-analysis/${analysisRunId}/score`, token, {
+    method: "POST"
+  });
+}
+
+export function getAdminSuitabilityCells(token, analysisRunId, filters = {}) {
+  const query = new URLSearchParams();
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      query.set(key, String(value));
+    }
+  });
+
+  const queryString = query.toString();
+  return requestAdmin(
+    `/api/admin/suitability-analysis/${analysisRunId}/cells${queryString ? `?${queryString}` : ""}`,
+    token
+  );
+}
+
+export function promoteAdminSuitabilityCell(token, analysisRunId, cellId) {
+  return requestAdmin(`/api/admin/suitability-analysis/${analysisRunId}/cells/${cellId}/candidate`, token, {
+    method: "POST"
   });
 }

@@ -17,6 +17,14 @@ public interface ISuitabilityAnalysisRepository
         int analysisRunId,
         CancellationToken cancellationToken = default);
 
+    Task<SuitabilityAnalysisMapResult?> GetMapCellsAsync(
+        int analysisRunId,
+        decimal? minimumScore,
+        string? evaluationStatus,
+        bool onlyRecommended,
+        int limit,
+        CancellationToken cancellationToken = default);
+
     Task<SuitabilityLocationEvaluationResponse> EvaluateLocationAsync(
         double latitude,
         double longitude,

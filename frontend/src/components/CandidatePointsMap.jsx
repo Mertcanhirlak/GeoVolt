@@ -1065,6 +1065,8 @@ function createSuitabilityCellStyle(
     feature.get("focused") === true;
   const isSelected =
     featureRole === "selected";
+  const isAnalysisCell =
+    featureRole === "analysis";
   const evaluationStatus =
     feature.get("evaluationStatus");
   const selectedFillColor =
@@ -1083,17 +1085,46 @@ function createSuitabilityCellStyle(
         : evaluationStatus === "INSUFFICIENT_DATA"
           ? "#475569"
           : "#15803d";
+  const suitabilityScore = Number(
+    feature.get("suitabilityScore")
+  );
+  const analysisFillColor = !Number.isFinite(suitabilityScore)
+    ? "rgba(100, 116, 139, 0.26)"
+    : suitabilityScore >= 75
+      ? "rgba(22, 163, 74, 0.48)"
+      : suitabilityScore >= 55
+        ? "rgba(234, 179, 8, 0.44)"
+        : suitabilityScore >= 35
+          ? "rgba(249, 115, 22, 0.42)"
+          : "rgba(220, 38, 38, 0.38)";
+  const analysisStrokeColor = !Number.isFinite(suitabilityScore)
+    ? "#64748b"
+    : suitabilityScore >= 75
+      ? "#15803d"
+      : suitabilityScore >= 55
+        ? "#a16207"
+        : suitabilityScore >= 35
+          ? "#c2410c"
+          : "#b91c1c";
   const fillColor = isFocused
     ? "rgba(245, 158, 11, 0.38)"
+    : isAnalysisCell
+      ? analysisFillColor
     : isSelected
       ? selectedFillColor
       : "rgba(34, 197, 94, 0.28)";
   const strokeColor = isFocused
     ? "#d97706"
+    : isAnalysisCell
+      ? analysisStrokeColor
     : isSelected
       ? selectedStrokeColor
       : "#15803d";
-  const label = isSelected
+  const label = isAnalysisCell
+    ? isFocused && Number.isFinite(suitabilityScore)
+      ? suitabilityScore.toFixed(1)
+      : ""
+    : isSelected
     ? "Seçilen"
     : String(
         feature.get("recommendationRank") ?? "",
@@ -1459,13 +1490,14 @@ function createSuitabilityCellFeature(
     feature.set("cell", cell);
     feature.set("cellId", cell.cellId);
     feature.set("evaluationStatus", cell.evaluationStatus);
+    feature.set("suitabilityScore", cell.suitabilityScore);
     feature.set(
       "recommendationRank",
       cell.recommendationRank,
     );
     feature.set(
       "focused",
-      suitabilityRole === "recommendation" &&
+      (suitabilityRole === "recommendation" || suitabilityRole === "analysis") &&
         String(cell.cellId) ===
           String(focusedRecommendationCellId),
     );
@@ -1949,10 +1981,14 @@ export default function CandidatePointsMap({
   manualPinMessage = "",
   manualPinError = "",
   suitabilityEvaluation = null,
+  analysisCells = [],
+  analysisCellsActive = false,
+  selectedAnalysisCellId = null,
   focusedRecommendationCellId = null,
   onManualPinRequest,
   onPointSelect,
   onRegionSelect,
+  onAnalysisCellSelect,
 }) {
   const mapElementRef =
     useRef(null);
@@ -2062,6 +2098,7 @@ export default function CandidatePointsMap({
       onManualPinRequest,
       onPointSelect,
       onRegionSelect,
+      onAnalysisCellSelect,
     });
 
   const interactionRef =
@@ -2220,11 +2257,13 @@ export default function CandidatePointsMap({
       onManualPinRequest,
       onPointSelect,
       onRegionSelect,
+      onAnalysisCellSelect,
     };
   }, [
     onManualPinRequest,
     onPointSelect,
     onRegionSelect,
+    onAnalysisCellSelect,
   ]);
 
   useEffect(() => {
@@ -2920,6 +2959,16 @@ export default function CandidatePointsMap({
               layer
             ) => {
               if (
+                layer === suitabilityLayer &&
+                feature.get("featureType") === "suitability-cell"
+              ) {
+                return {
+                  type: "suitability-cell",
+                  feature,
+                };
+              }
+
+              if (
                 layer ===
                   manualPinLayer &&
                 feature.get(
@@ -2960,6 +3009,18 @@ export default function CandidatePointsMap({
           candidateMapHit
         ) {
           closeLayerDetail();
+
+          if (
+            candidateMapHit.type ===
+            "suitability-cell"
+          ) {
+            callbackRef.current
+              .onAnalysisCellSelect?.(
+                candidateMapHit.feature.get("cell")
+              );
+
+            return;
+          }
 
           if (
             candidateMapHit.type ===
@@ -3536,6 +3597,14 @@ export default function CandidatePointsMap({
       )
         ? suitabilityEvaluation.recommendations
         : [];
+    const analysisFeatures = analysisCellsActive && Array.isArray(analysisCells)
+      ? analysisCells.map((cell) =>
+          createSuitabilityCellFeature(
+            cell,
+            "analysis",
+            selectedAnalysisCellId,
+          ))
+      : [];
     const features = [
       createSuitabilityCellFeature(
         selectedCell,
@@ -3550,6 +3619,7 @@ export default function CandidatePointsMap({
             focusedRecommendationCellId,
           ),
       ),
+      ...analysisFeatures,
     ].filter(Boolean);
 
     suitabilitySourceRef.current.clear();
@@ -3582,6 +3652,9 @@ export default function CandidatePointsMap({
   }, [
     suitabilityEvaluation,
     focusedRecommendationCellId,
+    analysisCells,
+    analysisCellsActive,
+    selectedAnalysisCellId,
   ]);
 
   useEffect(() => {

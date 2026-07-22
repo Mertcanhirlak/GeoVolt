@@ -15,15 +15,29 @@ public sealed class AdminDataImportsController : ControllerBase
     private readonly IDataImportValidationService _validationService;
     private readonly IDataImportStagingService _stagingService;
     private readonly IDataImportPromotionService _promotionService;
+    private readonly IDataImportQueryService _queryService;
 
     public AdminDataImportsController(
         IDataImportValidationService validationService,
         IDataImportStagingService stagingService,
-        IDataImportPromotionService promotionService)
+        IDataImportPromotionService promotionService,
+        IDataImportQueryService queryService)
     {
         _validationService = validationService;
         _stagingService = stagingService;
         _promotionService = promotionService;
+        _queryService = queryService;
+    }
+
+    [HttpGet]
+    [Authorize(Policy = PermissionNames.DataImportValidate)]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<DatasetImportSummary>>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<DatasetImportSummary>>>> GetRecent(
+        [FromQuery] int limit = 50,
+        CancellationToken cancellationToken = default)
+    {
+        var imports = await _queryService.GetRecentAsync(limit, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<DatasetImportSummary>>.Ok(imports));
     }
 
     [HttpPost("validate")]

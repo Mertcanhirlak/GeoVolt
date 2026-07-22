@@ -75,7 +75,7 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IAdminRepository, AdminRepository>();
-        services.AddScoped<ICandidatePointRepository, MockCandidatePointRepository>();
+        services.AddScoped<ICandidatePointRepository, CandidatePointRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<ITokenService, JwtTokenService>();
@@ -87,6 +87,7 @@ public static class DependencyInjection
         services.AddScoped<IDataImportValidationService, GeoJsonDataImportValidationService>();
         services.AddScoped<IDataImportStagingService, GeoJsonDataImportStagingService>();
         services.AddScoped<IDataImportPromotionService, GeoJsonDataImportPromotionService>();
+        services.AddScoped<IDataImportQueryService, DataImportQueryService>();
         services.AddScoped<ISuitabilityAnalysisRepository, PostGisSuitabilityAnalysisRepository>();
 
         return services;
