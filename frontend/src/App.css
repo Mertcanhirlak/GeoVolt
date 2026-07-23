@@ -963,6 +963,7 @@ body {
 }
 
 .personalized-candidate-card {
+  box-sizing: border-box;
   background: white;
   border-radius: 12px;
   border-left: 5px solid #2563eb;
@@ -2966,6 +2967,44 @@ input,
 select,
 textarea {
   font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+}
+
+/* Personalized results: keep five candidate cards visually centered. */
+.personalization-results-panel {
+  width: 100%;
+  max-width: 1180px;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.personalization-results-panel .personalized-card-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 22px;
+  width: 100%;
+  max-width: none;
+  margin: 18px auto 0;
+}
+
+.personalization-results-panel .personalized-candidate-card {
+  flex: 0 1 calc((100% - 44px) / 3);
+  width: calc((100% - 44px) / 3);
+  min-width: 0;
+}
+
+@media (max-width: 1050px) {
+  .personalization-results-panel .personalized-candidate-card {
+    flex-basis: calc((100% - 22px) / 2);
+    width: calc((100% - 22px) / 2);
+  }
+}
+
+@media (max-width: 700px) {
+  .personalization-results-panel .personalized-candidate-card {
+    flex-basis: 100%;
+    width: 100%;
+  }
 }
 
 /* Modern white dashboard shell for the existing stations home map. */
