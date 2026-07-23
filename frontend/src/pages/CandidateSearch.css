@@ -2904,3 +2904,22 @@ button[data-suitability-close-button="true"] > * {
     ) !important;
   }
 }
+
+/* CANDIDATE LAYER PANEL RIGHT POSITION */
+
+/*
+ * Yalnızca Harita Katmanları panelini sağ kenara yaklaştırır.
+ * Mavi aç/kapat oku için yeterli boşluk bırakır.
+ */
+@media (min-width: 901px) {
+  .candidate-map.right-tool-layers
+    .candidate-layer-controls {
+    right: 74px !important;
+    left: auto !important;
+
+    width: min(
+      318px,
+      calc(100% - 100px)
+    ) !important;
+  }
+}

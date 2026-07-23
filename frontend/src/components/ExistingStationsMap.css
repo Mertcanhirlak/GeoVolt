@@ -1091,3 +1091,386 @@
   padding: 5px 8px !important;
   font-size: 9px !important;
 }
+
+/* REGION COMPANY COUNT AND PERCENTAGE */
+
+.region-summary-card
+  .company-distribution
+  .company-distribution-value {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 5px !important;
+  min-width: 72px !important;
+  margin: 0 !important;
+  white-space: nowrap !important;
+  font-style: normal !important;
+}
+
+.region-summary-card
+  .company-distribution
+  .company-distribution-value
+  > span {
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.region-summary-card
+  .company-distribution
+  .company-distribution-value
+  > small {
+  color: #2563eb;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+/* REGION COMPANY ROW DIVIDERS */
+
+.region-summary-card
+  .company-distribution
+  > li,
+.region-summary-card
+  .company-distribution
+  > div {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+
+  padding: 10px 0 !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.35) !important;
+}
+
+.region-summary-card
+  .company-distribution
+  > li:first-child,
+.region-summary-card
+  .company-distribution
+  > div:first-child {
+  padding-top: 0 !important;
+}
+
+.region-summary-card
+  .company-distribution
+  > li:last-child,
+.region-summary-card
+  .company-distribution
+  > div:last-child {
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+}
+
+.region-summary-card
+  .company-distribution
+  strong {
+  display: block !important;
+  flex: 1 1 auto !important;
+  padding-right: 10px !important;
+  line-height: 1.45 !important;
+  word-break: break-word !important;
+}
+
+.region-summary-card
+  .company-distribution
+  .company-distribution-value {
+  flex: 0 0 auto !important;
+  margin-left: 10px !important;
+}
+
+/* REGION COMPANY P ROW DIVIDERS */
+
+.region-summary-card
+  .company-distribution
+  > p[data-testid^="region-company-"] {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 12px 0 !important;
+
+  border-bottom: 1px solid #d7dee8 !important;
+  box-sizing: border-box !important;
+}
+
+.region-summary-card
+  .company-distribution
+  > p[data-testid^="region-company-"]:last-of-type {
+  border-bottom: none !important;
+}
+
+.region-summary-card
+  .company-distribution
+  > p[data-testid^="region-company-"]
+  > strong {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  padding-right: 10px !important;
+
+  text-align: left !important;
+  line-height: 1.45 !important;
+  word-break: break-word !important;
+}
+
+.region-summary-card
+  .company-distribution
+  > p[data-testid^="region-company-"]
+  > em {
+  flex: 0 0 auto !important;
+  min-width: 74px !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 5px !important;
+
+  margin: 0 !important;
+  text-align: right !important;
+  white-space: nowrap !important;
+}
+
+/* REGION SUMMARY CLOSE BUTTON */
+
+.region-summary-card {
+  position: relative !important;
+}
+
+.region-summary-close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 20;
+
+  width: 32px;
+  height: 32px;
+  padding: 0;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid #dbe3ee;
+  border-radius: 10px;
+
+  box-shadow: 0 5px 14px rgba(15, 23, 42, 0.1);
+
+  cursor: pointer;
+
+  transition:
+    color 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.region-summary-close-button:hover {
+  color: #dc2626;
+  background: #fef2f2;
+  border-color: #fecaca;
+  transform: scale(1.05);
+}
+
+.region-summary-close-button:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.24);
+  outline-offset: 2px;
+}
+
+.region-summary-close-button span {
+  display: block;
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+/* Başlık çarpı butonunun altında kalmasın. */
+.region-summary-card
+  .region-summary-title {
+  padding-left: 38px !important;
+  padding-right: 38px !important;
+}
+
+/* REGION SUMMARY CLOSE BUTTON FINAL POSITION */
+
+[data-testid="region-summary-card"] {
+  position: relative !important;
+}
+
+/*
+ * Genel buton stillerini tamamen geçersiz kılar.
+ * Çarpıyı panelin sağ üst köşesine küçük şekilde sabitler.
+ */
+[data-testid="region-summary-card"]
+  > button[data-testid="region-summary-close-button"] {
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+  left: auto !important;
+  bottom: auto !important;
+  z-index: 100 !important;
+
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  max-width: 28px !important;
+  max-height: 28px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 28px !important;
+
+  color: #64748b !important;
+  background: rgba(241, 245, 249, 0.96) !important;
+  border: 1px solid #dbe3ee !important;
+  border-radius: 8px !important;
+
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.12) !important;
+
+  font-size: 0 !important;
+  line-height: 1 !important;
+  text-align: center !important;
+
+  transform: none !important;
+  cursor: pointer !important;
+}
+
+/* Çarpı karakteri */
+[data-testid="region-summary-card"]
+  > button[data-testid="region-summary-close-button"]
+  > span {
+  display: block !important;
+
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+
+  color: inherit !important;
+  font-size: 18px !important;
+  font-weight: 800 !important;
+  line-height: 18px !important;
+
+  transform: translateY(-1px) !important;
+}
+
+[data-testid="region-summary-card"]
+  > button[data-testid="region-summary-close-button"]:hover {
+  color: #dc2626 !important;
+  background: #fef2f2 !important;
+  border-color: #fecaca !important;
+  transform: none !important;
+}
+
+/* Başlık yalnızca sağdaki küçük çarpı için yer bırakır. */
+[data-testid="region-summary-card"]
+  .region-summary-title {
+  padding-left: 0 !important;
+  padding-right: 34px !important;
+}
+
+/* REGION SUMMARY CLOSE BUTTON ABSOLUTE FINAL */
+
+#root
+  [data-testid="home-map-screen"]
+  [data-testid="region-summary-card"] {
+  position: relative !important;
+}
+
+/*
+ * Kapatma düğmesini kaydırma çubuğunun hemen solunda,
+ * panelin sağ üst köşesine sabitler.
+ */
+#root
+  [data-testid="home-map-screen"]
+  [data-testid="region-summary-card"]
+  .region-summary-close-button {
+  position: absolute !important;
+  inset: 10px 18px auto auto !important;
+
+  top: 10px !important;
+  right: 18px !important;
+  bottom: auto !important;
+  left: auto !important;
+
+  z-index: 999 !important;
+
+  width: 26px !important;
+  height: 26px !important;
+  min-width: 26px !important;
+  min-height: 26px !important;
+  max-width: 26px !important;
+  max-height: 26px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  display: grid !important;
+  place-items: center !important;
+  align-self: auto !important;
+
+  color: #64748b !important;
+  background: #f1f5f9 !important;
+  border: 1px solid #dbe3ee !important;
+  border-radius: 8px !important;
+
+  box-shadow: 0 3px 9px rgba(15, 23, 42, 0.12) !important;
+
+  font-size: 0 !important;
+  line-height: 1 !important;
+
+  translate: none !important;
+  transform: none !important;
+
+  cursor: pointer !important;
+}
+
+#root
+  [data-testid="home-map-screen"]
+  [data-testid="region-summary-card"]
+  .region-summary-close-button
+  > span {
+  display: block !important;
+
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+
+  color: inherit !important;
+  font-size: 17px !important;
+  font-weight: 900 !important;
+  line-height: 17px !important;
+
+  translate: none !important;
+  transform: translateY(-1px) !important;
+}
+
+#root
+  [data-testid="home-map-screen"]
+  [data-testid="region-summary-card"]
+  .region-summary-close-button:hover {
+  color: #dc2626 !important;
+  background: #fef2f2 !important;
+  border-color: #fecaca !important;
+  transform: none !important;
+}
+
+/* Başlığın sağ üstteki çarpının altında kalmasını önler. */
+#root
+  [data-testid="home-map-screen"]
+  [data-testid="region-summary-card"]
+  .region-summary-title {
+  padding-left: 34px !important;
+  padding-right: 48px !important;
+}

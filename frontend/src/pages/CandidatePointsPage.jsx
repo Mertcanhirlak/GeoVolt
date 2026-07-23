@@ -5359,10 +5359,9 @@ export default function CandidatePointsPage() {
                 )}
               </aside>
 
-              {scanStatus ===
-                "success" &&
-                filteredCandidates.length >
-                  0 && (
+              {activeCandidateRightTool === "scan" &&
+                scanStatus === "success" &&
+                filteredCandidates.length > 0 && (
                   <aside
                     className="candidate-scan-results-panel"
                     data-testid="candidate-scan-results-panel"
