@@ -2444,31 +2444,212 @@ export default function CandidatePointsPage() {
     }
   }
 
-  function handlePersonalizedResult(
-    result,
+  async function handlePersonalizedResult(
+    personalizationFilters,
   ) {
-    const safeResult =
-      Array.isArray(result)
-        ? result
-        : [];
+    const numericRegionId =
+      Number(
+        personalizationFilters?.regionId,
+      );
 
-    setPersonalizedCandidates(
-      safeResult,
-    );
+    const numericNeighborhoodId =
+      Number(
+        personalizationFilters?.neighborhoodId,
+      );
 
-    setHasPersonalizationResult(true);
+    const numericBudgetMin =
+      Number(
+        personalizationFilters?.budgetMin,
+      );
 
-    setActivePersonalizationTab("results");
+    const numericBudgetMax =
+      Number(
+        personalizationFilters?.budgetMax,
+      );
 
-    setFilteredCandidates(
-      safeResult,
+    const query = {
+      regionId:
+        Number.isInteger(
+          numericRegionId,
+        ) &&
+        numericRegionId > 0
+          ? numericRegionId
+          : undefined,
+
+      neighborhoodId:
+        Number.isInteger(
+          numericNeighborhoodId,
+        ) &&
+        numericNeighborhoodId > 0
+          ? numericNeighborhoodId
+          : undefined,
+
+      systemType:
+        personalizationFilters?.systemType &&
+        personalizationFilters.systemType !==
+          "Tümü"
+          ? personalizationFilters.systemType
+          : undefined,
+
+      placeType:
+        personalizationFilters?.placeType &&
+        personalizationFilters.placeType !==
+          "Tümü"
+          ? personalizationFilters.placeType
+          : undefined,
+
+      minBudget:
+        personalizationFilters?.budgetMin !==
+          "" &&
+        Number.isFinite(
+          numericBudgetMin,
+        )
+          ? numericBudgetMin
+          : undefined,
+
+      maxBudget:
+        personalizationFilters?.budgetMax !==
+          "" &&
+        Number.isFinite(
+          numericBudgetMax,
+        )
+          ? numericBudgetMax
+          : undefined,
+    };
+
+    setMessage(
+      "Kişiselleştirme ölçütlerine uygun gerçek aday noktalar getiriliyor...",
     );
 
     setSelectedCandidate(
       null,
     );
-  }
 
+    try {
+      const result =
+        await getCandidatePoints(
+          query,
+        );
+
+      if (!result?.isRealData) {
+        const errorMessage =
+          result?.error ||
+          result?.message ||
+          "Gerçek aday noktalar backend üzerinden alınamadı.";
+
+        setPersonalizedCandidates(
+          [],
+        );
+
+        setFilteredCandidates(
+          [],
+        );
+
+        setHasPersonalizationResult(
+          true,
+        );
+
+        setActivePersonalizationTab(
+          "results",
+        );
+
+        setMessage(
+          errorMessage,
+        );
+
+        return {
+          success: false,
+          count: 0,
+          message:
+            errorMessage,
+        };
+      }
+
+      const safeResult =
+        Array.isArray(
+          result.data,
+        )
+          ? result.data
+          : [];
+
+      setCandidates(
+        (currentCandidates) =>
+          mergeCandidateLists(
+            currentCandidates,
+            safeResult,
+          ),
+      );
+
+      setPersonalizedCandidates(
+        safeResult,
+      );
+
+      setHasPersonalizationResult(
+        true,
+      );
+
+      setActivePersonalizationTab(
+        "results",
+      );
+
+      setFilteredCandidates(
+        safeResult,
+      );
+
+      setSelectedCandidate(
+        null,
+      );
+
+      const resultMessage =
+        safeResult.length === 0
+          ? "Seçilen kişiselleştirme ölçütlerine uygun gerçek aday nokta bulunamadı."
+          : `${safeResult.length} gerçek aday nokta kişiselleştirme ölçütlerine uygun bulundu.`;
+
+      setMessage(
+        resultMessage,
+      );
+
+      return {
+        success: true,
+        count:
+          safeResult.length,
+        message:
+          resultMessage,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Kişiselleştirilmiş aday noktalar alınırken bir hata oluştu.";
+
+      setPersonalizedCandidates(
+        [],
+      );
+
+      setFilteredCandidates(
+        [],
+      );
+
+      setHasPersonalizationResult(
+        true,
+      );
+
+      setActivePersonalizationTab(
+        "results",
+      );
+
+      setMessage(
+        errorMessage,
+      );
+
+      return {
+        success: false,
+        count: 0,
+        message:
+          errorMessage,
+      };
+    }
+  }
   function handleSelectionChange(
     selection,
   ) {
@@ -2538,16 +2719,9 @@ export default function CandidatePointsPage() {
     setSelectedRegionSummary(
       result.data,
     );
-
-    if (result.source === "api") {
-      setRegionSummaryMessage(
-        "Bölge özeti API üzerinden getirildi.",
-      );
-
-      return;
-    }
-
-    setRegionSummaryMessage("");
+    setRegionSummaryMessage(
+      "",
+    );
   }
 
   function handleHomeSearchChange(
