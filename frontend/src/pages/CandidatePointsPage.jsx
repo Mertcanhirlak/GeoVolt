@@ -5154,7 +5154,7 @@ export default function CandidatePointsPage() {
             data-testid="report-screen"
           >
             <header className="report-page-header">
-              <span>Rapor Merkezi</span>
+              <span>RAPOR MERKEZİ</span>
               <h1>
                 {"\u0130stasyon analiz raporlar\u0131"}
               </h1>
