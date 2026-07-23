@@ -2717,3 +2717,190 @@ button[data-suitability-close-button="true"] > * {
   color: #ffffff !important;
   background: #64748b !important;
 }
+
+/* CANDIDATE RIGHT TOOL CLICKABLE TOGGLE */
+
+/* Eski, tıklanamayan CSS okunu kaldırır. */
+.candidate-right-tools::before {
+  display: none !important;
+  content: none !important;
+}
+
+/*
+ * Kapsayıcının görünmeyen alanının harita tıklamalarını
+ * engellemesini önler.
+ */
+.candidate-right-tools {
+  pointer-events: none !important;
+}
+
+/* Gerçek aç/kapat ok butonu. */
+.candidate-right-tools-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  z-index: 4;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 36px;
+  height: 82px;
+  padding: 0;
+
+  color: #ffffff;
+  background: linear-gradient(145deg, #2563eb, #1d4ed8);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-right: 0;
+  border-radius: 16px 0 0 16px;
+
+  box-shadow: -8px 10px 26px rgba(37, 99, 235, 0.3);
+
+  cursor: pointer;
+  pointer-events: auto;
+
+  transform: translateY(-50%);
+  transition:
+    width 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.candidate-right-tools-toggle:hover {
+  width: 40px;
+  background: linear-gradient(145deg, #1d4ed8, #1e40af);
+  box-shadow: -10px 12px 30px rgba(37, 99, 235, 0.4);
+}
+
+.candidate-right-tools-toggle:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.28);
+  outline-offset: 3px;
+}
+
+.candidate-right-tools-toggle span {
+  display: block;
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+/*
+ * Filtre veya başka bir panel açık olsa bile ikon menüsü
+ * artık zorla açık tutulmaz.
+ */
+.candidate-right-tools:not(.tools-open)
+  .candidate-right-tool-rail {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transform: translate(18px, -50%) !important;
+}
+
+/* Yalnızca gerçek ok butonuna basıldığında görünür. */
+.candidate-right-tools.tools-open
+  .candidate-right-tool-rail {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  transform: translate(0, -50%) !important;
+}
+
+/* İkonların kendileri tıklanabilir kalır. */
+.candidate-right-tool-rail,
+.candidate-right-tool-button {
+  pointer-events: auto;
+}
+
+@media (max-width: 900px) {
+  /*
+   * Mobil görünümde araçlar yatay olduğu için mevcut
+   * davranış korunur ve ok gizlenir.
+   */
+  .candidate-right-tools-toggle {
+    display: none !important;
+  }
+
+  .candidate-right-tools:not(.tools-open)
+    .candidate-right-tool-rail {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: none !important;
+  }
+}
+
+/* CANDIDATE RIGHT PANEL OVERLAP FINAL FIX */
+
+@media (min-width: 901px) {
+  /*
+   * Sağdaki ok ve ikon menüsü için ayrı bir alan bırakılır.
+   * Filtre ve diğer kontrol panelleri bu alana giremez.
+   */
+  .candidate-map {
+    --candidate-right-tools-safe-space: 138px;
+  }
+
+  .candidate-map .candidate-manual-controls,
+  .candidate-map .candidate-layer-controls,
+  .candidate-map .map-filter-overlay,
+  .candidate-map .candidate-scan-control-panel {
+    right: var(--candidate-right-tools-safe-space) !important;
+  }
+
+  /*
+   * Eski hover/focus kuralları menüyü kendiliğinden açamasın.
+   * İkonlar yalnızca mavi oka basılınca görünür.
+   */
+  .candidate-right-tools:not(.tools-open)
+    .candidate-right-tool-rail,
+  .candidate-right-tools.has-active-panel:not(.tools-open)
+    .candidate-right-tool-rail,
+  .candidate-right-tools:hover:not(.tools-open)
+    .candidate-right-tool-rail,
+  .candidate-right-tools:focus-within:not(.tools-open)
+    .candidate-right-tool-rail {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transform: translate(18px, -50%) !important;
+  }
+
+  .candidate-right-tools.tools-open
+    .candidate-right-tool-rail {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: translate(0, -50%) !important;
+  }
+
+  /*
+   * Ok ve ikon rayı panelin üzerinde değil,
+   * kendileri için ayrılan sağ alanda kalır.
+   */
+  .candidate-right-tools {
+    z-index: 10020 !important;
+  }
+
+  .candidate-right-tools-toggle {
+    z-index: 5 !important;
+  }
+
+  .candidate-right-tool-rail {
+    z-index: 4 !important;
+  }
+
+  /*
+   * Filtre paneli genişliğinin ekran dışına taşmasını engeller.
+   */
+  .candidate-map .map-filter-overlay {
+    width: min(
+      var(--candidate-right-panel-width),
+      calc(
+        100% -
+        var(--candidate-right-tools-safe-space) -
+        24px
+      )
+    ) !important;
+  }
+}
