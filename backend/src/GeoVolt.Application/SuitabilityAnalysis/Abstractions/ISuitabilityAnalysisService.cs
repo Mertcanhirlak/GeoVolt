@@ -17,6 +17,11 @@ public interface ISuitabilityAnalysisService
         int analysisRunId,
         CancellationToken cancellationToken = default);
 
+    Task<SuitabilityFullAnalysisResult> RunFullAnalysisForRegionAsync(
+        int regionSourceId,
+        GenerateSuitabilityGridRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<SuitabilityAnalysisMapResult> GetMapCellsAsync(
         int analysisRunId,
         decimal? minimumScore,

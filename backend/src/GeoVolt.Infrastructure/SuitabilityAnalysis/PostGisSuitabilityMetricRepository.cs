@@ -186,9 +186,12 @@ public sealed partial class PostGisSuitabilityAnalysisRepository
                         || CASE WHEN neighborhood.id IS NULL OR neighborhood.population IS NULL
                             THEN jsonb_build_array({SiteEvaluationReasonCodes.PopulationDensityMissing})
                             ELSE '[]'::jsonb END
-                        || CASE WHEN slope.value IS NULL
-                            THEN jsonb_build_array({SiteEvaluationReasonCodes.SlopeDataMissing})
-                            ELSE '[]'::jsonb END
+                        || CASE
+                            WHEN slope.value IS NULL
+                              OR slope.value::text IN ('NaN', 'Infinity', '-Infinity')
+                                THEN jsonb_build_array({SiteEvaluationReasonCodes.SlopeDataMissing})
+                            ELSE '[]'::jsonb
+                        END
                         || CASE WHEN road.distance_meters > {SuitabilityAdvisoryDefaults.MajorRoadWarningDistanceMeters}
                             THEN jsonb_build_array({SiteEvaluationReasonCodes.MajorRoadDistanceWarning})
                             ELSE '[]'::jsonb END

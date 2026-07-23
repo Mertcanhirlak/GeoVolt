@@ -19,6 +19,65 @@ function formatDistance(value) {
   return `${Math.round(meters)} m`;
 }
 
+function formatMoney(value) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return "Hesaplanamadı";
+  }
+
+  const amount = Number(value);
+
+  if (!Number.isFinite(amount)) {
+    return "Hesaplanamadı";
+  }
+
+  return `${amount.toLocaleString("tr-TR")} TL`;
+}
+
+function getBudgetState(item) {
+  const estimatedCost = Number(
+    item?.estimatedCost,
+  );
+
+  const budgetMax = Number(
+    item?.budgetMax ??
+      item?.budget,
+  );
+
+  if (
+    !Number.isFinite(
+      estimatedCost,
+    ) ||
+    !Number.isFinite(
+      budgetMax,
+    ) ||
+    budgetMax <= 0
+  ) {
+    return null;
+  }
+
+  const isWithinBudget =
+    typeof item?.isWithinBudget ===
+    "boolean"
+      ? item.isWithinBudget
+      : estimatedCost <=
+        budgetMax;
+
+  return {
+    estimatedCost,
+    budgetMax,
+    isWithinBudget,
+    difference:
+      Math.abs(
+        estimatedCost -
+          budgetMax,
+      ),
+  };
+}
+
 function getLocationLabel(cell) {
   return (
     [cell?.neighborhoodName, cell?.regionName]
@@ -41,6 +100,9 @@ export default function SuitabilityResultsPanel({
     ? evaluation.recommendations
     : [];
 
+  const candidateBudgetState =
+    getBudgetState(candidate);
+
   if (status === "idle" && !evaluation) {
     return null;
   }
@@ -57,6 +119,7 @@ export default function SuitabilityResultsPanel({
         </div>
 
         <button
+          data-suitability-close-button="true"
           type="button"
           onClick={onClose}
           aria-label="Konum analizi panelini kapat"
@@ -138,7 +201,54 @@ export default function SuitabilityResultsPanel({
                         ).toFixed(2)}`}
                   </dd>
                 </div>
+
+                <div data-testid="manual-pin-estimated-cost">
+                  <dt>Tahmini maliyet</dt>
+                  <dd>
+                    {formatMoney(candidate?.estimatedCost)}
+                  </dd>
+                </div>
               </dl>
+            )}
+
+            {candidateBudgetState &&
+              !candidateBudgetState.isWithinBudget && (
+              <div
+                data-testid="manual-pin-budget-warning"
+                role="alert"
+                style={{
+                  marginTop: "8px",
+                  padding: "7px 9px",
+                  border: "1px solid #fecaca",
+                  borderRadius: "8px",
+                  background: "#fef2f2",
+                  color: "#b91c1c",
+                  fontSize: "11px",
+                  lineHeight: 1.35,
+                }}
+              >
+                <strong
+                  style={{
+                    display: "block",
+                    marginBottom: "2px",
+                    fontSize: "12px",
+                    lineHeight: 1.25,
+                  }}
+                >
+                  Kurulum bütçesi aşılıyor
+                </strong>
+
+                <span>
+                  Tahmini maliyet, bütçeyi{" "}
+                  {formatMoney(
+                    candidateBudgetState.difference,
+                  )}{" "}
+                  aşıyor. Bütçe:{" "}
+                  {formatMoney(
+                    candidateBudgetState.budgetMax,
+                  )}
+                </span>
+              </div>
             )}
 
             {candidate && (
@@ -167,40 +277,75 @@ export default function SuitabilityResultsPanel({
 
         {recommendations.length > 0 ? (
           <>
-            {recommendations.map((recommendation) => (
-              <button
-                key={recommendation.cellId}
-                type="button"
-                className={
-                  String(focusedRecommendationCellId) ===
-                  String(recommendation.cellId)
-                    ? "suitability-recommendation-card active"
-                    : "suitability-recommendation-card"
-                }
-                onClick={() => onRecommendationSelect?.(recommendation)}
-                data-testid={`suitability-recommendation-${recommendation.recommendationRank}`}
-              >
-                <span className="suitability-rank">
-                  {recommendation.recommendationRank}
-                </span>
+            {recommendations.map((recommendation) => {
+              const recommendationBudgetState =
+                getBudgetState(
+                  recommendation,
+                );
 
-                <span className="suitability-recommendation-main">
-                  <strong>{getLocationLabel(recommendation)}</strong>
-                  <small>{formatDistance(recommendation.distanceMeters)}</small>
-                </span>
+              return (
+                <button
+                  key={recommendation.cellId}
+                  type="button"
+                  className={
+                    String(focusedRecommendationCellId) ===
+                    String(recommendation.cellId)
+                      ? "suitability-recommendation-card active"
+                      : "suitability-recommendation-card"
+                  }
+                  onClick={() =>
+                    onRecommendationSelect?.(
+                      recommendation,
+                    )
+                  }
+                  data-testid={`suitability-recommendation-${recommendation.recommendationRank}`}
+                >
+                  <span className="suitability-rank">
+                    {recommendation.recommendationRank}
+                  </span>
 
-                <em>{formatScore(recommendation.suitabilityScore)}</em>
-              </button>
-            ))}
+                  <span className="suitability-recommendation-main">
+                    <strong>
+                      {getLocationLabel(recommendation)}
+                    </strong>
 
-            <small className="suitability-recommendation-help">
-              Bir öneriye tıkladığınızda harita yakınlaşır ve gerçek analiz
-              detayları alt bilgi alanında gösterilir.
-            </small>
+                    <small>
+                      {formatDistance(
+                        recommendation.distanceMeters,
+                      )}
+                      {" · Maliyet: "}
+                      {formatMoney(
+                        recommendation.estimatedCost,
+                      )}
 
-            <small className="suitability-provisional-note">
-              Öneriler veri kapsamı doğrulanana kadar geçicidir.
-            </small>
+                      {recommendationBudgetState &&
+                        !recommendationBudgetState.isWithinBudget && (
+                        <span
+                          data-testid={`recommendation-budget-list-warning-${recommendation.cellId}`}
+                          style={{
+                            display: "block",
+                            marginTop: "2px",
+                            color: "#dc2626",
+                            fontWeight: 800,
+                          }}
+                        >
+                          Bütçe aşıldı:{" "}
+                          {formatMoney(
+                            recommendationBudgetState.difference,
+                          )}
+                        </span>
+                      )}
+                    </small>
+                  </span>
+
+                  <em>
+                    {formatScore(
+                      recommendation.suitabilityScore,
+                    )}
+                  </em>
+                </button>
+              );
+            })}
           </>
         ) : (
           <div className="suitability-recommendations-empty">

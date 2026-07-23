@@ -49,6 +49,10 @@ public interface ICandidatePointRepository
 
     Task AddRangeAsync(IReadOnlyCollection<CandidatePoint> candidatePoints, CancellationToken cancellationToken);
 
+    Task UpdateRangeAsync(
+        IReadOnlyCollection<CandidatePoint> candidatePoints,
+        CancellationToken cancellationToken);
+
     Task<CandidatePoint> UpdateAsync(CandidatePoint candidatePoint, CancellationToken cancellationToken);
 
     Task DeleteAsync(CandidatePoint candidatePoint, CancellationToken cancellationToken);

@@ -107,6 +107,21 @@ public sealed class CandidatePointRepository : ICandidatePointRepository
                 || EF.Functions.ILike(item.Neighborhood, $"%{search}%"));
         }
 
+        if (query.OnlyOptimal is true)
+        {
+            candidatePoints = candidatePoints.Where(item => item.GeneralScore >= 80);
+        }
+
+        if (!query.IncludeIncomplete)
+        {
+            candidatePoints = candidatePoints.Where(item =>
+                item.Location != null
+                && item.EstimatedCost.HasValue
+                && item.CostScore.HasValue
+                && item.DemandScore.HasValue
+                && item.GeneralScore.HasValue);
+        }
+
         return await candidatePoints
             .OrderByDescending(item => item.GeneralScore)
             .ThenBy(item => item.Name)
@@ -266,6 +281,19 @@ public sealed class CandidatePointRepository : ICandidatePointRepository
         }
 
         _dbContext.CandidatePoints.AddRange(candidatePoints);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateRangeAsync(
+        IReadOnlyCollection<CandidatePoint> candidatePoints,
+        CancellationToken cancellationToken)
+    {
+        if (candidatePoints.Count == 0)
+        {
+            return;
+        }
+
+        _dbContext.CandidatePoints.UpdateRange(candidatePoints);
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 

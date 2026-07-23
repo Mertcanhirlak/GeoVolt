@@ -20,6 +20,7 @@ import {
   LayoutDashboard,
   Power,
   MapPin,
+  Navigation,
   Layers,
   Search,
 } from "lucide-react";
@@ -52,11 +53,13 @@ import CandidateFilters from "../components/CandidateFilters";
 import SavedCandidates from "../components/SavedCandidates";
 import PersonalizationForm from "../components/PersonalizationForm";
 import ExistingStationsMap from "../components/ExistingStationsMap";
+import NearbyStationsMap from "../components/NearbyStationsMap";
 import CandidatePointsMap from "../components/CandidatePointsMap";
 import SuitabilityResultsPanel from "../components/SuitabilityResultsPanel";
 import PoiSummary from "../components/PoiSummary";
 import TrafoSummary from "../components/TrafoSummary";
 import RoadSummary from "../components/RoadSummary";
+import ReportDashboard from "../components/ReportDashboard";
 import geovoltLogo from "../assets/geovolt-logo-transparent.png";
 
 import { useAuth } from "../context/AuthContext";
@@ -70,9 +73,6 @@ import "./CandidateScan.css";
 import "./PersonalizationLayout.css";
 
 const SIDEBAR_LOGO_SRC = geovoltLogo;
-
-const REGION_SCAN_MIN_GENERAL_SCORE =
-  80;
 
 const FALLBACK_HOME_REGIONS = [
   "Kızılay",
@@ -851,6 +851,45 @@ function createManualCandidate(
       mappedCandidate?.budget ??
       null,
 
+    budgetMax:
+      evaluation.budgetMax ??
+      preferences.budget ??
+      mappedCandidate?.budget ??
+      null,
+
+    isWithinBudget:
+      typeof evaluation.isWithinBudget ===
+      "boolean"
+        ? evaluation.isWithinBudget
+        : (
+            Number.isFinite(
+              Number(
+                evaluation.estimatedCost,
+              ),
+            ) &&
+            Number.isFinite(
+              Number(
+                evaluation.budgetMax ??
+                  preferences.budget,
+              ),
+            )
+              ? Number(
+                  evaluation.estimatedCost,
+                ) <=
+                Number(
+                  evaluation.budgetMax ??
+                    preferences.budget,
+                )
+              : null
+          ),
+
+    warnings:
+      Array.isArray(
+        evaluation.warnings,
+      )
+        ? evaluation.warnings
+        : [],
+
     costSource:
       evaluation.costSource ||
       "",
@@ -866,16 +905,438 @@ function createManualCandidate(
   };
 }
 
+function isRecommendationCoordinatePair(value) {
+  if (
+    !Array.isArray(value) ||
+    value.length < 2
+  ) {
+    return false;
+  }
+
+  const longitude = Number(value[0]);
+  const latitude = Number(value[1]);
+
+  return (
+    Number.isFinite(longitude) &&
+    Number.isFinite(latitude) &&
+    longitude >= -180 &&
+    longitude <= 180 &&
+    latitude >= -90 &&
+    latitude <= 90
+  );
+}
+
+function collectRecommendationRings(
+  node,
+  rings = [],
+) {
+  if (!Array.isArray(node)) {
+    return rings;
+  }
+
+  if (
+    node.length >= 4 &&
+    node.every(
+      isRecommendationCoordinatePair,
+    )
+  ) {
+    rings.push(
+      node.map((coordinate) => [
+        Number(coordinate[0]),
+        Number(coordinate[1]),
+      ]),
+    );
+
+    return rings;
+  }
+
+  node.forEach((child) => {
+    collectRecommendationRings(
+      child,
+      rings,
+    );
+  });
+
+  return rings;
+}
+
+function isPointInsideRecommendationRing(
+  longitude,
+  latitude,
+  ring,
+) {
+  let inside = false;
+
+  for (
+    let index = 0,
+      previousIndex =
+        ring.length - 1;
+    index < ring.length;
+    previousIndex = index++
+  ) {
+    const currentPoint =
+      ring[index];
+
+    const previousPoint =
+      ring[previousIndex];
+
+    const currentLongitude =
+      currentPoint[0];
+
+    const currentLatitude =
+      currentPoint[1];
+
+    const previousLongitude =
+      previousPoint[0];
+
+    const previousLatitude =
+      previousPoint[1];
+
+    const crossesLatitude =
+      currentLatitude > latitude !==
+      previousLatitude > latitude;
+
+    if (!crossesLatitude) {
+      continue;
+    }
+
+    const denominator =
+      previousLatitude -
+        currentLatitude ||
+      Number.EPSILON;
+
+    const intersectionLongitude =
+      ((previousLongitude -
+        currentLongitude) *
+        (latitude -
+          currentLatitude)) /
+        denominator +
+      currentLongitude;
+
+    if (
+      longitude <
+      intersectionLongitude
+    ) {
+      inside = !inside;
+    }
+  }
+
+  return inside;
+}
+
+function getRecommendationRingInteriorPoint(
+  ring,
+) {
+  if (
+    !Array.isArray(ring) ||
+    ring.length < 4
+  ) {
+    return null;
+  }
+
+  const longitudes = ring.map(
+    (coordinate) =>
+      coordinate[0],
+  );
+
+  const latitudes = ring.map(
+    (coordinate) =>
+      coordinate[1],
+  );
+
+  const minimumLongitude =
+    Math.min(...longitudes);
+
+  const maximumLongitude =
+    Math.max(...longitudes);
+
+  const minimumLatitude =
+    Math.min(...latitudes);
+
+  const maximumLatitude =
+    Math.max(...latitudes);
+
+  const centerLongitude =
+    (minimumLongitude +
+      maximumLongitude) /
+    2;
+
+  const centerLatitude =
+    (minimumLatitude +
+      maximumLatitude) /
+    2;
+
+  if (
+    isPointInsideRecommendationRing(
+      centerLongitude,
+      centerLatitude,
+      ring,
+    )
+  ) {
+    return {
+      longitude: centerLongitude,
+      latitude: centerLatitude,
+    };
+  }
+
+  const average = ring.reduce(
+    (result, coordinate) => ({
+      longitude:
+        result.longitude +
+        coordinate[0],
+
+      latitude:
+        result.latitude +
+        coordinate[1],
+    }),
+    {
+      longitude: 0,
+      latitude: 0,
+    },
+  );
+
+  const averageLongitude =
+    average.longitude /
+    ring.length;
+
+  const averageLatitude =
+    average.latitude /
+    ring.length;
+
+  if (
+    isPointInsideRecommendationRing(
+      averageLongitude,
+      averageLatitude,
+      ring,
+    )
+  ) {
+    return {
+      longitude:
+        averageLongitude,
+
+      latitude:
+        averageLatitude,
+    };
+  }
+
+  const gridSize = 30;
+
+  let bestPoint = null;
+  let bestDistance =
+    Number.POSITIVE_INFINITY;
+
+  for (
+    let longitudeIndex = 1;
+    longitudeIndex < gridSize;
+    longitudeIndex++
+  ) {
+    const longitude =
+      minimumLongitude +
+      ((maximumLongitude -
+        minimumLongitude) *
+        longitudeIndex) /
+        gridSize;
+
+    for (
+      let latitudeIndex = 1;
+      latitudeIndex < gridSize;
+      latitudeIndex++
+    ) {
+      const latitude =
+        minimumLatitude +
+        ((maximumLatitude -
+          minimumLatitude) *
+          latitudeIndex) /
+          gridSize;
+
+      if (
+        !isPointInsideRecommendationRing(
+          longitude,
+          latitude,
+          ring,
+        )
+      ) {
+        continue;
+      }
+
+      const distance =
+        Math.pow(
+          longitude -
+            centerLongitude,
+          2,
+        ) +
+        Math.pow(
+          latitude -
+            centerLatitude,
+          2,
+        );
+
+      if (
+        distance <
+        bestDistance
+      ) {
+        bestDistance =
+          distance;
+
+        bestPoint = {
+          longitude,
+          latitude,
+        };
+      }
+    }
+  }
+
+  if (bestPoint) {
+    return bestPoint;
+  }
+
+  const firstCoordinate =
+    ring[0];
+
+  if (
+    isRecommendationCoordinatePair(
+      firstCoordinate,
+    )
+  ) {
+    return {
+      longitude:
+        Number(
+          firstCoordinate[0],
+        ),
+
+      latitude:
+        Number(
+          firstCoordinate[1],
+        ),
+    };
+  }
+
+  return null;
+}
+
+function getRecommendationCostCoordinates(
+  recommendation,
+) {
+  const directLatitude =
+    Number(
+      recommendation?.latitude ??
+        recommendation?.Latitude,
+    );
+
+  const directLongitude =
+    Number(
+      recommendation?.longitude ??
+        recommendation?.Longitude,
+    );
+
+  if (
+    Number.isFinite(
+      directLatitude,
+    ) &&
+    Number.isFinite(
+      directLongitude,
+    ) &&
+    directLatitude >= -90 &&
+    directLatitude <= 90 &&
+    directLongitude >= -180 &&
+    directLongitude <= 180
+  ) {
+    return {
+      latitude:
+        directLatitude,
+
+      longitude:
+        directLongitude,
+    };
+  }
+
+  const possibleDirectCoordinates =
+    recommendation?.coordinates ??
+    recommendation?.Coordinates ??
+    recommendation?.centroid ??
+    recommendation?.Centroid ??
+    recommendation?.center ??
+    recommendation?.Center;
+
+  if (
+    isRecommendationCoordinatePair(
+      possibleDirectCoordinates,
+    )
+  ) {
+    return {
+      longitude:
+        Number(
+          possibleDirectCoordinates[0],
+        ),
+
+      latitude:
+        Number(
+          possibleDirectCoordinates[1],
+        ),
+    };
+  }
+
+  let boundary =
+    recommendation?.boundary ??
+    recommendation?.Boundary;
+
+  if (
+    typeof boundary === "string"
+  ) {
+    try {
+      boundary =
+        JSON.parse(boundary);
+    } catch {
+      boundary = null;
+    }
+  }
+
+  const coordinateTree =
+    boundary?.coordinates ??
+    boundary?.Coordinates ??
+    boundary;
+
+  const rings =
+    collectRecommendationRings(
+      coordinateTree,
+    );
+
+  rings.sort(
+    (firstRing, secondRing) =>
+      secondRing.length -
+      firstRing.length,
+  );
+
+  for (const ring of rings) {
+    const interiorPoint =
+      getRecommendationRingInteriorPoint(
+        ring,
+      );
+
+    if (interiorPoint) {
+      return interiorPoint;
+    }
+  }
+
+  return null;
+}
 export default function CandidatePointsPage() {
   const navigate = useNavigate();
   const {
+    token,
     user,
+    role,
     isAdmin,
+    isCompanyUser,
     canAccessManagement,
     logoutUser,
   } = useAuth();
 
   const canOpenAdminPanel = isAdmin || canAccessManagement;
+
+  const canOpenNearbyStations =
+    !canOpenAdminPanel &&
+    !isCompanyUser;
 
   const scanRequestIdRef =
     useRef(0);
@@ -1119,7 +1580,7 @@ export default function CandidatePointsPage() {
   const [
     sidebarCollapsed,
     setSidebarCollapsed,
-  ] = useState(false);
+  ] = useState(true);
 
   const [
     focusedRegionId,
@@ -2979,7 +3440,7 @@ export default function CandidatePointsPage() {
     setScanStatus("loading");
 
     setScanMessage(
-      `${regionName} için genel skoru en az ${REGION_SCAN_MIN_GENERAL_SCORE} olan adaylar aranıyor.`,
+      `${regionName} için tüm gerçek aday noktalar getiriliyor.`,
     );
 
     setScanError("");
@@ -2991,7 +3452,10 @@ export default function CandidatePointsPage() {
     const result =
       await scanCandidatePointsByRegion(
         regionId,
-        REGION_SCAN_MIN_GENERAL_SCORE,
+        {
+          regionName,
+          region,
+        },
       );
 
     if (
@@ -3034,24 +3498,11 @@ export default function CandidatePointsPage() {
     }
 
     const safeCandidates =
-      (
-        Array.isArray(
-          result.data,
-        )
-          ? result.data
-          : []
-      ).filter((candidate) => {
-        const score =
-          Number(
-            candidate?.generalScore,
-          );
-
-        return (
-          Number.isFinite(score) &&
-          score >=
-            REGION_SCAN_MIN_GENERAL_SCORE
-        );
-      });
+      Array.isArray(
+        result.data,
+      )
+        ? result.data
+        : [];
 
     setScannedCandidates(
       safeCandidates,
@@ -3080,7 +3531,8 @@ export default function CandidatePointsPage() {
       setScanStatus("empty");
 
       setScanMessage(
-        `${regionName} için genel skoru ${REGION_SCAN_MIN_GENERAL_SCORE} ve üzeri gerçek aday nokta bulunamadı.`,
+        result.message ||
+          `${regionName} bölgesinde gerçek aday nokta bulunamadı.`,
       );
 
       setScanError("");
@@ -3093,7 +3545,8 @@ export default function CandidatePointsPage() {
     setScanStatus("success");
 
     setScanMessage(
-      `${regionName} için ${safeCandidates.length} gerçek aday nokta bulundu.`,
+      result.message ||
+        `${regionName} için ${safeCandidates.length} gerçek aday nokta bulundu.`,
     );
 
     setScanError("");
@@ -3534,8 +3987,276 @@ export default function CandidatePointsPage() {
         return;
       }
 
+      const recommendationList =
+        Array.isArray(
+          suitabilityResult.recommendations,
+        )
+          ? suitabilityResult.recommendations
+          : [];
+
+      const recommendationCostResults =
+        await Promise.allSettled(
+          recommendationList.map(
+            async (
+              recommendation,
+              recommendationIndex,
+            ) => {
+              const coordinates =
+                getRecommendationCostCoordinates(
+                  recommendation,
+                );
+
+              const preferredRegionId =
+                Number(
+                  recommendation?.regionId ??
+                    recommendation?.RegionId,
+                );
+
+              if (!coordinates) {
+                throw new Error(
+                  `Öneri #${
+                    recommendation?.recommendationRank ??
+                    recommendationIndex + 1
+                  } için maliyet koordinatı bulunamadı.`,
+                );
+              }
+
+              const availableRegionIds =
+                Array.from(
+                  new Set(
+                    [
+                      preferredRegionId,
+
+                      ...regions.map(
+                        (regionItem) =>
+                          Number(
+                            getRegionId(
+                              regionItem,
+                            ),
+                          ),
+                      ),
+                    ].filter(
+                      (candidateRegionId) =>
+                        Number.isInteger(
+                          candidateRegionId,
+                        ) &&
+                        candidateRegionId > 0,
+                    ),
+                  ),
+                );
+
+              let locatedRecommendation =
+                null;
+
+              let resolvedRegionId =
+                null;
+
+              for (
+                const candidateRegionId
+                of availableRegionIds
+              ) {
+                try {
+                  const locateCandidate =
+                    await locateRegionPoint(
+                      candidateRegionId,
+                      {
+                        latitude:
+                          coordinates.latitude,
+
+                        longitude:
+                          coordinates.longitude,
+                      },
+                    );
+
+                  if (
+                    locateCandidate?.isInsideRegion
+                  ) {
+                    locatedRecommendation =
+                      locateCandidate;
+
+                    resolvedRegionId =
+                      Number(
+                        locateCandidate.regionId ??
+                          candidateRegionId,
+                      );
+
+                    break;
+                  }
+                } catch (locateError) {
+                  console.warn(
+                    `Öneri #${
+                      recommendation?.recommendationRank ??
+                      recommendationIndex + 1
+                    } için ${candidateRegionId} bölgesi doğrulanamadı:`,
+                    locateError,
+                  );
+                }
+              }
+
+              if (
+                !Number.isInteger(
+                  resolvedRegionId,
+                ) ||
+                resolvedRegionId <= 0
+              ) {
+                throw new Error(
+                  `Öneri #${
+                    recommendation?.recommendationRank ??
+                    recommendationIndex + 1
+                  } koordinatının gerçek bölgesi bulunamadı.`,
+                );
+              }
+
+              const recommendationCost =
+                await evaluateManualPin({
+                  regionId:
+                    resolvedRegionId,
+
+                  latitude:
+                    coordinates.latitude,
+
+                  longitude:
+                    coordinates.longitude,
+
+                  ...normalizedPreferences,
+                });
+
+              if (
+                !recommendationCost?.isValid ||
+                !hasNumericValue(
+                  recommendationCost?.estimatedCost,
+                )
+              ) {
+                throw new Error(
+                  recommendationCost?.message ||
+                    `Öneri #${
+                      recommendation?.recommendationRank ??
+                      recommendationIndex + 1
+                    } maliyeti hesaplanamadı.`,
+                );
+              }
+
+              return {
+                ...recommendation,
+
+                regionId:
+                  resolvedRegionId,
+
+                regionName:
+                  locatedRecommendation?.regionName ||
+                  recommendation?.regionName ||
+                  recommendation?.RegionName ||
+                  "",
+
+                neighborhoodId:
+                  locatedRecommendation?.neighborhoodId ??
+                  recommendation?.neighborhoodId ??
+                  recommendation?.NeighborhoodId ??
+                  null,
+
+                neighborhoodName:
+                  locatedRecommendation?.neighborhoodName ||
+                  recommendation?.neighborhoodName ||
+                  recommendation?.NeighborhoodName ||
+                  null,
+
+                latitude:
+                  coordinates.latitude,
+
+                longitude:
+                  coordinates.longitude,
+
+                estimatedCost:
+                  Number(
+                    recommendationCost.estimatedCost,
+                  ),
+
+                costSource:
+                  recommendationCost.costSource ||
+                  "",
+
+                budgetMax:
+                  recommendationCost.budgetMax ??
+                  normalizedPreferences.budget,
+
+                isWithinBudget:
+                  typeof recommendationCost.isWithinBudget ===
+                  "boolean"
+                    ? recommendationCost.isWithinBudget
+                    : Number(
+                        recommendationCost.estimatedCost,
+                      ) <=
+                      Number(
+                        recommendationCost.budgetMax ??
+                          normalizedPreferences.budget,
+                      ),
+
+                warnings:
+                  Array.isArray(
+                    recommendationCost.warnings,
+                  )
+                    ? recommendationCost.warnings
+                    : [],
+
+                costStatus:
+                  "success",
+              };
+            },
+          ),
+        );
+
+      if (
+        manualPinRequestIdRef.current !==
+        requestId
+      ) {
+        return;
+      }
+
+      const recommendationsWithCosts =
+        recommendationCostResults.map(
+          (result, index) => {
+            if (
+              result.status ===
+              "fulfilled"
+            ) {
+              return result.value;
+            }
+
+            console.error(
+              `Öneri #${
+                recommendationList[index]
+                  ?.recommendationRank ??
+                index + 1
+              } maliyet hesabı başarısız:`,
+              result.reason,
+            );
+
+            return {
+              ...recommendationList[index],
+
+              estimatedCost:
+                null,
+
+              costStatus:
+                "error",
+
+              costError:
+                result.reason instanceof Error
+                  ? result.reason.message
+                  : "Öneri maliyeti hesaplanamadı.",
+            };
+          },
+        );
+
+      const suitabilityResultWithCosts = {
+        ...suitabilityResult,
+
+        recommendations:
+          recommendationsWithCosts,
+      };
+
       setSuitabilityEvaluation(
-        suitabilityResult,
+        suitabilityResultWithCosts,
       );
 
       setFocusedRecommendationCellId(
@@ -3543,7 +4264,7 @@ export default function CandidatePointsPage() {
       );
 
       const selectedCell =
-        suitabilityResult.selectedCell;
+        suitabilityResultWithCosts.selectedCell;
 
       const evaluation = {
         ...costEvaluation,
@@ -3621,8 +4342,6 @@ export default function CandidatePointsPage() {
 
       const hasCompleteAnalysis =
         hasEstimatedCost &&
-        hasCostScore &&
-        hasDemandScore &&
         hasGeneralScore;
 
       const normalizedEvaluation = {
@@ -3994,6 +4713,29 @@ export default function CandidatePointsPage() {
             <Zap size={26} strokeWidth={2.3} />
             <span>Aday nokta haritası</span>
           </button>
+          {canOpenNearbyStations && (
+            <button
+              type="button"
+              className={
+                activeTab === "nearbyStations"
+                  ? "menu-button active"
+                  : "menu-button"
+              }
+              data-testid="nearby-stations-tab-button"
+              onClick={() =>
+                setActiveTab("nearbyStations")
+              }
+              title="Yakınımdaki şarj istasyonları"
+            >
+              <Navigation
+                size={26}
+                strokeWidth={2.3}
+              />
+              <span>
+                Yakınımdaki istasyonlar
+              </span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -4139,6 +4881,16 @@ export default function CandidatePointsPage() {
           </section>
         )}
 
+        {canOpenNearbyStations &&
+          activeTab ===
+            "nearbyStations" && (
+            <section
+              className="map-screen"
+              data-testid="nearby-stations-screen"
+            >
+              <NearbyStationsMap />
+            </section>
+          )}
         {activeTab ===
           "candidateMap" && (
           <section
@@ -4442,12 +5194,7 @@ export default function CandidatePointsPage() {
                   className="candidate-scan-threshold"
                   data-testid="candidate-scan-threshold"
                 >
-                  Yalnızca genel skoru{" "}
-                  {
-                    REGION_SCAN_MIN_GENERAL_SCORE
-                  }{" "}
-                  ve üzeri gerçek
-                  adaylar gösterilir.
+                  Seçili bölgedeki tüm gerçek aday noktalar gösterilir.
                 </small>
 
                 {scanStatus ===
@@ -4585,15 +5332,23 @@ export default function CandidatePointsPage() {
                       </div>
 
                       <small>
-                        Genel skor ≥{" "}
-                        {
-                          REGION_SCAN_MIN_GENERAL_SCORE
-                        }
+                        Tüm aday noktalar
                       </small>
                     </div>
 
                     <div className="candidate-scan-results-list">
-                      {filteredCandidates.map(
+                      {[...filteredCandidates]
+  .sort((first, second) =>
+    String(first?.name ?? "").localeCompare(
+      String(second?.name ?? ""),
+      "tr-TR",
+      {
+        numeric: true,
+        sensitivity: "base",
+      },
+    ),
+  )
+  .map(
                         (
                           candidate,
                         ) => (
@@ -4633,11 +5388,23 @@ export default function CandidatePointsPage() {
                               </small>
                             </span>
 
-                            <em>
-                              {showScore(
-                                candidate.generalScore,
-                              )}
-                            </em>
+                            <em
+  data-score-level={
+    !Number.isFinite(
+      Number(candidate.generalScore),
+    )
+      ? "unknown"
+      : Number(candidate.generalScore) >= 80
+        ? "high"
+        : Number(candidate.generalScore) >= 50
+          ? "medium"
+          : "low"
+  }
+>
+  {showScore(
+    candidate.generalScore,
+  )}
+</em>
                           </button>
                         ),
                       )}
@@ -4665,9 +5432,14 @@ export default function CandidatePointsPage() {
                   </button>
 
                   <small>
-                    {
-                      selectedCandidate.estimatedAddress
-                    }
+                    {[
+                      selectedCandidate.region,
+                      selectedCandidate.neighborhood,
+                    ]
+                      .filter(Boolean)
+                      .join(" / ") ||
+                      selectedCandidate.estimatedAddress ||
+                      "Konum bilgisi yok"}
                   </small>
 
                   <h3>
@@ -5444,137 +6216,10 @@ export default function CandidatePointsPage() {
         )}
 
         {activeTab === "report" && (
-          <section
-            className="report-screen"
-            data-testid="report-screen"
-          >
-            <header className="report-page-header">
-              <span>Rapor Merkezi</span>
-              <h1>
-                {"\u0130stasyon analiz raporlar\u0131"}
-              </h1>
-              <p>
-                {"B\u00F6lge, mahalle ve soket tiplerine g\u00F6re da\u011F\u0131l\u0131m\u0131 tek ekranda takip edin."}
-              </p>
-            </header>
-
-            <div className="report-chart-grid">
-              <article className="report-chart-card">
-                <div className="report-card-heading">
-                  <span>{"Genel da\u011F\u0131l\u0131m"}</span>
-                  <h2>
-                    {"Semtlere G\u00F6re \u0130stasyon Da\u011F\u0131l\u0131m\u0131"}
-                  </h2>
-                  <p>
-                    {"Mevcut istasyonlar\u0131n b\u00F6lgesel pay\u0131."}
-                  </p>
-                </div>
-
-                <ReportPieChart
-                  data={reportDistrictDistribution}
-                />
-
-                <div className="report-legend">
-                  {reportDistrictDistribution.map(
-                    (item) => (
-                      <div
-                        className="report-legend-row"
-                        key={item.label}
-                      >
-                        <span
-                          className="report-dot"
-                          style={{
-                            backgroundColor:
-                              item.color,
-                          }}
-                        />
-                        <strong>
-                          {item.label}
-                        </strong>
-                        <em>
-                          %{item.value}
-                        </em>
-                      </div>
-                    ),
-                  )}
-                </div>
-              </article>
-
-              <article className="report-chart-card">
-                <div className="report-card-heading report-card-heading-row">
-                  <div>
-                    <span>Mahalle analizi</span>
-                    <h2>
-                      {"Mahalle Bazl\u0131 Soket Da\u011F\u0131l\u0131m\u0131"}
-                    </h2>
-                    <p>
-                      {"Se\u00E7ilen mahalleye g\u00F6re AC/DC oran\u0131."}
-                    </p>
-                  </div>
-
-                  <label className="report-select-shell">
-                    <span>{"Mahalle se\u00E7"}</span>
-                    <select
-                      value={
-                        selectedReportNeighborhood
-                      }
-                      onChange={(event) =>
-                        setSelectedReportNeighborhood(
-                          event.target.value,
-                        )
-                      }
-                    >
-                      {dynamicReportNeighborhoodOptions.map(
-                        (neighborhood) => (
-                          <option
-                            key={neighborhood}
-                            value={neighborhood}
-                          >
-                            {neighborhood}
-                          </option>
-                        ),
-                      )}
-                    </select>
-                  </label>
-                </div>
-
-                <ReportDonutChart
-                  data={selectedReportSocketDistribution}
-                  centerLabel={
-                    selectedReportNeighborhood
-                  }
-                />
-
-                <div className="report-analysis-bars">
-                  {selectedReportSocketDistribution.map(
-                    (item) => (
-                      <div
-                        className="report-analysis-row"
-                        key={item.label}
-                      >
-                        <div className="report-analysis-label">
-                          <span
-                            className="report-dot"
-                            style={{ backgroundColor: item.color }}
-                          />
-                          <strong>{item.label}</strong>
-                          <em>%{item.value}</em>
-                        </div>
-                        <div className="report-analysis-track">
-                          <span
-                            style={{
-                              width: `${item.value}%`,
-                              backgroundColor: item.color,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    ),
-                  )}
-                </div>
-              </article>
-            </div>
-          </section>
+          <ReportDashboard
+            regions={regions}
+            token={token}
+          />
         )}
 
         {activeTab === "saved" && (

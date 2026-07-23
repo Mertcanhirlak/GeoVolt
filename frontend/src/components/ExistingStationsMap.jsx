@@ -3793,7 +3793,7 @@ export default function ExistingStationsMap({
             </small>
           </span>
 
-          <span className="modern-layer-switch" />
+
         </button>
 
         <button
@@ -3825,7 +3825,7 @@ export default function ExistingStationsMap({
             </small>
           </span>
 
-          <span className="modern-layer-switch" />
+
         </button>
 
         <button
@@ -3857,7 +3857,7 @@ export default function ExistingStationsMap({
             </small>
           </span>
 
-          <span className="modern-layer-switch" />
+
         </button>
 
         <button
@@ -3885,7 +3885,7 @@ export default function ExistingStationsMap({
             </small>
           </span>
 
-          <span className="modern-layer-switch" />
+
         </button>
       </div>
       )}
@@ -4150,6 +4150,41 @@ export default function ExistingStationsMap({
                   {
                     selectedStation.power
                   }
+                </dd>
+              </div>
+              <div>
+                <dt>
+                  Enlem
+                </dt>
+
+                <dd data-testid="selected-station-latitude">
+                  {Number.isFinite(
+                    Number(
+                      selectedStation.latitude
+                    )
+                  )
+                    ? Number(
+                        selectedStation.latitude
+                      ).toFixed(6)
+                    : "Veri yok"}
+                </dd>
+              </div>
+
+              <div>
+                <dt>
+                  Boylam
+                </dt>
+
+                <dd data-testid="selected-station-longitude">
+                  {Number.isFinite(
+                    Number(
+                      selectedStation.longitude
+                    )
+                  )
+                    ? Number(
+                        selectedStation.longitude
+                      ).toFixed(6)
+                    : "Veri yok"}
                 </dd>
               </div>
             </dl>

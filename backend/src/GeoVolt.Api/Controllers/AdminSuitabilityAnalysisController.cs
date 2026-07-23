@@ -48,6 +48,43 @@ public sealed class AdminSuitabilityAnalysisController : ControllerBase
             "Uygunluk analiz grid'i oluşturuldu."));
     }
 
+    [HttpPost("regions/{regionSourceId:int}/run")]
+    [Authorize(Policy = PermissionNames.DataImportExecute)]
+    [Authorize(Policy = PermissionNames.PointCreate)]
+    [ProducesResponseType(typeof(ApiResponse<SuitabilityFullAnalysisResult>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ApiResponse<SuitabilityFullAnalysisResult>>> RunFullAnalysisForRegion(
+        int regionSourceId,
+        [FromBody] GenerateSuitabilityGridRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _service.RunFullAnalysisForRegionAsync(
+            regionSourceId,
+            request,
+            cancellationToken);
+
+        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var promotion = await _candidatePointService.PromoteRecommendedSuitabilityCellsAsync(
+            result.Scoring.AnalysisRunId,
+            userId,
+            cancellationToken);
+        var message = promotion.Success
+            ? $"Bölgesel uygunluk analizi tamamlandı. {promotion.Message}"
+            : $"Bölgesel uygunluk analizi tamamlandı; aday aktarımı yapılamadı: {promotion.Message}";
+
+        return Ok(ApiResponse<SuitabilityFullAnalysisResult>.Ok(
+            result,
+            message));
+    }
+
     [HttpPost("{analysisRunId:int}/metrics")]
     [Authorize(Policy = PermissionNames.DataImportExecute)]
     [ProducesResponseType(typeof(ApiResponse<SuitabilityMetricCalculationResult>), StatusCodes.Status200OK)]

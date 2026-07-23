@@ -1,19 +1,54 @@
 import "./ManualPinPreferencesPanel.css";
 
 const SYSTEM_TYPE_OPTIONS = [
-  { value: "AC", label: "AC Şarj" },
-  { value: "DC", label: "DC Hızlı Şarj" },
-  { value: "AC/DC", label: "AC + DC" },
+  {
+    value: "AC",
+    label: "AC Şarj",
+  },
+  {
+    value: "DC",
+    label: "DC Hızlı Şarj",
+  },
 ];
 
 const PLACE_TYPE_OPTIONS = [
-  "AVM",
-  "Akaryakıt İstasyonu",
-  "Otopark",
-  "Kamu Alanı",
   "İş Merkezi",
-  "Konut Bölgesi",
+  "AVM",
+  "Otoyol",
 ];
+
+function getPowerRules(systemType) {
+  if (systemType === "AC") {
+    return {
+      min: 22,
+      max: 22,
+      step: 1,
+      defaultValue: "22",
+      helperText:
+        "AC şarj için güç 22 kW olmalıdır.",
+    };
+  }
+
+  if (systemType === "DC") {
+    return {
+      min: 60,
+      max: 120,
+      step: 60,
+      defaultValue: "60",
+      helperText:
+        "DC şarj için güç 60 veya 120 kW olmalıdır.",
+    };
+  }
+
+  return {
+    min: 1,
+    max: 120,
+    step: 1,
+    defaultValue: "",
+    helperText:
+      "Önce sistem tipini seçin.",
+  };
+}
 
 export default function ManualPinPreferencesPanel({
   selectedRegionName = "",
@@ -24,10 +59,39 @@ export default function ManualPinPreferencesPanel({
   onSubmit,
   onClose,
 }) {
+  const powerRules =
+    getPowerRules(
+      values.systemType,
+    );
+
   function handleChange(event) {
+    const {
+      name,
+      value,
+    } = event.target;
+
+    if (
+      name === "systemType"
+    ) {
+      onChange?.(
+        "systemType",
+        value,
+      );
+
+      const nextPowerRules =
+        getPowerRules(value);
+
+      onChange?.(
+        "powerKw",
+        nextPowerRules.defaultValue,
+      );
+
+      return;
+    }
+
     onChange?.(
-      event.target.name,
-      event.target.value,
+      name,
+      value,
     );
   }
 
@@ -39,7 +103,9 @@ export default function ManualPinPreferencesPanel({
     >
       <div className="manual-pin-preferences-header">
         <div>
-          <small>Manuel Pin</small>
+          <small>
+            Manuel Pin
+          </small>
 
           <h3 id="manual-pin-preferences-title">
             Kurulum Tercihleri
@@ -62,9 +128,13 @@ export default function ManualPinPreferencesPanel({
         className="manual-pin-selected-region-summary"
         data-testid="manual-pin-preferences-region"
       >
-        <span>Seçili Bölge</span>
+        <span>
+          Seçili Bölge
+        </span>
+
         <strong>
-          {selectedRegionName || "Bölge seçilmedi"}
+          {selectedRegionName ||
+            "Bölge seçilmedi"}
         </strong>
       </div>
 
@@ -74,7 +144,9 @@ export default function ManualPinPreferencesPanel({
         onSubmit={onSubmit}
       >
         <label>
-          <span>Sistem Tipi *</span>
+          <span>
+            Sistem Tipi *
+          </span>
 
           <select
             name="systemType"
@@ -88,19 +160,23 @@ export default function ManualPinPreferencesPanel({
               Sistem tipi seçin
             </option>
 
-            {SYSTEM_TYPE_OPTIONS.map((option) => (
-              <option
-                key={option.value}
-                value={option.value}
-              >
-                {option.label}
-              </option>
-            ))}
+            {SYSTEM_TYPE_OPTIONS.map(
+              (option) => (
+                <option
+                  key={option.value}
+                  value={option.value}
+                >
+                  {option.label}
+                </option>
+              ),
+            )}
           </select>
         </label>
 
         <label>
-          <span>Mekân Tipi *</span>
+          <span>
+            Mekân Tipi *
+          </span>
 
           <select
             name="placeType"
@@ -114,30 +190,37 @@ export default function ManualPinPreferencesPanel({
               Mekân tipi seçin
             </option>
 
-            {PLACE_TYPE_OPTIONS.map((placeType) => (
-              <option
-                key={placeType}
-                value={placeType}
-              >
-                {placeType}
-              </option>
-            ))}
+            {PLACE_TYPE_OPTIONS.map(
+              (placeType) => (
+                <option
+                  key={placeType}
+                  value={placeType}
+                >
+                  {placeType}
+                </option>
+              ),
+            )}
           </select>
         </label>
 
         <div className="manual-pin-preferences-row">
           <label>
-            <span>Güç (kW) *</span>
+            <span>
+              Güç (kW) *
+            </span>
 
             <input
               type="number"
               name="powerKw"
               value={values.powerKw}
-              min="1"
-              max="1000"
-              step="1"
+              min={powerRules.min}
+              max={powerRules.max}
+              step={powerRules.step}
               inputMode="numeric"
-              disabled={disabled}
+              disabled={
+                disabled ||
+                !values.systemType
+              }
               required
               data-testid="manual-pin-power-input"
               onChange={handleChange}
@@ -145,14 +228,16 @@ export default function ManualPinPreferencesPanel({
           </label>
 
           <label>
-            <span>Konnektör *</span>
+            <span>
+              Konnektör *
+            </span>
 
             <input
               type="number"
               name="connectorCount"
               value={values.connectorCount}
               min="1"
-              max="50"
+              max="20"
               step="1"
               inputMode="numeric"
               disabled={disabled}
@@ -164,14 +249,16 @@ export default function ManualPinPreferencesPanel({
         </div>
 
         <label>
-          <span>Kurulum Bütçesi (TL) *</span>
+          <span>
+            Kurulum Bütçesi (TL) *
+          </span>
 
           <input
             type="number"
             name="budget"
             value={values.budget}
-            min="0"
-            step="1000"
+              min="1"
+            step="1"
             inputMode="numeric"
             disabled={disabled}
             required

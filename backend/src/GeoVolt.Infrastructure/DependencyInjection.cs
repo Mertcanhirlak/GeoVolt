@@ -22,7 +22,10 @@ using GeoVolt.Infrastructure.SuitabilityAnalysis;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-
+using GeoVolt.Application.CostEstimations.Abstractions;
+using GeoVolt.Application.ManualPins.Abstractions;
+using GeoVolt.Infrastructure.CostEstimations;
+using GeoVolt.Infrastructure.ManualPins;
 namespace GeoVolt.Infrastructure;
 
 public static class DependencyInjection
@@ -89,6 +92,11 @@ public static class DependencyInjection
         services.AddScoped<IDataImportPromotionService, GeoJsonDataImportPromotionService>();
         services.AddScoped<IDataImportQueryService, DataImportQueryService>();
         services.AddScoped<ISuitabilityAnalysisRepository, PostGisSuitabilityAnalysisRepository>();
+        services.AddScoped<ITransformerRepository,PostGisTransformerRepository>();
+
+        services.AddScoped<ISlopeRepository, PostGisSlopeRepository>();
+
+        services.AddScoped<ICostConfigurationRepository,CostConfigurationRepository>();
 
         return services;
     }

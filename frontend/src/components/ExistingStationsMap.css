@@ -946,3 +946,148 @@
     top: 166px;
   }
 }
+
+/* HOME MAP CLICKABLE LAYER BUTTONS */
+
+/* Katmanlar düğmesini ve açılan paneli biraz yukarı taşır. */
+[data-testid="home-map-screen"] .layers-floating-button {
+  top: 18px !important;
+  right: 22px !important;
+}
+
+[data-testid="home-map-screen"] .map-layer-controls.modern-layer-card {
+  top: 70px !important;
+  right: 22px !important;
+  width: 260px !important;
+  max-height: calc(100% - 90px) !important;
+}
+
+/*
+ * Sağdaki çekme anahtarı kaldırıldı.
+ * Katmanın tamamı tıklanabilir aç/kapat düğmesidir.
+ */
+[data-testid="home-map-screen"] .modern-layer-row {
+  width: 100% !important;
+  min-height: 58px !important;
+  padding: 11px 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  color: #334155 !important;
+  background: #f8fafc !important;
+  border: 1px solid #dbe3ee !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  text-align: left !important;
+  cursor: pointer !important;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease !important;
+}
+
+[data-testid="home-map-screen"] .modern-layer-row:hover:not(:disabled) {
+  color: #1d4ed8 !important;
+  background: #eff6ff !important;
+  border-color: #93c5fd !important;
+  transform: translateY(-1px);
+}
+
+[data-testid="home-map-screen"] .modern-layer-row.active {
+  color: #1d4ed8 !important;
+  background: #eaf2ff !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1) !important;
+}
+
+[data-testid="home-map-screen"] .modern-layer-row::after {
+  content: "Kapalı";
+  flex-shrink: 0;
+  padding: 5px 9px;
+  color: #64748b;
+  background: #e2e8f0;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+[data-testid="home-map-screen"] .modern-layer-row.active::after {
+  content: "Açık";
+  color: #ffffff;
+  background: #2563eb;
+}
+
+[data-testid="home-map-screen"] .modern-layer-row:disabled {
+  opacity: 0.58 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
+[data-testid="home-map-screen"] .modern-layer-row:disabled::after {
+  content: "Yükleniyor";
+  color: #64748b;
+  background: #e2e8f0;
+}
+
+[data-testid="home-map-screen"] .modern-layer-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+[data-testid="home-map-screen"] .modern-layer-copy > span {
+  color: inherit !important;
+}
+
+@media (max-width: 760px) {
+  [data-testid="home-map-screen"] .layers-floating-button {
+    top: 12px !important;
+    right: 12px !important;
+  }
+
+  [data-testid="home-map-screen"] .map-layer-controls.modern-layer-card {
+    top: 64px !important;
+    right: 12px !important;
+    width: min(260px, calc(100% - 24px)) !important;
+  }
+}
+
+/* HOME MAP HIDE LAYER DESCRIPTIONS */
+
+/* Katman adlarının altındaki açıklamaları kaldırır. */
+[data-testid="home-map-screen"]
+  .modern-layer-row
+  .modern-layer-copy
+  small {
+  display: none !important;
+}
+
+/* Açıklama kalktığı için satırları daha kompakt yapar. */
+[data-testid="home-map-screen"] .modern-layer-row {
+  min-height: 48px !important;
+  padding: 10px 12px !important;
+  align-items: center !important;
+}
+
+[data-testid="home-map-screen"] .modern-layer-copy {
+  display: flex !important;
+  align-items: center !important;
+  flex: 1 !important;
+}
+
+[data-testid="home-map-screen"] .modern-layer-copy > span {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+}
+
+/* Açık/Kapalı rozeti ortada ve kompakt kalır. */
+[data-testid="home-map-screen"] .modern-layer-row::after {
+  padding: 5px 8px !important;
+  font-size: 9px !important;
+}

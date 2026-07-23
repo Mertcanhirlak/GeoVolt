@@ -4,7 +4,9 @@ public sealed record CandidatePointResponse(
     int Id,
     string Name,
     string EstimatedAddress,
+    int? RegionId,
     string Region,
+    int? NeighborhoodId,
     string Neighborhood,
     decimal? EstimatedCost,
     int? CostScore,
@@ -19,4 +21,6 @@ public sealed record CandidatePointResponse(
     int? CreatedByUserId,
     int? SourceAnalysisRunId,
     long? SourceSuitabilityCellId,
-    DateTime CreatedAtUtc);
+    DateTime CreatedAtUtc,
+    string AlgorithmVersion,
+    DateTime? CalculatedAtUtc);

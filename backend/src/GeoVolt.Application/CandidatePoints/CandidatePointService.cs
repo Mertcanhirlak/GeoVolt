@@ -1,6 +1,8 @@
 using GeoVolt.Application.CandidatePoints.Abstractions;
 using GeoVolt.Application.CandidatePoints.Dtos;
 using GeoVolt.Application.Common;
+using GeoVolt.Application.CostEstimations.Abstractions;
+using GeoVolt.Application.CostEstimations.Dtos;
 using GeoVolt.Domain.Entities;
 using GeoVolt.Domain.Constants;
 using GeoVolt.Application.SuitabilityAnalysis.Abstractions;
@@ -16,13 +18,19 @@ public sealed class CandidatePointService : ICandidatePointService
 
     private readonly ICandidatePointRepository _candidatePointRepository;
     private readonly ISuitabilityAnalysisService _suitabilityAnalysisService;
+    private readonly ICostConfigurationRepository _costConfigurationRepository;
+    private readonly ICostEstimationService _costEstimationService;
 
     public CandidatePointService(
         ICandidatePointRepository candidatePointRepository,
-        ISuitabilityAnalysisService suitabilityAnalysisService)
+        ISuitabilityAnalysisService suitabilityAnalysisService,
+        ICostConfigurationRepository costConfigurationRepository,
+        ICostEstimationService costEstimationService)
     {
         _candidatePointRepository = candidatePointRepository;
         _suitabilityAnalysisService = suitabilityAnalysisService;
+        _costConfigurationRepository = costConfigurationRepository;
+        _costEstimationService = costEstimationService;
     }
 
     public async Task<ApiResponse<IReadOnlyList<CandidatePointResponse>>> GetCandidatePointsAsync(
@@ -32,7 +40,11 @@ public sealed class CandidatePointService : ICandidatePointService
         var candidatePoints = await _candidatePointRepository.GetCandidatePointsAsync(query, cancellationToken);
         var response = candidatePoints.Select(ToResponse).ToList();
 
-        return ApiResponse<IReadOnlyList<CandidatePointResponse>>.Ok(response);
+        var message = response.Count == 0
+            ? "Seçilen filtrelere uygun, hesaplaması tamamlanmış aday nokta bulunamadı."
+            : $"{response.Count} aday nokta getirildi.";
+
+        return ApiResponse<IReadOnlyList<CandidatePointResponse>>.Ok(response, message);
     }
 
     public async Task<ApiResponse<CandidatePointResponse>> CreateAsync(
@@ -141,7 +153,9 @@ public sealed class CandidatePointService : ICandidatePointService
         }
 
         var systemCandidates = await _candidatePointRepository.GetCandidatePointsAsync(
-            new CandidatePointQuery(SourceType: CandidatePointSourceTypes.SystemAnalysis),
+            new CandidatePointQuery(
+                SourceType: CandidatePointSourceTypes.SystemAnalysis,
+                IncludeIncomplete: true),
             cancellationToken);
         var locationKey = CreateLocationKey(canonicalCell.RepresentativePoint);
         var existingAtLocation = systemCandidates.FirstOrDefault(candidate =>
@@ -154,7 +168,14 @@ public sealed class CandidatePointService : ICandidatePointService
                 "Bu konum daha önce başka bir analizden aday noktaya dönüştürülmüş.");
         }
 
-        var candidatePoint = CreateSystemCandidate(cell, canonicalCell, createdByUserId);
+        var costConfiguration = await LoadBaselineCostConfigurationAsync(cancellationToken);
+        var candidatePoint = await CreateSystemCandidateAsync(
+            cell,
+            canonicalCell,
+            createdByUserId,
+            costConfiguration,
+            cancellationToken);
+        ApplyRelativeCandidateScores([candidatePoint]);
 
         var created = await _candidatePointRepository.AddAsync(candidatePoint, cancellationToken);
 
@@ -217,25 +238,58 @@ public sealed class CandidatePointService : ICandidatePointService
             eligiblePairs.Select(pair => pair.Canonical.Id).ToArray(),
             cancellationToken);
         var existingSystemCandidates = await _candidatePointRepository.GetCandidatePointsAsync(
-            new CandidatePointQuery(SourceType: CandidatePointSourceTypes.SystemAnalysis),
+            new CandidatePointQuery(
+                SourceType: CandidatePointSourceTypes.SystemAnalysis,
+                IncludeIncomplete: true),
             cancellationToken);
-        var occupiedLocations = existingSystemCandidates
+        var existingByCellId = existingSystemCandidates
+            .Where(candidate => candidate.SourceSuitabilityCellId.HasValue)
+            .GroupBy(candidate => candidate.SourceSuitabilityCellId!.Value)
+            .ToDictionary(group => group.Key, group => group.First());
+        var existingByLocation = existingSystemCandidates
             .Where(candidate => candidate.Location is not null)
-            .Select(candidate => CreateLocationKey(candidate.Location!))
-            .ToHashSet();
+            .GroupBy(candidate => CreateLocationKey(candidate.Location!))
+            .ToDictionary(group => group.Key, group => group.First());
         var candidates = new List<CandidatePoint>();
+        var refreshedCandidates = new List<CandidatePoint>();
+        var scoredCandidates = new List<CandidatePoint>();
+        var refreshedCandidateIds = new HashSet<int>();
+        var costConfiguration = await LoadBaselineCostConfigurationAsync(cancellationToken);
 
         foreach (var pair in eligiblePairs)
         {
-            if (existingIds.Contains(pair.Canonical.Id)
-                || !occupiedLocations.Add(CreateLocationKey(pair.Canonical.RepresentativePoint)))
+            var locationKey = CreateLocationKey(pair.Canonical.RepresentativePoint);
+            existingByCellId.TryGetValue(pair.Canonical.Id, out var existingCandidate);
+            existingCandidate ??= existingByLocation.GetValueOrDefault(locationKey);
+
+            var refreshed = await CreateSystemCandidateAsync(
+                pair.Source,
+                pair.Canonical,
+                createdByUserId,
+                costConfiguration,
+                cancellationToken);
+
+            if (existingCandidate is not null || existingIds.Contains(pair.Canonical.Id))
             {
+                if (existingCandidate is not null
+                    && refreshedCandidateIds.Add(existingCandidate.Id))
+                {
+                    ApplySystemAnalysis(existingCandidate, refreshed);
+                    refreshedCandidates.Add(existingCandidate);
+                    scoredCandidates.Add(existingCandidate);
+                }
+
                 continue;
             }
 
-            candidates.Add(CreateSystemCandidate(pair.Source, pair.Canonical, createdByUserId));
+            candidates.Add(refreshed);
+            scoredCandidates.Add(refreshed);
+            existingByCellId[pair.Canonical.Id] = refreshed;
+            existingByLocation[locationKey] = refreshed;
         }
 
+        ApplyRelativeCandidateScores(scoredCandidates);
+        await _candidatePointRepository.UpdateRangeAsync(refreshedCandidates, cancellationToken);
         await _candidatePointRepository.AddRangeAsync(candidates, cancellationToken);
 
         var result = new BulkCandidatePointPromotionResult(
@@ -247,9 +301,9 @@ public sealed class CandidatePointService : ICandidatePointService
 
         return ApiResponse<BulkCandidatePointPromotionResult>.Ok(
             result,
-            candidates.Count > 0
-                ? $"{candidates.Count} sistem önerisi aday noktalara eklendi."
-                : "Eklenebilecek yeni sistem önerisi bulunamadı.");
+            candidates.Count > 0 || refreshedCandidates.Count > 0
+                ? $"{candidates.Count} yeni sistem önerisi eklendi, {refreshedCandidates.Count} mevcut aday güncellendi."
+                : "Eklenebilecek veya güncellenecek sistem önerisi bulunamadı.");
     }
 
     public async Task<ApiResponse<CandidatePointResponse>> CreateUserManualAsync(
@@ -326,14 +380,20 @@ public sealed class CandidatePointService : ICandidatePointService
             "Seçilen konum kullanıcı adayı olarak kaydedildi.");
     }
 
-    private static CandidatePoint CreateSystemCandidate(
+    private async Task<CandidatePoint> CreateSystemCandidateAsync(
         SuitabilityCell sourceCell,
         SuitabilityCell canonicalCell,
-        int createdByUserId)
+        int createdByUserId,
+        BaselineCostConfiguration? costConfiguration,
+        CancellationToken cancellationToken)
     {
         var score = Math.Clamp((int)Math.Round(sourceCell.SuitabilityScore!.Value), 0, 100);
         var regionName = canonicalCell.Region?.Name ?? sourceCell.Region?.Name ?? string.Empty;
         var neighborhoodName = canonicalCell.Neighborhood?.Name ?? sourceCell.Neighborhood?.Name ?? string.Empty;
+        var estimatedCost = await CalculateBaselineCostAsync(
+            sourceCell,
+            costConfiguration,
+            cancellationToken);
 
         return new CandidatePoint
         {
@@ -344,7 +404,7 @@ public sealed class CandidatePointService : ICandidatePointService
                 .Where(value => !string.IsNullOrWhiteSpace(value))),
             Region = regionName,
             Neighborhood = neighborhoodName,
-            EstimatedCost = sourceCell.EstimatedCost,
+            EstimatedCost = estimatedCost ?? sourceCell.EstimatedCost,
             GeneralScore = score,
             Location = new Point(canonicalCell.RepresentativePoint.X, canonicalCell.RepresentativePoint.Y) { SRID = 4326 },
             RegionId = canonicalCell.Region?.SourceId ?? sourceCell.Region?.SourceId,
@@ -355,9 +415,11 @@ public sealed class CandidatePointService : ICandidatePointService
             PoiCount300Meters = sourceCell.PoiCount300Meters,
             PoiCount500Meters = sourceCell.PoiCount500Meters,
             PoiCount1000Meters = sourceCell.PoiCount1000Meters,
+            Population = ToNullableInt(sourceCell.PopulationDensityPerSquareKilometer),
             SuitabilityPercent = (double)sourceCell.SuitabilityScore.Value,
             AlgorithmVersion = CandidatePointAlgorithmVersions.CanonicalGrid200Meters,
             CalculatedAtUtc = sourceCell.CalculatedAtUtc,
+            SystemType = "AC",
             PlaceType = "Sabit Aday Hexagonu",
             Status = "Draft",
             SourceType = CandidatePointSourceTypes.SystemAnalysis,
@@ -367,6 +429,184 @@ public sealed class CandidatePointService : ICandidatePointService
             CreatedAtUtc = DateTime.UtcNow
         };
     }
+
+    private async Task<BaselineCostConfiguration?> LoadBaselineCostConfigurationAsync(
+        CancellationToken cancellationToken)
+    {
+        const string systemType = "AC";
+        const int powerKw = 22;
+        const string venueType = "Workplace";
+
+        var modelSetting = await _costConfigurationRepository.GetModelSettingAsync(cancellationToken);
+        var costProfile = await _costConfigurationRepository.GetProfileAsync(
+            systemType,
+            powerKw,
+            cancellationToken);
+        var venueMultiplier = await _costConfigurationRepository.GetVenueMultiplierAsync(
+            venueType,
+            cancellationToken);
+
+        return modelSetting is null || costProfile is null || venueMultiplier is null
+            ? null
+            : new BaselineCostConfiguration(modelSetting, costProfile, venueMultiplier);
+    }
+
+    private static void ApplySystemAnalysis(
+        CandidatePoint target,
+        CandidatePoint source)
+    {
+        target.Name = source.Name;
+        target.EstimatedAddress = source.EstimatedAddress;
+        target.Region = source.Region;
+        target.Neighborhood = source.Neighborhood;
+        target.EstimatedCost = source.EstimatedCost;
+        target.GeneralScore = source.GeneralScore;
+        target.Location = source.Location;
+        target.RegionId = source.RegionId;
+        target.NeighborhoodId = source.NeighborhoodId;
+        target.NearestTransformerMeters = source.NearestTransformerMeters;
+        target.NearestMajorRoadMeters = source.NearestMajorRoadMeters;
+        target.NearestStationMeters = source.NearestStationMeters;
+        target.PoiCount300Meters = source.PoiCount300Meters;
+        target.PoiCount500Meters = source.PoiCount500Meters;
+        target.PoiCount1000Meters = source.PoiCount1000Meters;
+        target.Population = source.Population;
+        target.SuitabilityPercent = source.SuitabilityPercent;
+        target.AlgorithmVersion = source.AlgorithmVersion;
+        target.CalculatedAtUtc = source.CalculatedAtUtc;
+        target.SystemType = source.SystemType;
+        target.PlaceType = source.PlaceType;
+        target.Status = source.Status;
+        target.SourceType = source.SourceType;
+        target.SourceAnalysisRunId = source.SourceAnalysisRunId;
+        target.SourceSuitabilityCellId = source.SourceSuitabilityCellId;
+    }
+
+    private async Task<decimal?> CalculateBaselineCostAsync(
+        SuitabilityCell cell,
+        BaselineCostConfiguration? configuration,
+        CancellationToken cancellationToken)
+    {
+        if (configuration is null
+            || !cell.NearestTransformerMeters.HasValue
+            || !cell.SlopePercent.HasValue)
+        {
+            return null;
+        }
+
+        var slopeBand = await _costConfigurationRepository.GetSlopeBandAsync(
+            cell.SlopePercent.Value,
+            cancellationToken);
+
+        if (slopeBand is null)
+        {
+            return null;
+        }
+
+        var input = new CostEstimationInputDto
+        {
+            DistanceToTransformerMeters = cell.NearestTransformerMeters.Value,
+            SlopePercent = (double)cell.SlopePercent.Value,
+            ConnectorCount = 1,
+            CostModelVersion = configuration.ModelSetting.Version,
+            CurrencyCode = configuration.ModelSetting.CurrencyCode,
+            RouteMultiplier = configuration.ModelSetting.RouteMultiplier,
+            RoundingStep = configuration.ModelSetting.RoundingStep,
+            EquipmentCost = configuration.CostProfile.EquipmentCost,
+            FixedElectricalInfrastructureCost =
+                configuration.CostProfile.FixedElectricalInfrastructureCost,
+            CableUnitCostPerMeter = configuration.CostProfile.CableUnitCostPerMeter,
+            FixedSiteCost = configuration.CostProfile.FixedSiteCost,
+            TrenchRestorationUnitCostPerMeter =
+                configuration.CostProfile.TrenchRestorationUnitCostPerMeter,
+            RiskRate = configuration.CostProfile.RiskRate,
+            SlopeExtraRate = slopeBand.ExtraRate,
+            VenueMultiplier = configuration.VenueMultiplier.Multiplier
+        };
+
+        return _costEstimationService.Calculate(input).EstimatedCost;
+    }
+
+    private static void ApplyRelativeCandidateScores(IReadOnlyList<CandidatePoint> candidates)
+    {
+        var costScores = BuildPercentileScores(
+            candidates,
+            candidate => candidate.EstimatedCost.HasValue
+                ? (double)candidate.EstimatedCost.Value
+                : null,
+            lowerValueIsBetter: true);
+        var poiScores = BuildPercentileScores(
+            candidates,
+            candidate => candidate.PoiCount500Meters,
+            lowerValueIsBetter: false);
+        var populationScores = BuildPercentileScores(
+            candidates,
+            candidate => candidate.Population,
+            lowerValueIsBetter: false);
+
+        foreach (var candidate in candidates)
+        {
+            candidate.CostScore = costScores.GetValueOrDefault(candidate);
+
+            var poiScore = poiScores.GetValueOrDefault(
+                candidate,
+                candidate.GeneralScore ?? 0);
+            var populationScore = populationScores.GetValueOrDefault(
+                candidate,
+                poiScore);
+            candidate.DemandScore = Math.Clamp(
+                (int)Math.Round(
+                    poiScore * 0.60d + populationScore * 0.40d,
+                    MidpointRounding.AwayFromZero),
+                0,
+                100);
+        }
+    }
+
+    private static Dictionary<CandidatePoint, int> BuildPercentileScores(
+        IReadOnlyList<CandidatePoint> candidates,
+        Func<CandidatePoint, double?> selector,
+        bool lowerValueIsBetter)
+    {
+        var ordered = candidates
+            .Select(candidate => new { Candidate = candidate, Value = selector(candidate) })
+            .Where(item => item.Value.HasValue && double.IsFinite(item.Value.Value))
+            .OrderBy(item => item.Value)
+            .ToList();
+        var result = new Dictionary<CandidatePoint, int>();
+
+        for (var index = 0; index < ordered.Count; index++)
+        {
+            var percentile = ordered.Count == 1
+                ? 100d
+                : index * 100d / (ordered.Count - 1);
+            var score = lowerValueIsBetter ? 100d - percentile : percentile;
+            result[ordered[index].Candidate] = Math.Clamp(
+                (int)Math.Round(score, MidpointRounding.AwayFromZero),
+                0,
+                100);
+        }
+
+        return result;
+    }
+
+    private static int? ToNullableInt(double? value)
+    {
+        if (!value.HasValue || !double.IsFinite(value.Value))
+        {
+            return null;
+        }
+
+        return (int)Math.Clamp(
+            Math.Round(value.Value, MidpointRounding.AwayFromZero),
+            int.MinValue,
+            int.MaxValue);
+    }
+
+    private sealed record BaselineCostConfiguration(
+        CostModelSetting ModelSetting,
+        CostProfile CostProfile,
+        VenueCostMultiplier VenueMultiplier);
 
     private static bool IsProvisionalRecommendation(SuitabilityCell cell)
     {
@@ -440,13 +680,15 @@ public sealed class CandidatePointService : ICandidatePointService
 
     private static string NormalizeStatus(string? value) => string.IsNullOrWhiteSpace(value) ? "Draft" : value.Trim();
 
-    private static CandidatePointResponse ToResponse(CandidatePoint candidatePoint)
+    internal static CandidatePointResponse ToResponse(CandidatePoint candidatePoint)
     {
         return new CandidatePointResponse(
             candidatePoint.Id,
             candidatePoint.Name,
             candidatePoint.EstimatedAddress,
+            candidatePoint.RegionId,
             candidatePoint.Region,
+            candidatePoint.NeighborhoodId,
             candidatePoint.Neighborhood,
             candidatePoint.EstimatedCost,
             candidatePoint.CostScore,
@@ -461,6 +703,8 @@ public sealed class CandidatePointService : ICandidatePointService
             candidatePoint.CreatedByUserId,
             candidatePoint.SourceAnalysisRunId,
             candidatePoint.SourceSuitabilityCellId,
-            candidatePoint.CreatedAtUtc);
+            candidatePoint.CreatedAtUtc,
+            candidatePoint.AlgorithmVersion,
+            candidatePoint.CalculatedAtUtc);
     }
 }

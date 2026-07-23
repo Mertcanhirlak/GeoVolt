@@ -16,11 +16,11 @@ const CANDIDATE_POINTS_API_ENABLED =
   String(
     import.meta.env
       .VITE_ENABLE_CANDIDATE_POINTS_API ??
-      "false",
+      "true",
   )
     .trim()
-    .toLocaleLowerCase("tr-TR") ===
-  "true";
+    .toLocaleLowerCase("tr-TR") !==
+  "false";
 
 const CANDIDATE_POINTS_ENDPOINT =
   "/api/candidate-points";
@@ -475,137 +475,432 @@ export async function getCandidatePoints(
   }
 }
 
+function normalizeRegionMatchValue(value) {
+  return String(value ?? "")
+    .trim()
+    .toLocaleLowerCase("tr-TR")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ı/g, "i")
+    .replace(/[^a-z0-9]/g, "")
+    .replace(/(mahallesi|mahalle|mah|mh|bolgesi|bolge)$/g, "");
+}
+
+function getRegionRecordId(region) {
+  const value =
+    region?.id ??
+    region?.Id ??
+    region?.ID ??
+    region?.regionId ??
+    region?.RegionId;
+
+  const numericValue = Number(value);
+
+  return Number.isInteger(numericValue) && numericValue > 0
+    ? numericValue
+    : null;
+}
+
+function collectRegionIds(region, fallbackRegionId) {
+  const ids = new Set();
+
+  const addId = (value) => {
+    const numericValue = Number(value);
+
+    if (Number.isInteger(numericValue) && numericValue > 0) {
+      ids.add(numericValue);
+    }
+  };
+
+  addId(fallbackRegionId);
+  addId(getRegionRecordId(region));
+
+  [
+    ...(Array.isArray(region?.regionIds) ? region.regionIds : []),
+    ...(Array.isArray(region?.RegionIds) ? region.RegionIds : []),
+  ].forEach(addId);
+
+  const sourceRegions = [
+    ...(Array.isArray(region?.sourceRegions) ? region.sourceRegions : []),
+    ...(Array.isArray(region?.SourceRegions) ? region.SourceRegions : []),
+  ];
+
+  sourceRegions.forEach((sourceRegion) => {
+    addId(getRegionRecordId(sourceRegion));
+  });
+
+  return ids;
+}
+
+function getRegionBoundaryValue(region) {
+  const possibleValues = [
+    region?.boundaryGeoJson,
+    region?.boundaryGeoJSON,
+    region?.BoundaryGeoJson,
+    region?.BoundaryGeoJSON,
+    region?.boundary,
+    region?.Boundary,
+    region?.geometry,
+    region?.Geometry,
+    region?.geoJson,
+    region?.geoJSON,
+    region?.GeoJson,
+    region?.GeoJSON,
+  ];
+
+  for (const value of possibleValues) {
+    if (!value) {
+      continue;
+    }
+
+    if (typeof value === "object") {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      try {
+        return JSON.parse(value);
+      } catch {
+        // Geçersiz GeoJSON değeri atlanır.
+      }
+    }
+  }
+
+  return null;
+}
+
+function collectRegionGeometries(region) {
+  const geometries = [];
+
+  const visit = (value) => {
+    if (!value || typeof value !== "object") {
+      return;
+    }
+
+    if (value.type === "FeatureCollection") {
+      (value.features ?? []).forEach(visit);
+      return;
+    }
+
+    if (value.type === "Feature") {
+      visit(value.geometry);
+      return;
+    }
+
+    if (value.type === "GeometryCollection") {
+      (value.geometries ?? []).forEach(visit);
+      return;
+    }
+
+    if (value.type === "Polygon" || value.type === "MultiPolygon") {
+      geometries.push(value);
+    }
+  };
+
+  visit(getRegionBoundaryValue(region));
+
+  const sourceRegions = [
+    ...(Array.isArray(region?.sourceRegions) ? region.sourceRegions : []),
+    ...(Array.isArray(region?.SourceRegions) ? region.SourceRegions : []),
+  ];
+
+  sourceRegions.forEach((sourceRegion) => {
+    visit(getRegionBoundaryValue(sourceRegion));
+  });
+
+  return geometries;
+}
+
+function isCoordinatePair(value) {
+  if (!Array.isArray(value) || value.length < 2) {
+    return false;
+  }
+
+  const longitude = Number(value[0]);
+  const latitude = Number(value[1]);
+
+  return (
+    Number.isFinite(longitude) &&
+    Number.isFinite(latitude) &&
+    longitude >= -180 &&
+    longitude <= 180 &&
+    latitude >= -90 &&
+    latitude <= 90
+  );
+}
+
+function isPointInsideRing(longitude, latitude, ring) {
+  if (
+    !Array.isArray(ring) ||
+    ring.length < 4 ||
+    !ring.every(isCoordinatePair)
+  ) {
+    return false;
+  }
+
+  let inside = false;
+
+  for (
+    let index = 0, previousIndex = ring.length - 1;
+    index < ring.length;
+    previousIndex = index++
+  ) {
+    const currentLongitude = Number(ring[index][0]);
+    const currentLatitude = Number(ring[index][1]);
+    const previousLongitude = Number(ring[previousIndex][0]);
+    const previousLatitude = Number(ring[previousIndex][1]);
+
+    const crossesLatitude =
+      currentLatitude > latitude !== previousLatitude > latitude;
+
+    if (!crossesLatitude) {
+      continue;
+    }
+
+    const intersectionLongitude =
+      ((previousLongitude - currentLongitude) *
+        (latitude - currentLatitude)) /
+        (previousLatitude - currentLatitude || Number.EPSILON) +
+      currentLongitude;
+
+    if (longitude < intersectionLongitude) {
+      inside = !inside;
+    }
+  }
+
+  return inside;
+}
+
+function isPointInsidePolygon(longitude, latitude, polygonCoordinates) {
+  if (
+    !Array.isArray(polygonCoordinates) ||
+    polygonCoordinates.length === 0 ||
+    !isPointInsideRing(longitude, latitude, polygonCoordinates[0])
+  ) {
+    return false;
+  }
+
+  return !polygonCoordinates
+    .slice(1)
+    .some((holeRing) => isPointInsideRing(longitude, latitude, holeRing));
+}
+
+function isPointInsideGeometry(longitude, latitude, geometry) {
+  if (geometry?.type === "Polygon") {
+    return isPointInsidePolygon(longitude, latitude, geometry.coordinates);
+  }
+
+  if (geometry?.type === "MultiPolygon") {
+    return (geometry.coordinates ?? []).some((polygonCoordinates) =>
+      isPointInsidePolygon(longitude, latitude, polygonCoordinates),
+    );
+  }
+
+  return false;
+}
+
+function candidateMatchesSelectedRegion(candidate, regionContext) {
+  const candidateLatitude = Number(candidate?.latitude);
+  const candidateLongitude = Number(candidate?.longitude);
+
+  const candidateRegionId = Number(candidate?.regionId);
+  const idMatches =
+    Number.isInteger(candidateRegionId) &&
+    candidateRegionId > 0 &&
+    regionContext.regionIds.has(candidateRegionId);
+
+  const candidateLocationValues = [
+    candidate?.region,
+    candidate?.regionName,
+    candidate?.neighborhood,
+    candidate?.neighborhoodName,
+    candidate?.estimatedAddress,
+  ]
+    .map(normalizeRegionMatchValue)
+    .filter(Boolean);
+
+  const nameMatches =
+    Boolean(regionContext.normalizedRegionName) &&
+    candidateLocationValues.some(
+      (value) =>
+        value === regionContext.normalizedRegionName ||
+        value.includes(regionContext.normalizedRegionName) ||
+        regionContext.normalizedRegionName.includes(value),
+    );
+
+  const geometryMatches =
+    Number.isFinite(candidateLatitude) &&
+    Number.isFinite(candidateLongitude) &&
+    regionContext.geometries.some((geometry) =>
+      isPointInsideGeometry(
+        candidateLongitude,
+        candidateLatitude,
+        geometry,
+      ),
+    );
+
+  return idMatches || nameMatches || geometryMatches;
+}
+
+function createRegionContext(regionId, regionName, region) {
+  return {
+    regionIds: collectRegionIds(region, regionId),
+    normalizedRegionName: normalizeRegionMatchValue(
+      regionName ??
+        region?.name ??
+        region?.Name ??
+        region?.regionName ??
+        region?.RegionName,
+    ),
+    geometries: collectRegionGeometries(region),
+  };
+}
+
 export async function scanCandidatePointsByRegion(
   regionId,
-  minGeneralScore = 80,
-  additionalFilters = {},
+  filtersOrMinimumScore = {},
+  legacyAdditionalFilters = {},
 ) {
-  const numericRegionId =
-    Number(regionId);
+  const numericRegionId = Number(regionId);
 
-  const numericMinimumScore =
-    Number(minGeneralScore);
-
-  if (
-    !Number.isInteger(
-      numericRegionId,
-    ) ||
-    numericRegionId <= 0
-  ) {
+  if (!Number.isInteger(numericRegionId) || numericRegionId <= 0) {
     return {
       data: [],
       source: "validation",
-
-      error:
-        "Bölgeyi taramak için geçerli bir bölge seçmelisiniz.",
-
+      error: "Bölgeyi taramak için geçerli bir bölge seçmelisiniz.",
       message: "",
       isRealData: false,
       regionId: null,
-
-      minGeneralScore:
-        numericMinimumScore,
     };
   }
 
-  if (
-    !Number.isFinite(
-      numericMinimumScore,
-    ) ||
-    numericMinimumScore < 0 ||
-    numericMinimumScore > 100
-  ) {
-    return {
-      data: [],
-      source: "validation",
-
-      error:
-        "Minimum genel skor 0 ile 100 arasında olmalıdır.",
-
-      message: "",
-      isRealData: false,
-
-      regionId:
-        numericRegionId,
-
-      minGeneralScore: null,
-    };
-  }
-
-  if (
-    !CANDIDATE_POINTS_API_ENABLED
-  ) {
+  if (!CANDIDATE_POINTS_API_ENABLED) {
     return {
       data: [],
       source: "disabled",
       error: null,
-
       message:
         "Gerçek aday backend'i henüz aktif değil. Demo sonuç gerçek tarama sonucu gibi gösterilmiyor.",
-
       isRealData: false,
-
-      regionId:
-        numericRegionId,
-
-      minGeneralScore:
-        numericMinimumScore,
+      regionId: numericRegionId,
     };
   }
 
-  const result =
-    await getCandidatePoints({
-      ...additionalFilters,
+  const additionalFilters =
+    filtersOrMinimumScore &&
+    typeof filtersOrMinimumScore === "object" &&
+    !Array.isArray(filtersOrMinimumScore)
+      ? filtersOrMinimumScore
+      : legacyAdditionalFilters;
 
-      regionId:
-        numericRegionId,
+  const {
+    regionName,
+    region,
+    minGeneralScore: ignoredMinGeneralScore,
+    generalMin: ignoredGeneralMin,
+    ...requestFilters
+  } = additionalFilters ?? {};
 
-      minGeneralScore:
-        numericMinimumScore,
-    });
+  void ignoredMinGeneralScore;
+  void ignoredGeneralMin;
 
-  if (!result.isRealData) {
+  const regionContext = createRegionContext(
+    numericRegionId,
+    regionName,
+    region,
+  );
+
+  const regionResult = await getCandidatePoints({
+    ...requestFilters,
+    regionId: numericRegionId,
+  });
+
+  if (!regionResult.isRealData) {
     return {
-      ...result,
-
-      regionId:
-        numericRegionId,
-
-      minGeneralScore:
-        numericMinimumScore,
+      ...regionResult,
+      regionId: numericRegionId,
     };
   }
 
-  const verifiedCandidates =
-    result.data.filter(
-      (candidate) => {
-        const score = Number(
-          candidate?.generalScore,
-        );
+  const regionResponseCandidates = Array.isArray(regionResult.data)
+    ? regionResult.data
+    : [];
 
-        return (
-          Number.isFinite(score) &&
-          score >=
-            numericMinimumScore
-        );
-      },
+  /*
+   * Backend regionId parametresini yok sayarsa bütün adayları döndürebilir.
+   * Bu nedenle cevabı hiçbir koşulda doğrudan güvenilir kabul etmiyoruz.
+   * Her aday seçili bölgenin id/ad/polygon bilgisiyle doğrulanır.
+   */
+  let verifiedCandidates = regionResponseCandidates.filter((candidate) =>
+    candidateMatchesSelectedRegion(candidate, regionContext),
+  );
+
+  let requestMode = "region-query-strict";
+  let totalCandidateCount = regionResponseCandidates.length;
+
+  if (verifiedCandidates.length === 0) {
+    const allCandidatesResult = await getCandidatePoints(requestFilters);
+
+    if (!allCandidatesResult.isRealData) {
+      return {
+        ...allCandidatesResult,
+        regionId: numericRegionId,
+      };
+    }
+
+    const allCandidates = Array.isArray(allCandidatesResult.data)
+      ? allCandidatesResult.data
+      : [];
+
+    totalCandidateCount = allCandidates.length;
+    verifiedCandidates = allCandidates.filter((candidate) =>
+      candidateMatchesSelectedRegion(candidate, regionContext),
     );
+    requestMode = "all-candidates-strict-spatial-filter";
+  }
+
+  const isFiniteValue = (value) =>
+    value !== null &&
+    value !== undefined &&
+    value !== "" &&
+    Number.isFinite(Number(value));
+
+  const completeCandidates = verifiedCandidates.filter(
+    (candidate) =>
+      isFiniteValue(candidate?.estimatedCost) &&
+      isFiniteValue(candidate?.costScore) &&
+      isFiniteValue(candidate?.demandScore) &&
+      isFiniteValue(candidate?.generalScore) &&
+      isFiniteValue(candidate?.latitude) &&
+      isFiniteValue(candidate?.longitude),
+  );
+
+  const incompleteCandidateCount =
+    verifiedCandidates.length - completeCandidates.length;
+
+  let message = "";
+
+  if (completeCandidates.length > 0 && incompleteCandidateCount > 0) {
+    message = `${completeCandidates.length} tam hesaplanmış aday gösterildi. ${incompleteCandidateCount} adayın maliyet veya skor alanları backend cevabında eksik olduğu için gösterilmedi.`;
+  } else if (completeCandidates.length > 0) {
+    message = `${completeCandidates.length} tam hesaplanmış bölgesel aday nokta getirildi.`;
+  } else if (verifiedCandidates.length > 0) {
+    message = `${verifiedCandidates.length} aday seçili bölgeyle eşleşti; ancak tahmini maliyet, maliyet skoru, talep skoru veya genel skor alanları backend cevabında eksik. Frontend gerçek değer uydurmadığı için bu adaylar gösterilmedi.`;
+  } else if (totalCandidateCount === 0) {
+    message = "Aday nokta endpoint'i boş liste döndürdü.";
+  } else {
+    message = "Backend aday listesini döndürdü; ancak seçili bölgeye ait doğrulanmış aday bulunamadı. RegionId filtresi backend tarafından uygulanmıyor olabilir.";
+  }
 
   return {
-    ...result,
-
-    data:
-      verifiedCandidates,
-
-    message:
-      result.message ||
-      `${verifiedCandidates.length} bölgesel aday nokta getirildi.`,
-
-    regionId:
-      numericRegionId,
-
-    minGeneralScore:
-      numericMinimumScore,
+    ...regionResult,
+    data: completeCandidates,
+    message,
+    regionId: numericRegionId,
+    requestMode,
+    totalCandidateCount,
+    matchedCandidateCount: verifiedCandidates.length,
+    incompleteCandidateCount,
   };
 }
 
