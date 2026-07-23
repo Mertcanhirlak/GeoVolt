@@ -18,6 +18,7 @@ import {
   updateAdminUserRole
 } from "../services/adminService";
 import geovoltLogo from "../assets/geovolt-logo-transparent.png";
+import AdminCostManagement from "../components/AdminCostManagement";
 import AdminMapOperations from "../components/AdminMapOperations";
 import "./AdminPanel.css";
 
@@ -57,6 +58,7 @@ const permissionGroups = {
     "data.import.validate",
     "data.import.execute"
   ],
+  cost: ["cost.read", "cost.update"],
   roles: ["role.read", "role.create", "role.update", "role.delete", "permission.assign"],
   roleAssignment: ["user.role.assign"],
   status: ["dashboard.admin.view"]
@@ -125,6 +127,10 @@ export default function AdminPanel() {
 
     if (hasAnyPermission(permissionGroups.map)) {
       tabs.push({ id: "map", label: "Harita İşlemleri" });
+    }
+
+    if (hasAnyPermission(permissionGroups.cost)) {
+      tabs.push({ id: "cost", label: "Maliyet Yönetimi" });
     }
 
     if (hasAnyPermission(permissionGroups.roles)) {
@@ -975,6 +981,17 @@ export default function AdminPanel() {
           token={token}
           hasPermission={hasPermission}
         />
+      )}
+
+      {activeTab === "cost" && (
+        <section className="admin-tab-panel">
+          <div className="admin-panel admin-wide-panel">
+            <AdminCostManagement
+              token={token}
+              canUpdate={hasPermission("cost.update")}
+            />
+          </div>
+        </section>
       )}
 
       {activeTab === "roles" && (

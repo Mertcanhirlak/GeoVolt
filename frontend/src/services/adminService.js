@@ -129,6 +129,17 @@ export function assignAdminUserPermissions(token, userId, permissionIds) {
   });
 }
 
+export function getAdminCostProfiles(token) {
+  return requestAdmin("/api/admin/cost-profiles", token);
+}
+
+export function updateAdminCostProfile(token, profileId, profile) {
+  return requestAdmin(`/api/admin/cost-profiles/${profileId}`, token, {
+    method: "PUT",
+    body: JSON.stringify(profile)
+  });
+}
+
 export function getAdminCandidatePoints(token, filters = {}) {
   const query = new URLSearchParams();
 

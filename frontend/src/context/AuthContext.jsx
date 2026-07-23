@@ -18,6 +18,8 @@ const managementPermissions = [
   "point.create",
   "point.update",
   "point.delete",
+  "cost.read",
+  "cost.update",
   "dashboard.admin.view"
 ];
 

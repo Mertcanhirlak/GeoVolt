@@ -36,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<INeighborhoodService, NeighborhoodService>();
         services.AddScoped<IManualPinService, ManualPinService>();
         services.AddScoped<ICostEstimationService, CostEstimationService>();
+        services.AddScoped<ICostProfileManagementService, CostProfileManagementService>();
         services.AddScoped<ISuitabilityAnalysisService, SuitabilityAnalysisService>();
 
         return services;
