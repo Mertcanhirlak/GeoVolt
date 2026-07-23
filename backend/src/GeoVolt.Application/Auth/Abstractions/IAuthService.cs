@@ -7,5 +7,10 @@ public interface IAuthService
 {
     Task<ApiResponse<AuthResponse>> LoginAsync(LoginRequest request, CancellationToken cancellationToken);
 
+    Task<ApiResponse<AuthResponse>> ChangePasswordAsync(
+        int userId,
+        ChangePasswordRequest request,
+        CancellationToken cancellationToken);
+
     Task<ApiResponse<UserResponse>> GetCurrentUserAsync(int userId, CancellationToken cancellationToken);
 }

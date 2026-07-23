@@ -6,11 +6,14 @@ using GeoVolt.Domain.Constants;
 using GeoVolt.Application.SuitabilityAnalysis.Abstractions;
 using GeoVolt.Application.SuitabilityAnalysis.Models;
 using NetTopologySuite.Geometries;
+using System.Text.Json;
 
 namespace GeoVolt.Application.CandidatePoints;
 
 public sealed class CandidatePointService : ICandidatePointService
 {
+    private const decimal SystemCandidateMinimumScore = 75m;
+
     private readonly ICandidatePointRepository _candidatePointRepository;
     private readonly ISuitabilityAnalysisService _suitabilityAnalysisService;
 
@@ -82,17 +85,6 @@ public sealed class CandidatePointService : ICandidatePointService
         int createdByUserId,
         CancellationToken cancellationToken)
     {
-        var existing = await _candidatePointRepository.GetBySourceSuitabilityCellIdAsync(
-            cellId,
-            cancellationToken);
-
-        if (existing is not null)
-        {
-            return ApiResponse<CandidatePointPromotionResult>.Ok(
-                new CandidatePointPromotionResult(false, ToResponse(existing)),
-                "Bu analiz hücresi daha önce aday noktaya dönüştürülmüş.");
-        }
-
         var cell = await _candidatePointRepository.GetSuitabilityCellAsync(
             analysisRunId,
             cellId,
@@ -113,49 +105,151 @@ public sealed class CandidatePointService : ICandidatePointService
             return ApiResponse<CandidatePointPromotionResult>.Fail("Kesin engel bulunan hücre aday noktaya dönüştürülemez.");
         }
 
-        var score = Math.Clamp((int)Math.Round(cell.SuitabilityScore.Value), 0, 100);
-        var regionName = cell.Region?.Name ?? string.Empty;
-        var neighborhoodName = cell.Neighborhood?.Name ?? string.Empty;
-        var candidatePoint = new CandidatePoint
+        if (cell.SuitabilityScore < SystemCandidateMinimumScore || !IsProvisionalRecommendation(cell))
         {
-            Name = string.IsNullOrWhiteSpace(neighborhoodName)
-                ? $"Sistem Adayı - Hücre {cell.Id}"
-                : $"Sistem Adayı - {neighborhoodName}",
-            EstimatedAddress = string.Join(" / ", new[] { regionName, neighborhoodName }.Where(value => !string.IsNullOrWhiteSpace(value))),
-            Region = regionName,
-            Neighborhood = neighborhoodName,
-            EstimatedCost = cell.EstimatedCost,
-            GeneralScore = score,
-            EnergyScore = null,
-            AccessScore = null,
-            Location = new Point(cell.RepresentativePoint.X, cell.RepresentativePoint.Y) { SRID = 4326 },
-            RegionId = cell.Region?.SourceId,
-            NeighborhoodId = cell.Neighborhood?.SourceId,
-            NearestTransformerMeters = cell.NearestTransformerMeters,
-            NearestMajorRoadMeters = cell.NearestMajorRoadMeters,
-            NearestStationMeters = cell.NearestStationMeters,
-            PoiCount300Meters = cell.PoiCount300Meters,
-            PoiCount500Meters = cell.PoiCount500Meters,
-            PoiCount1000Meters = cell.PoiCount1000Meters,
-            Population = null,
-            SuitabilityPercent = (double)cell.SuitabilityScore.Value,
-            AlgorithmVersion = "analysis-grid-v1",
-            CalculatedAtUtc = cell.CalculatedAtUtc,
-            SystemType = string.Empty,
-            PlaceType = "Analiz Grid Hücresi",
-            Status = "Draft",
-            SourceType = CandidatePointSourceTypes.SystemAnalysis,
-            CreatedByUserId = createdByUserId,
-            SourceAnalysisRunId = analysisRunId,
-            SourceSuitabilityCellId = cell.Id,
-            CreatedAtUtc = DateTime.UtcNow
-        };
+            return ApiResponse<CandidatePointPromotionResult>.Fail(
+                $"Yalnızca {SystemCandidateMinimumScore:0}+ puanlı ve sistem tarafından önerilen hücreler aday noktaya dönüştürülebilir.");
+        }
+
+        if (cell.AnalysisRun.GridEdgeMeters != SuitabilityGridDefaults.EdgeMeters)
+        {
+            return ApiResponse<CandidatePointPromotionResult>.Fail(
+                $"Aday noktalar yalnızca sabit {SuitabilityGridDefaults.EdgeMeters} metrelik hexagon evreninden oluşturulabilir.");
+        }
+
+        var canonicalCell = await _candidatePointRepository.GetCanonicalSuitabilityCellAsync(
+            cell.AnalysisRun.StudyAreaDistrictId,
+            SuitabilityGridDefaults.EdgeMeters,
+            cell.CellI,
+            cell.CellJ,
+            cancellationToken);
+
+        if (canonicalCell is null)
+        {
+            return ApiResponse<CandidatePointPromotionResult>.Fail("Sabit aday hexagonu bulunamadı.");
+        }
+
+        var existing = await _candidatePointRepository.GetBySourceSuitabilityCellIdAsync(
+            canonicalCell.Id,
+            cancellationToken);
+
+        if (existing is not null)
+        {
+            return ApiResponse<CandidatePointPromotionResult>.Ok(
+                new CandidatePointPromotionResult(false, ToResponse(existing)),
+                "Bu sabit hexagon daha önce aday noktaya dönüştürülmüş.");
+        }
+
+        var systemCandidates = await _candidatePointRepository.GetCandidatePointsAsync(
+            new CandidatePointQuery(SourceType: CandidatePointSourceTypes.SystemAnalysis),
+            cancellationToken);
+        var locationKey = CreateLocationKey(canonicalCell.RepresentativePoint);
+        var existingAtLocation = systemCandidates.FirstOrDefault(candidate =>
+            candidate.Location is not null && CreateLocationKey(candidate.Location) == locationKey);
+
+        if (existingAtLocation is not null)
+        {
+            return ApiResponse<CandidatePointPromotionResult>.Ok(
+                new CandidatePointPromotionResult(false, ToResponse(existingAtLocation)),
+                "Bu konum daha önce başka bir analizden aday noktaya dönüştürülmüş.");
+        }
+
+        var candidatePoint = CreateSystemCandidate(cell, canonicalCell, createdByUserId);
 
         var created = await _candidatePointRepository.AddAsync(candidatePoint, cancellationToken);
 
         return ApiResponse<CandidatePointPromotionResult>.Ok(
             new CandidatePointPromotionResult(true, ToResponse(created)),
             "Analiz hücresi sistem adayına dönüştürüldü.");
+    }
+
+    public async Task<ApiResponse<BulkCandidatePointPromotionResult>> PromoteRecommendedSuitabilityCellsAsync(
+        int analysisRunId,
+        int createdByUserId,
+        CancellationToken cancellationToken)
+    {
+        if (!await _candidatePointRepository.SuitabilityAnalysisRunExistsAsync(
+            analysisRunId,
+            cancellationToken))
+        {
+            return ApiResponse<BulkCandidatePointPromotionResult>.Fail("Analiz çalışması bulunamadı.");
+        }
+
+        var gridEdgeMeters = await _candidatePointRepository.GetSuitabilityAnalysisRunGridEdgeMetersAsync(
+            analysisRunId,
+            cancellationToken);
+
+        if (gridEdgeMeters != SuitabilityGridDefaults.EdgeMeters)
+        {
+            return ApiResponse<BulkCandidatePointPromotionResult>.Fail(
+                $"Bu çalışma eski/değişken grid yapısını kullanıyor. Yalnızca sabit {SuitabilityGridDefaults.EdgeMeters} metrelik aday evreni aktarılabilir.");
+        }
+
+        var scoredCells = await _candidatePointRepository.GetSuitabilityCellsForPromotionAsync(
+            analysisRunId,
+            SystemCandidateMinimumScore,
+            cancellationToken);
+        var eligibleCells = scoredCells.Where(IsProvisionalRecommendation).ToList();
+        var studyAreaDistrictId = eligibleCells.FirstOrDefault()?.AnalysisRun.StudyAreaDistrictId;
+
+        if (!studyAreaDistrictId.HasValue)
+        {
+            return ApiResponse<BulkCandidatePointPromotionResult>.Ok(
+                new BulkCandidatePointPromotionResult(
+                    analysisRunId,
+                    SystemCandidateMinimumScore,
+                    0,
+                    0,
+                    0),
+                "Aday kriterlerini karşılayan sabit hexagon bulunamadı.");
+        }
+
+        var canonicalCells = await _candidatePointRepository.GetCanonicalSuitabilityCellsAsync(
+            studyAreaDistrictId.Value,
+            SuitabilityGridDefaults.EdgeMeters,
+            cancellationToken);
+        var canonicalCellMap = canonicalCells.ToDictionary(cell => (cell.CellI, cell.CellJ));
+        var eligiblePairs = eligibleCells
+            .Where(cell => canonicalCellMap.ContainsKey((cell.CellI, cell.CellJ)))
+            .Select(cell => (Source: cell, Canonical: canonicalCellMap[(cell.CellI, cell.CellJ)]))
+            .ToList();
+        var existingIds = await _candidatePointRepository.GetExistingSourceSuitabilityCellIdsAsync(
+            eligiblePairs.Select(pair => pair.Canonical.Id).ToArray(),
+            cancellationToken);
+        var existingSystemCandidates = await _candidatePointRepository.GetCandidatePointsAsync(
+            new CandidatePointQuery(SourceType: CandidatePointSourceTypes.SystemAnalysis),
+            cancellationToken);
+        var occupiedLocations = existingSystemCandidates
+            .Where(candidate => candidate.Location is not null)
+            .Select(candidate => CreateLocationKey(candidate.Location!))
+            .ToHashSet();
+        var candidates = new List<CandidatePoint>();
+
+        foreach (var pair in eligiblePairs)
+        {
+            if (existingIds.Contains(pair.Canonical.Id)
+                || !occupiedLocations.Add(CreateLocationKey(pair.Canonical.RepresentativePoint)))
+            {
+                continue;
+            }
+
+            candidates.Add(CreateSystemCandidate(pair.Source, pair.Canonical, createdByUserId));
+        }
+
+        await _candidatePointRepository.AddRangeAsync(candidates, cancellationToken);
+
+        var result = new BulkCandidatePointPromotionResult(
+            analysisRunId,
+            SystemCandidateMinimumScore,
+            eligiblePairs.Count,
+            candidates.Count,
+            eligiblePairs.Count - candidates.Count);
+
+        return ApiResponse<BulkCandidatePointPromotionResult>.Ok(
+            result,
+            candidates.Count > 0
+                ? $"{candidates.Count} sistem önerisi aday noktalara eklendi."
+                : "Eklenebilecek yeni sistem önerisi bulunamadı.");
     }
 
     public async Task<ApiResponse<CandidatePointResponse>> CreateUserManualAsync(
@@ -230,6 +324,71 @@ public sealed class CandidatePointService : ICandidatePointService
         return ApiResponse<CandidatePointResponse>.Ok(
             ToResponse(created),
             "Seçilen konum kullanıcı adayı olarak kaydedildi.");
+    }
+
+    private static CandidatePoint CreateSystemCandidate(
+        SuitabilityCell sourceCell,
+        SuitabilityCell canonicalCell,
+        int createdByUserId)
+    {
+        var score = Math.Clamp((int)Math.Round(sourceCell.SuitabilityScore!.Value), 0, 100);
+        var regionName = canonicalCell.Region?.Name ?? sourceCell.Region?.Name ?? string.Empty;
+        var neighborhoodName = canonicalCell.Neighborhood?.Name ?? sourceCell.Neighborhood?.Name ?? string.Empty;
+
+        return new CandidatePoint
+        {
+            Name = string.IsNullOrWhiteSpace(neighborhoodName)
+                ? $"Sistem Adayı - Hexagon {canonicalCell.Id}"
+                : $"Sistem Adayı - {neighborhoodName}",
+            EstimatedAddress = string.Join(" / ", new[] { regionName, neighborhoodName }
+                .Where(value => !string.IsNullOrWhiteSpace(value))),
+            Region = regionName,
+            Neighborhood = neighborhoodName,
+            EstimatedCost = sourceCell.EstimatedCost,
+            GeneralScore = score,
+            Location = new Point(canonicalCell.RepresentativePoint.X, canonicalCell.RepresentativePoint.Y) { SRID = 4326 },
+            RegionId = canonicalCell.Region?.SourceId ?? sourceCell.Region?.SourceId,
+            NeighborhoodId = canonicalCell.Neighborhood?.SourceId ?? sourceCell.Neighborhood?.SourceId,
+            NearestTransformerMeters = sourceCell.NearestTransformerMeters,
+            NearestMajorRoadMeters = sourceCell.NearestMajorRoadMeters,
+            NearestStationMeters = sourceCell.NearestStationMeters,
+            PoiCount300Meters = sourceCell.PoiCount300Meters,
+            PoiCount500Meters = sourceCell.PoiCount500Meters,
+            PoiCount1000Meters = sourceCell.PoiCount1000Meters,
+            SuitabilityPercent = (double)sourceCell.SuitabilityScore.Value,
+            AlgorithmVersion = CandidatePointAlgorithmVersions.CanonicalGrid200Meters,
+            CalculatedAtUtc = sourceCell.CalculatedAtUtc,
+            PlaceType = "Sabit Aday Hexagonu",
+            Status = "Draft",
+            SourceType = CandidatePointSourceTypes.SystemAnalysis,
+            CreatedByUserId = createdByUserId,
+            SourceAnalysisRunId = sourceCell.AnalysisRunId,
+            SourceSuitabilityCellId = canonicalCell.Id,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+    }
+
+    private static bool IsProvisionalRecommendation(SuitabilityCell cell)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(cell.MetricDetailsJson);
+            return document.RootElement.TryGetProperty("scoring", out var scoring)
+                && scoring.TryGetProperty("provisionalRecommendation", out var recommendation)
+                && recommendation.ValueKind is JsonValueKind.True;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static (long Longitude, long Latitude) CreateLocationKey(Point point)
+    {
+        const double coordinateScale = 1_000_000d;
+        return (
+            (long)Math.Round(point.X * coordinateScale),
+            (long)Math.Round(point.Y * coordinateScale));
     }
 
     private static void Apply(CandidatePoint candidatePoint, CreateCandidatePointRequest request)

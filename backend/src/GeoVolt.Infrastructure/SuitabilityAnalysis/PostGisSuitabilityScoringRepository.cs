@@ -64,7 +64,7 @@ public sealed partial class PostGisSuitabilityAnalysisRepository
 
         await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
         var previousCommandTimeout = _dbContext.Database.GetCommandTimeout();
-        _dbContext.Database.SetCommandTimeout(TimeSpan.FromMinutes(2));
+        _dbContext.Database.SetCommandTimeout(TimeSpan.FromMinutes(5));
 
         try
         {

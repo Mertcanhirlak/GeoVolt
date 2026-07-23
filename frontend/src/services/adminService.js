@@ -23,7 +23,10 @@ async function requestAdmin(path, token, options = {}) {
     }
 
     if (response.status === 404) {
-      throw new Error("Sunucu bu yönetim işlemini bulamadı. Uygulama sunucusunu yeniden başlatın.");
+      throw new Error(
+        payload.message ||
+        "Sunucu bu yönetim işlemini bulamadı. Uygulama sunucusunu yeniden başlatın."
+      );
     }
 
     throw new Error(payload.message || "İşlem tamamlanamadı.");
@@ -224,6 +227,12 @@ export function getAdminSuitabilityCells(token, analysisRunId, filters = {}) {
 
 export function promoteAdminSuitabilityCell(token, analysisRunId, cellId) {
   return requestAdmin(`/api/admin/suitability-analysis/${analysisRunId}/cells/${cellId}/candidate`, token, {
+    method: "POST"
+  });
+}
+
+export function promoteAdminRecommendedSuitabilityCells(token, analysisRunId) {
+  return requestAdmin(`/api/admin/suitability-analysis/${analysisRunId}/recommended-candidates`, token, {
     method: "POST"
   });
 }

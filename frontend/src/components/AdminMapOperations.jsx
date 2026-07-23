@@ -9,11 +9,14 @@ import {
   getAdminDataImports,
   getAdminSuitabilityCells,
   promoteAdminDataImport,
+  promoteAdminRecommendedSuitabilityCells,
   promoteAdminSuitabilityCell,
   stageAdminGeoJson,
   validateAdminGeoJson,
   updateAdminCandidatePoint
 } from "../services/adminService";
+import { getChargingStationsWithSource } from "../services/mapDataApi";
+import { getRegions } from "../services/regionsApi";
 import CandidatePointsMap from "./CandidatePointsMap";
 
 const emptyForm = {
@@ -93,17 +96,27 @@ function toForm(candidate) {
   );
 }
 
-function AdminMapOverview({ token, hasPermission }) {
+function AdminMapOverview({ token, hasPermission, onStartAnalysis }) {
   const [candidates, setCandidates] = useState([]);
+  const [regions, setRegions] = useState([]);
+  const [chargingStations, setChargingStations] = useState([]);
   const [sourceType, setSourceType] = useState("");
   const [analysisRunId, setAnalysisRunId] = useState("");
   const [analysisResult, setAnalysisResult] = useState(null);
   const [showCandidates, setShowCandidates] = useState(true);
   const [showAnalysis, setShowAnalysis] = useState(true);
+  const [showRegions, setShowRegions] = useState(true);
+  const [showChargingStations, setShowChargingStations] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [selectedCell, setSelectedCell] = useState(null);
+  const [selectedRegion, setSelectedRegion] = useState(null);
+  const [selectedChargingStation, setSelectedChargingStation] = useState(null);
   const [focusedCellId, setFocusedCellId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [stationLoading, setStationLoading] = useState(false);
+  const [promotionBusy, setPromotionBusy] = useState(false);
+  const [stationSource, setStationSource] = useState("");
+  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   const loadCandidates = useCallback(async () => {
@@ -125,6 +138,47 @@ function AdminMapOverview({ token, hasPermission }) {
   useEffect(() => {
     loadCandidates();
   }, [loadCandidates]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getRegions()
+      .then((result) => {
+        if (!isMounted) return;
+        setRegions(Array.isArray(result?.data) ? result.data : []);
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        setError(err.message || "Bölge verileri yüklenemedi.");
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  async function toggleChargingStations() {
+    const nextValue = !showChargingStations;
+    setShowChargingStations(nextValue);
+
+    if (!nextValue || chargingStations.length > 0) {
+      return;
+    }
+
+    setStationLoading(true);
+    setError("");
+
+    try {
+      const result = await getChargingStationsWithSource();
+      setChargingStations(Array.isArray(result?.data) ? result.data : []);
+      setStationSource(result?.source ?? "");
+    } catch (err) {
+      setShowChargingStations(false);
+      setError(err.message || "Şarj istasyonları yüklenemedi.");
+    } finally {
+      setStationLoading(false);
+    }
+  }
 
   async function loadAnalysis() {
     if (!analysisRunId) {
@@ -151,6 +205,33 @@ function AdminMapOverview({ token, hasPermission }) {
     }
   }
 
+  async function promoteOverviewCell() {
+    if (!analysisRunId || !selectedCell) return;
+
+    setPromotionBusy(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const result = await promoteAdminSuitabilityCell(
+        token,
+        Number(analysisRunId),
+        selectedCell.cellId
+      );
+      setMessage(
+        result?.created
+          ? "Seçilen grid sistem adayına dönüştürüldü."
+          : "Bu grid daha önce sistem adayına dönüştürülmüş."
+      );
+      setShowCandidates(true);
+      await loadCandidates();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setPromotionBusy(false);
+    }
+  }
+
   const mapCells = analysisResult?.cells ?? [];
   const displayedMapCells = selectedCell && !mapCells.some(
     (cell) => String(cell.cellId) === String(selectedCell.cellId)
@@ -169,12 +250,20 @@ function AdminMapOverview({ token, hasPermission }) {
               Kayıtlı aday noktaları görüntüleyin; çalışma numarasıyla analiz gridlerini aynı haritaya ekleyin.
             </p>
           </div>
-          <button type="button" className="admin-secondary-button" onClick={loadCandidates} disabled={loading}>
-            {loading ? "Yükleniyor..." : "Haritayı Yenile"}
-          </button>
+          <div className="admin-action-cell">
+            {hasPermission("data.import.execute") && (
+              <button type="button" className="admin-primary-button" onClick={onStartAnalysis}>
+                Yeni Analiz Oluştur
+              </button>
+            )}
+            <button type="button" className="admin-secondary-button" onClick={loadCandidates} disabled={loading}>
+              {loading ? "Yükleniyor..." : "Haritayı Yenile"}
+            </button>
+          </div>
         </div>
 
         {error && <div className="admin-alert admin-alert-error">{error}</div>}
+        {message && <div className="admin-alert admin-alert-success">{message}</div>}
 
         <div className="admin-map-toolbar admin-map-overview-toolbar">
           {hasPermission("point.read") && (
@@ -194,9 +283,22 @@ function AdminMapOverview({ token, hasPermission }) {
               </label>
             </>
           )}
+          <label className="admin-analysis-check">
+            <input type="checkbox" checked={showRegions} onChange={(event) => setShowRegions(event.target.checked)} />
+            Semt sınırları
+          </label>
+          <label className="admin-analysis-check">
+            <input
+              type="checkbox"
+              checked={showChargingStations}
+              onChange={toggleChargingStations}
+              disabled={stationLoading}
+            />
+            {stationLoading ? "Şarj istasyonları yükleniyor" : "Mevcut şarj istasyonları"}
+          </label>
           <label>
             Analiz çalışma no
-            <input type="number" min="1" value={analysisRunId} onChange={(event) => setAnalysisRunId(event.target.value)} placeholder="Örn. 11" />
+            <input type="number" min="1" value={analysisRunId} onChange={(event) => setAnalysisRunId(event.target.value)} placeholder="Örn. 14" />
           </label>
           <button type="button" className="admin-secondary-button" onClick={loadAnalysis} disabled={loading || !analysisRunId}>
             Analiz Gridlerini Göster
@@ -211,22 +313,51 @@ function AdminMapOverview({ token, hasPermission }) {
 
         <div className="admin-map-overview-stats">
           <span><strong>{candidates.length}</strong> aday nokta</span>
+          <span><strong>{showRegions ? regions.filter((region) => region?.boundaryGeoJson).length : 0}</strong> semt</span>
+          <span><strong>{showChargingStations ? chargingStations.length : 0}</strong> şarj istasyonu</span>
           <span><strong>{analysisResult?.returnedCellCount ?? 0}</strong> analiz hücresi</span>
           {analysisResult && <span><strong>#{analysisResult.analysisRunId}</strong> aktif çalışma</span>}
+          {stationSource && showChargingStations && <span>İstasyon kaynağı: <strong>{stationSource}</strong></span>}
         </div>
 
         <div className="admin-analysis-map-layout">
           <div className="admin-analysis-map-canvas admin-map-overview-canvas">
             <CandidatePointsMap
+              mapMode="admin"
               points={showCandidates ? candidates : []}
+              regions={regions}
+              regionsActive={showRegions}
+              chargingStations={chargingStations}
+              chargingStationsActive={showChargingStations}
+              selectedChargingStationId={selectedChargingStation?.id ?? null}
               selectedPointId={selectedCandidate?.id ?? null}
-              onPointSelect={setSelectedCandidate}
+              onPointSelect={(candidate) => {
+                setSelectedCandidate(candidate);
+                setSelectedChargingStation(null);
+                setSelectedRegion(null);
+                setSelectedCell(null);
+              }}
+              onChargingStationSelect={(station) => {
+                setSelectedChargingStation(station);
+                setSelectedCandidate(null);
+                setSelectedRegion(null);
+                setSelectedCell(null);
+              }}
+              onRegionSelect={(region) => {
+                setSelectedRegion(region);
+                setSelectedCandidate(null);
+                setSelectedChargingStation(null);
+                setSelectedCell(null);
+              }}
               analysisCells={displayedMapCells}
               analysisCellsActive={showAnalysis}
               selectedAnalysisCellId={selectedCell?.cellId ?? null}
               focusedRecommendationCellId={focusedCellId}
               onAnalysisCellSelect={(cell) => {
                 setSelectedCell(cell);
+                setSelectedCandidate(null);
+                setSelectedChargingStation(null);
+                setSelectedRegion(null);
                 setFocusedCellId(null);
               }}
             />
@@ -239,6 +370,20 @@ function AdminMapOverview({ token, hasPermission }) {
                 <strong>{selectedCell.suitabilityScore ?? "-"} puan</strong>
                 <p>{selectedCell.neighborhoodName || "Mahalle yok"} / {selectedCell.regionName || "Semt yok"}</p>
                 <small>{analysisStatusLabels[selectedCell.evaluationStatus] ?? selectedCell.evaluationStatus}</small>
+                {hasPermission("point.create") && (
+                  <button
+                    type="button"
+                    className="admin-analysis-promote"
+                    onClick={promoteOverviewCell}
+                    disabled={promotionBusy
+                      || analysisResult?.gridEdgeMeters !== 200
+                      || selectedCell.hasHardExclusion
+                      || selectedCell.suitabilityScore < 75
+                      || !selectedCell.isProvisionalRecommendation}
+                  >
+                    {promotionBusy ? "Ekleniyor..." : "Sistem Adayına Dönüştür"}
+                  </button>
+                )}
               </>
             ) : selectedCandidate ? (
               <>
@@ -246,6 +391,23 @@ function AdminMapOverview({ token, hasPermission }) {
                 <strong>{selectedCandidate.name}</strong>
                 <p>{selectedCandidate.neighborhood || "Mahalle yok"} / {selectedCandidate.region || "Semt yok"}</p>
                 <small>{getCandidateSourceLabel(selectedCandidate.sourceType)} · {selectedCandidate.generalScore ?? "-"} puan</small>
+              </>
+            ) : selectedChargingStation ? (
+              <>
+                <span>Mevcut şarj istasyonu</span>
+                <strong>{selectedChargingStation.name || "İsimsiz istasyon"}</strong>
+                <p>{selectedChargingStation.neighborhoodName || "Mahalle yok"} / {selectedChargingStation.regionName || "Semt yok"}</p>
+                <small>
+                  {selectedChargingStation.operatorName || "İşletmeci bilgisi yok"}
+                  {selectedChargingStation.maxPowerKw ? ` · ${selectedChargingStation.maxPowerKw} kW` : ""}
+                </small>
+              </>
+            ) : selectedRegion ? (
+              <>
+                <span>Seçilen semt</span>
+                <strong>{selectedRegion.name || selectedRegion.regionName || "Semt bilgisi"}</strong>
+                <p>Nüfus: {selectedRegion.population?.toLocaleString("tr-TR") || "Veri yok"}</p>
+                <small>Semt sınırı harita üzerinde aktif.</small>
               </>
             ) : (
               <p>Detayları görmek için haritadaki aday noktaya veya analiz hücresine tıklayın.</p>
@@ -276,7 +438,7 @@ function AdminMapOverview({ token, hasPermission }) {
   );
 }
 
-function CandidatePointManagement({ token, hasPermission, onOpenMap }) {
+function CandidatePointManagement({ token, hasPermission, onOpenMap, operationMessage = "" }) {
   const [candidates, setCandidates] = useState([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -286,7 +448,7 @@ function CandidatePointManagement({ token, hasPermission, onOpenMap }) {
   const [formOpen, setFormOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(operationMessage);
   const [error, setError] = useState("");
 
   const loadCandidates = useCallback(async () => {
@@ -376,6 +538,9 @@ function CandidatePointManagement({ token, hasPermission, onOpenMap }) {
           <div>
             <h2>Aday Nokta Yönetimi</h2>
             <p className="admin-muted-text">PostGIS üzerindeki aday noktaları yönetin.</p>
+            {hasPermission("point.read") && (
+              <small>{loading ? "Aday noktalar yükleniyor..." : `${candidates.length} aday nokta listeleniyor.`}</small>
+            )}
           </div>
           <div className="admin-action-cell">
             {hasPermission("point.create") && (
@@ -609,9 +774,9 @@ function DataImportManagement({ token, hasPermission }) {
   );
 }
 
-function SuitabilityAnalysisManagement({ token, hasPermission }) {
+function SuitabilityAnalysisManagement({ token, hasPermission, onOpenCandidates }) {
   const [districtSourceId, setDistrictSourceId] = useState("1231");
-  const [gridEdgeMeters, setGridEdgeMeters] = useState("250");
+  const gridEdgeMeters = "200";
   const [analysisRunId, setAnalysisRunId] = useState("");
   const [results, setResults] = useState({ grid: null, metrics: null, scores: null });
   const [activeStep, setActiveStep] = useState(0);
@@ -627,6 +792,7 @@ function SuitabilityAnalysisManagement({ token, hasPermission }) {
   const [candidateSourceType, setCandidateSourceType] = useState("");
   const [mapLoading, setMapLoading] = useState(false);
   const [promotionBusy, setPromotionBusy] = useState(false);
+  const [bulkPromotionBusy, setBulkPromotionBusy] = useState(false);
   const [analysisMessage, setAnalysisMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -674,19 +840,51 @@ function SuitabilityAnalysisManagement({ token, hasPermission }) {
         Number(analysisRunId),
         selectedMapCell.cellId
       );
-      setAnalysisMessage(
+      const promotionMessage =
         result?.created
           ? "Seçilen hücre sistem adayına dönüştürüldü."
-          : "Bu hücre zaten aday noktalar arasında bulunuyor."
-      );
+          : "Bu hücre zaten aday noktalar arasında bulunuyor.";
+      setAnalysisMessage(promotionMessage);
       setShowCandidates(true);
       setCandidateSourceType("SYSTEM_ANALYSIS");
       const candidates = await getAdminCandidatePoints(token, { sourceType: "SYSTEM_ANALYSIS" });
       setMapCandidates(Array.isArray(candidates) ? candidates : []);
+      if (hasPermission("point.read")) {
+        onOpenCandidates(promotionMessage);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
       setPromotionBusy(false);
+    }
+  }
+
+  async function promoteRecommendedCells() {
+    if (!analysisRunId) return;
+    if (!window.confirm("Bu analizdeki 75+ puanlı sabit hexagonlar aday noktalarla eşleştirilsin mi?")) return;
+
+    setBulkPromotionBusy(true);
+    setError("");
+    setAnalysisMessage("");
+
+    try {
+      const result = await promoteAdminRecommendedSuitabilityCells(token, Number(analysisRunId));
+      const promotionMessage =
+        result?.createdCount > 0
+          ? `${result.createdCount} sistem önerisi aday noktalara eklendi. ${result.alreadyExistingCount} kayıt daha önce eklenmişti.`
+          : `Yeni aday eklenmedi; uygun ${result?.eligibleCellCount ?? 0} hücrenin tamamı zaten aday noktalar listesinde.`;
+      setAnalysisMessage(promotionMessage);
+      setShowCandidates(true);
+      setCandidateSourceType("SYSTEM_ANALYSIS");
+      const candidates = await getAdminCandidatePoints(token, { sourceType: "SYSTEM_ANALYSIS" });
+      setMapCandidates(Array.isArray(candidates) ? candidates : []);
+      if (hasPermission("point.read")) {
+        onOpenCandidates(promotionMessage);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBulkPromotionBusy(false);
     }
   }
 
@@ -793,14 +991,11 @@ function SuitabilityAnalysisManagement({ token, hasPermission }) {
               <strong>Çankaya ilçesinin tamamı</strong>
               <small>İlçe sınırı içindeki tüm alanlar hücrelere bölünerek taranır.</small>
             </div>
-            <label>
-              Hassasiyet
-              <select value={gridEdgeMeters} onChange={(event) => setGridEdgeMeters(event.target.value)} disabled={busy}>
-                <option value="500">Hızlı — 500 metre</option>
-                <option value="250">Dengeli — 250 metre</option>
-                <option value="100">Detaylı — 100 metre</option>
-              </select>
-            </label>
+            <div className="admin-analysis-scope">
+              <span>Sabit aday evreni</span>
+              <strong>200 metrelik yaklaşık 4.635 hexagon</strong>
+              <small>Her analiz aynı hexagonları puanlar; çözünürlük değiştirerek yeni ve çakışan gridler oluşturmaz.</small>
+            </div>
           </div>
           <button
             type="button"
@@ -846,7 +1041,17 @@ function SuitabilityAnalysisManagement({ token, hasPermission }) {
               <div><dt>Veri kapsamı</dt><dd>{scoreResult.datasetCoverageVerified ? "Doğrulandı" : "Eksik/Doğrulanmadı"}</dd></div>
             </dl>
             <div className="admin-analysis-note">
-              Bu sonuçlar uygun alanları belirler; henüz otomatik olarak “Aday Noktalar” listesine eklenmez.
+              <span>75+ puanlı sistem önerileri sabit hexagon kimlikleri üzerinden aday noktalarla eşleştirilir.</span>
+              {hasPermission("point.create") && (
+                <button
+                  type="button"
+                  className="admin-analysis-promote"
+                  onClick={promoteRecommendedCells}
+                  disabled={bulkPromotionBusy || gridResult?.gridEdgeMeters !== 200}
+                >
+                  {bulkPromotionBusy ? "Hexagonlar eşleştiriliyor..." : "75+ Sistem Önerilerini Adaylarla Eşleştir"}
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -934,6 +1139,7 @@ function SuitabilityAnalysisManagement({ token, hasPermission }) {
             <div className="admin-analysis-map-layout">
               <div className="admin-analysis-map-canvas">
                 <CandidatePointsMap
+                  mapMode="admin"
                   points={showCandidates ? mapCandidates : []}
                   analysisCells={displayedAnalysisCells}
                   analysisCellsActive={showGrid}
@@ -965,7 +1171,7 @@ function SuitabilityAnalysisManagement({ token, hasPermission }) {
                       <div><dt>Şarj istasyonu uzaklığı</dt><dd>{selectedMapCell.metrics?.nearestStationMeters?.toFixed?.(0) ?? "-"} m</dd></div>
                       <div><dt>500 m POI</dt><dd>{selectedMapCell.metrics?.poiCount500Meters ?? "-"}</dd></div>
                       <div><dt>Nüfus yoğunluğu</dt><dd>{selectedMapCell.metrics?.populationDensityPerSquareKilometer?.toFixed?.(0) ?? "-"}</dd></div>
-                      <div><dt>Eğim</dt><dd>{selectedMapCell.metrics?.slopePercent ?? "-"}%</dd></div>
+                      <div><dt>Eğim yüzdesi</dt><dd>{selectedMapCell.metrics?.slopePercent ?? "-"}%</dd></div>
                     </dl>
                     <div className="admin-analysis-score-breakdown">
                       <h4>Puan bileşenleri</h4>
@@ -975,7 +1181,7 @@ function SuitabilityAnalysisManagement({ token, hasPermission }) {
                         <div><dt>POI</dt><dd>{selectedMapCell.scores?.poiScore ?? "-"}</dd></div>
                         <div><dt>Nüfus</dt><dd>{selectedMapCell.scores?.populationScore ?? "-"}</dd></div>
                         <div><dt>İstasyon boşluğu</dt><dd>{selectedMapCell.scores?.stationGapScore ?? "-"}</dd></div>
-                        <div><dt>Eğim</dt><dd>{selectedMapCell.scores?.slopeScore ?? "-"}</dd></div>
+                        <div><dt>Eğim puanı</dt><dd>{selectedMapCell.scores?.slopeScore ?? "-"}</dd></div>
                       </dl>
                     </div>
                     {selectedMapCell.reasonCodes?.length > 0 && (
@@ -989,7 +1195,16 @@ function SuitabilityAnalysisManagement({ token, hasPermission }) {
                       </div>
                     )}
                     {hasPermission("point.create") && (
-                      <button type="button" className="admin-analysis-promote" onClick={promoteSelectedCell} disabled={promotionBusy || selectedMapCell.hasHardExclusion}>
+                      <button
+                        type="button"
+                        className="admin-analysis-promote"
+                        onClick={promoteSelectedCell}
+                        disabled={promotionBusy
+                          || mapResult?.gridEdgeMeters !== 200
+                          || selectedMapCell.hasHardExclusion
+                          || selectedMapCell.suitabilityScore < 75
+                          || !selectedMapCell.isProvisionalRecommendation}
+                      >
                         {promotionBusy ? "Ekleniyor..." : "Sistem Adayına Dönüştür"}
                       </button>
                     )}
@@ -1027,19 +1242,45 @@ export default function AdminMapOperations({ token, hasPermission }) {
   const candidateAccess = ["point.read", "point.create", "point.update", "point.delete"].some(hasPermission);
   const importAccess = hasPermission("data.import.validate") || hasPermission("data.import.execute");
   const [activeOperation, setActiveOperation] = useState("map");
+  const [candidateOperationMessage, setCandidateOperationMessage] = useState("");
 
   return (
     <>
       <div className="admin-map-operation-tabs">
         <button type="button" className={activeOperation === "map" ? "is-active" : ""} onClick={() => setActiveOperation("map")}>Harita Görünümü</button>
-        {candidateAccess && <button type="button" className={activeOperation === "candidates" ? "is-active" : ""} onClick={() => setActiveOperation("candidates")}>Aday Noktalar</button>}
+        {candidateAccess && <button type="button" className={activeOperation === "candidates" ? "is-active" : ""} onClick={() => {
+          setCandidateOperationMessage("");
+          setActiveOperation("candidates");
+        }}>Aday Noktalar</button>}
         {importAccess && <button type="button" className={activeOperation === "imports" ? "is-active" : ""} onClick={() => setActiveOperation("imports")}>Veri Aktarımı</button>}
         {hasPermission("data.import.execute") && <button type="button" className={activeOperation === "analysis" ? "is-active" : ""} onClick={() => setActiveOperation("analysis")}>Uygunluk Analizi</button>}
       </div>
-      {activeOperation === "map" && <AdminMapOverview token={token} hasPermission={hasPermission} />}
-      {activeOperation === "candidates" && <CandidatePointManagement token={token} hasPermission={hasPermission} onOpenMap={() => setActiveOperation("map")} />}
+      {activeOperation === "map" && (
+        <AdminMapOverview
+          token={token}
+          hasPermission={hasPermission}
+          onStartAnalysis={() => setActiveOperation("analysis")}
+        />
+      )}
+      {activeOperation === "candidates" && (
+        <CandidatePointManagement
+          token={token}
+          hasPermission={hasPermission}
+          onOpenMap={() => setActiveOperation("map")}
+          operationMessage={candidateOperationMessage}
+        />
+      )}
       {activeOperation === "imports" && <DataImportManagement token={token} hasPermission={hasPermission} />}
-      {activeOperation === "analysis" && <SuitabilityAnalysisManagement token={token} hasPermission={hasPermission} />}
+      {activeOperation === "analysis" && (
+        <SuitabilityAnalysisManagement
+          token={token}
+          hasPermission={hasPermission}
+          onOpenCandidates={(message) => {
+            setCandidateOperationMessage(message);
+            setActiveOperation("candidates");
+          }}
+        />
+      )}
     </>
   );
 }

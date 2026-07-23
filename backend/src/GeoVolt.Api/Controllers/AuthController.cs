@@ -31,6 +31,27 @@ public sealed class AuthController : ControllerBase
     }
 
     [Authorize]
+    [HttpPost("change-password")]
+    [ProducesResponseType(typeof(ApiResponse<AuthResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<AuthResponse>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<AuthResponse>), StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ApiResponse<AuthResponse>>> ChangePassword(
+        ChangePasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!int.TryParse(userIdValue, out var userId))
+        {
+            return Unauthorized(ApiResponse<AuthResponse>.Fail("Geçersiz token."));
+        }
+
+        var response = await _authService.ChangePasswordAsync(userId, request, cancellationToken);
+
+        return response.Success ? Ok(response) : BadRequest(response);
+    }
+
+    [Authorize]
     [HttpGet("me")]
     [ProducesResponseType(typeof(ApiResponse<UserResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<UserResponse>), StatusCodes.Status401Unauthorized)]

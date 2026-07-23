@@ -26,6 +26,11 @@ public interface ICandidatePointService
         int createdByUserId,
         CancellationToken cancellationToken);
 
+    Task<ApiResponse<BulkCandidatePointPromotionResult>> PromoteRecommendedSuitabilityCellsAsync(
+        int analysisRunId,
+        int createdByUserId,
+        CancellationToken cancellationToken);
+
     Task<ApiResponse<CandidatePointResponse>> CreateUserManualAsync(
         CreateUserManualCandidateRequest request,
         int createdByUserId,

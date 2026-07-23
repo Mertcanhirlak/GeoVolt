@@ -45,4 +45,18 @@ public sealed class UserRepository : IUserRepository
                 .ThenInclude(userPermission => userPermission.Permission)
             .FirstOrDefaultAsync(user => user.Id == id, cancellationToken);
     }
+
+    public async Task UpdatePasswordAsync(
+        int userId,
+        string passwordHash,
+        CancellationToken cancellationToken)
+    {
+        await _dbContext.Users
+            .Where(user => user.Id == userId)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(user => user.PasswordHash, passwordHash)
+                .SetProperty(user => user.MustChangePassword, false)
+                .SetProperty(user => user.UpdatedAtUtc, DateTime.UtcNow),
+                cancellationToken);
+    }
 }

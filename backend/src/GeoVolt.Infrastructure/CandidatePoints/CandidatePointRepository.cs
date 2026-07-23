@@ -1,6 +1,7 @@
 using GeoVolt.Application.CandidatePoints.Abstractions;
 using GeoVolt.Application.CandidatePoints.Dtos;
 using GeoVolt.Domain.Entities;
+using GeoVolt.Domain.Constants;
 using GeoVolt.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,7 +20,12 @@ public sealed class CandidatePointRepository : ICandidatePointRepository
         CandidatePointQuery query,
         CancellationToken cancellationToken)
     {
-        var candidatePoints = _dbContext.CandidatePoints.AsNoTracking().AsQueryable();
+        var candidatePoints = _dbContext.CandidatePoints
+            .AsNoTracking()
+            .Where(item =>
+                item.SourceType != CandidatePointSourceTypes.SystemAnalysis
+                || item.AlgorithmVersion == CandidatePointAlgorithmVersions.CanonicalGrid200Meters)
+            .AsQueryable();
 
         if (query.RegionId.HasValue)
         {
@@ -119,6 +125,26 @@ public sealed class CandidatePointRepository : ICandidatePointRepository
             .FirstOrDefaultAsync(item => item.SourceSuitabilityCellId == cellId, cancellationToken);
     }
 
+    public Task<bool> SuitabilityAnalysisRunExistsAsync(
+        int analysisRunId,
+        CancellationToken cancellationToken)
+    {
+        return _dbContext.SuitabilityAnalysisRuns
+            .AsNoTracking()
+            .AnyAsync(item => item.Id == analysisRunId, cancellationToken);
+    }
+
+    public Task<int?> GetSuitabilityAnalysisRunGridEdgeMetersAsync(
+        int analysisRunId,
+        CancellationToken cancellationToken)
+    {
+        return _dbContext.SuitabilityAnalysisRuns
+            .AsNoTracking()
+            .Where(item => item.Id == analysisRunId)
+            .Select(item => (int?)item.GridEdgeMeters)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public Task<SuitabilityCell?> GetSuitabilityCellAsync(
         int analysisRunId,
         long cellId,
@@ -126,6 +152,7 @@ public sealed class CandidatePointRepository : ICandidatePointRepository
     {
         return _dbContext.SuitabilityCells
             .AsNoTracking()
+            .Include(item => item.AnalysisRun)
             .Include(item => item.Region)
             .Include(item => item.Neighborhood)
             .FirstOrDefaultAsync(
@@ -133,11 +160,113 @@ public sealed class CandidatePointRepository : ICandidatePointRepository
                 cancellationToken);
     }
 
+    public async Task<IReadOnlyList<SuitabilityCell>> GetSuitabilityCellsForPromotionAsync(
+        int analysisRunId,
+        decimal minimumScore,
+        CancellationToken cancellationToken)
+    {
+        return await _dbContext.SuitabilityCells
+            .AsNoTracking()
+            .Include(item => item.AnalysisRun)
+            .Include(item => item.Region)
+            .Include(item => item.Neighborhood)
+            .Where(item =>
+                item.AnalysisRunId == analysisRunId
+                && item.SuitabilityScore >= minimumScore
+                && !item.HasHardExclusion)
+            .OrderByDescending(item => item.SuitabilityScore)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<SuitabilityCell?> GetCanonicalSuitabilityCellAsync(
+        int studyAreaDistrictId,
+        int gridEdgeMeters,
+        int cellI,
+        int cellJ,
+        CancellationToken cancellationToken)
+    {
+        var canonicalRunId = await GetCanonicalRunIdAsync(
+            studyAreaDistrictId,
+            gridEdgeMeters,
+            cancellationToken);
+
+        if (!canonicalRunId.HasValue)
+        {
+            return null;
+        }
+
+        return await _dbContext.SuitabilityCells
+            .AsNoTracking()
+            .Include(item => item.Region)
+            .Include(item => item.Neighborhood)
+            .FirstOrDefaultAsync(item =>
+                item.AnalysisRunId == canonicalRunId.Value
+                && item.CellI == cellI
+                && item.CellJ == cellJ,
+                cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<SuitabilityCell>> GetCanonicalSuitabilityCellsAsync(
+        int studyAreaDistrictId,
+        int gridEdgeMeters,
+        CancellationToken cancellationToken)
+    {
+        var canonicalRunId = await GetCanonicalRunIdAsync(
+            studyAreaDistrictId,
+            gridEdgeMeters,
+            cancellationToken);
+
+        if (!canonicalRunId.HasValue)
+        {
+            return [];
+        }
+
+        return await _dbContext.SuitabilityCells
+            .AsNoTracking()
+            .Include(item => item.Region)
+            .Include(item => item.Neighborhood)
+            .Where(item => item.AnalysisRunId == canonicalRunId.Value)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlySet<long>> GetExistingSourceSuitabilityCellIdsAsync(
+        IReadOnlyCollection<long> cellIds,
+        CancellationToken cancellationToken)
+    {
+        if (cellIds.Count == 0)
+        {
+            return new HashSet<long>();
+        }
+
+        var ids = cellIds.ToArray();
+        var existingIds = await _dbContext.CandidatePoints
+            .AsNoTracking()
+            .Where(item => item.SourceSuitabilityCellId.HasValue
+                && ids.Contains(item.SourceSuitabilityCellId.Value))
+            .Select(item => item.SourceSuitabilityCellId!.Value)
+            .ToListAsync(cancellationToken);
+
+        return existingIds.ToHashSet();
+    }
+
     public async Task<CandidatePoint> AddAsync(CandidatePoint candidatePoint, CancellationToken cancellationToken)
     {
         _dbContext.CandidatePoints.Add(candidatePoint);
         await _dbContext.SaveChangesAsync(cancellationToken);
         return candidatePoint;
+    }
+
+    public async Task AddRangeAsync(
+        IReadOnlyCollection<CandidatePoint> candidatePoints,
+        CancellationToken cancellationToken)
+    {
+        if (candidatePoints.Count == 0)
+        {
+            return;
+        }
+
+        _dbContext.CandidatePoints.AddRange(candidatePoints);
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<CandidatePoint> UpdateAsync(CandidatePoint candidatePoint, CancellationToken cancellationToken)
@@ -150,5 +279,21 @@ public sealed class CandidatePointRepository : ICandidatePointRepository
     {
         _dbContext.CandidatePoints.Remove(candidatePoint);
         await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private Task<int?> GetCanonicalRunIdAsync(
+        int studyAreaDistrictId,
+        int gridEdgeMeters,
+        CancellationToken cancellationToken)
+    {
+        return _dbContext.SuitabilityAnalysisRuns
+            .AsNoTracking()
+            .Where(run =>
+                run.StudyAreaDistrictId == studyAreaDistrictId
+                && run.GridEdgeMeters == gridEdgeMeters
+                && run.CellCount > 0)
+            .OrderBy(run => run.Id)
+            .Select(run => (int?)run.Id)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 }

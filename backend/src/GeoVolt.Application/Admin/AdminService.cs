@@ -83,6 +83,7 @@ public sealed class AdminService : IAdminService
             FullName = request.FullName.Trim(),
             Email = email,
             PasswordHash = _passwordHasher.Hash(request.Password),
+            MustChangePassword = true,
             Role = UserRoles.CompanyUser,
             CompanyId = company.Id,
             CreatedAtUtc = DateTime.UtcNow
@@ -513,7 +514,8 @@ public sealed class AdminService : IAdminService
             role,
             user.CompanyId,
             user.Company?.Name,
-            GetPermissionNames(user));
+            GetPermissionNames(user),
+            user.MustChangePassword);
     }
 
     private static RoleResponse ToRoleResponse(Role role)

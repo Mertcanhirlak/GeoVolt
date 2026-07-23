@@ -29,6 +29,7 @@ public sealed partial class PostGisSuitabilityAnalysisRepository
                     FROM analysis.analysis_runs run
                     WHERE run.study_area_district_id = district.id
                       AND run.status = {AnalysisRunStatuses.Scored}
+                      AND run.grid_edge_meters = {SuitabilityGridDefaults.EdgeMeters}
                     ORDER BY run.completed_at_utc DESC NULLS LAST, run.id DESC
                     LIMIT 1
                 ) scored_run ON TRUE

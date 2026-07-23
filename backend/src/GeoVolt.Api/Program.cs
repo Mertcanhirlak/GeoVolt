@@ -1,5 +1,6 @@
 using System.Text;
 using GeoVolt.Api.ExceptionHandling;
+using GeoVolt.Api.Middleware;
 using GeoVolt.Application;
 using GeoVolt.Application.Auth.Options;
 using GeoVolt.Domain.Constants;
@@ -147,6 +148,7 @@ if (app.Environment.IsDevelopment())
 app.UseCors("FrontendPolicy");
 
 app.UseAuthentication();
+app.UseMiddleware<PasswordChangeEnforcementMiddleware>();
 app.UseAuthorization();
 
 app.MapGet("/api/health", () =>

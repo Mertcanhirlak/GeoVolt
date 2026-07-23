@@ -46,6 +46,45 @@ public sealed class AuthService : IAuthService
         return ApiResponse<UserResponse>.Ok(ToUserResponse(user));
     }
 
+    public async Task<ApiResponse<AuthResponse>> ChangePasswordAsync(
+        int userId,
+        ChangePasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.NewPassword != request.ConfirmNewPassword)
+        {
+            return ApiResponse<AuthResponse>.Fail("Yeni şifre ve şifre tekrarı eşleşmiyor.");
+        }
+
+        var user = await _users.GetByIdAsync(userId, cancellationToken);
+
+        if (user is null)
+        {
+            return ApiResponse<AuthResponse>.Fail("Kullanıcı bulunamadı.");
+        }
+
+        if (!_passwordHasher.Verify(request.CurrentPassword, user.PasswordHash))
+        {
+            return ApiResponse<AuthResponse>.Fail("Mevcut şifre hatalı.");
+        }
+
+        if (_passwordHasher.Verify(request.NewPassword, user.PasswordHash))
+        {
+            return ApiResponse<AuthResponse>.Fail("Yeni şifre mevcut şifreden farklı olmalıdır.");
+        }
+
+        var newPasswordHash = _passwordHasher.Hash(request.NewPassword);
+        await _users.UpdatePasswordAsync(user.Id, newPasswordHash, cancellationToken);
+
+        user.PasswordHash = newPasswordHash;
+        user.MustChangePassword = false;
+        user.UpdatedAtUtc = DateTime.UtcNow;
+
+        return ApiResponse<AuthResponse>.Ok(
+            _tokenService.CreateToken(user),
+            "Şifreniz başarıyla değiştirildi.");
+    }
+
     private static string NormalizeEmail(string email)
     {
         return email.Trim().ToLowerInvariant();
@@ -64,7 +103,8 @@ public sealed class AuthService : IAuthService
             role,
             user.CompanyId,
             user.Company?.Name,
-            GetPermissionNames(user));
+            GetPermissionNames(user),
+            user.MustChangePassword);
     }
 
     private static IReadOnlyList<string> GetPermissionNames(User user)

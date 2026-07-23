@@ -31,7 +31,8 @@ public sealed class JwtTokenService : ITokenService
             new(JwtRegisteredClaimNames.Email, user.Email),
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Name, user.FullName),
-            new(ClaimTypes.Email, user.Email)
+            new(ClaimTypes.Email, user.Email),
+            new("mustChangePassword", user.MustChangePassword ? "true" : "false")
         };
 
         foreach (var roleName in GetRoleNames(user))
@@ -72,7 +73,8 @@ public sealed class JwtTokenService : ITokenService
             primaryRole,
             user.CompanyId,
             user.Company?.Name,
-            GetPermissionNames(user));
+            GetPermissionNames(user),
+            user.MustChangePassword);
 
         return new AuthResponse(token, expiresAtUtc, userResponse);
     }

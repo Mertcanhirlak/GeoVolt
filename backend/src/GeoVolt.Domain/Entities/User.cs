@@ -10,6 +10,8 @@ public sealed class User
 
     public string PasswordHash { get; set; } = string.Empty;
 
+    public bool MustChangePassword { get; set; }
+
     public string Role { get; set; } = "User";
 
     public int? CompanyId { get; set; }

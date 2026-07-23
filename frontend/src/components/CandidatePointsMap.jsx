@@ -59,11 +59,17 @@ const CANKAYA_BOUNDS = {
   maxLongitude: 33.18,
 };
 
+const EMPTY_MAP_ITEMS =
+  Object.freeze([]);
+
 const GEOJSON_URLS = {
   poi: "/data/POI.geojson",
   trafo: "/data/TRAFO.geojson",
   road: "/data/YOL.geojson",
 };
+
+const geoJsonFeaturePromiseCache =
+  new Map();
 
 const DEFAULT_MANUAL_PIN_PREFERENCES = {
   systemType: "",
@@ -89,6 +95,9 @@ const candidateClusterStyleCache =
   new Map();
 
 const candidateRegionStyleCache =
+  new Map();
+
+const chargingStationStyleCache =
   new Map();
 
 const poiClusterStyleCache =
@@ -698,6 +707,105 @@ function createClusterStyle(
   return style;
 }
 
+function createChargingStationFeature(
+  station
+) {
+  const latitude = Number(
+    station?.latitude
+  );
+  const longitude = Number(
+    station?.longitude
+  );
+
+  if (
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude)
+  ) {
+    return null;
+  }
+
+  return new Feature({
+    geometry: new Point(
+      fromLonLat([
+        longitude,
+        latitude,
+      ])
+    ),
+    chargingStation: station,
+    chargingStationId: station?.id,
+    featureType: "charging-station",
+  });
+}
+
+function createChargingStationClusterStyle(
+  feature,
+  selectedChargingStationId
+) {
+  const clusteredFeatures =
+    feature.get("features") ?? [];
+  const size = clusteredFeatures.length;
+  const station =
+    size === 1
+      ? clusteredFeatures[0].get(
+          "chargingStation"
+        )
+      : null;
+  const isSelected =
+    station &&
+    String(station.id) ===
+      String(selectedChargingStationId);
+  const cacheKey = `${size}:${isSelected}`;
+
+  if (
+    chargingStationStyleCache.has(
+      cacheKey
+    )
+  ) {
+    return chargingStationStyleCache.get(
+      cacheKey
+    );
+  }
+
+  const style = new Style({
+    image: new CircleStyle({
+      radius:
+        size > 1
+          ? Math.min(20, 11 + Math.log2(size) * 2)
+          : isSelected
+            ? 12
+            : 9,
+      fill: new Fill({
+        color: isSelected
+          ? "#7c3aed"
+          : size > 1
+            ? "#1d4ed8"
+            : "#2563eb",
+      }),
+      stroke: new Stroke({
+        color: "#ffffff",
+        width: isSelected ? 3 : 2,
+      }),
+    }),
+    text: new Text({
+      text:
+        size > 1
+          ? String(size)
+          : "E",
+      fill: new Fill({
+        color: "#ffffff",
+      }),
+      font: "bold 10px Arial",
+    }),
+  });
+
+  chargingStationStyleCache.set(
+    cacheKey,
+    style
+  );
+
+  return style;
+}
+
 function createCandidateFeature(
   candidate,
   selectedPointId
@@ -1116,15 +1224,19 @@ function createSuitabilityCellStyle(
         : suitabilityScore >= 35
           ? "#c2410c"
           : "#b91c1c";
-  const fillColor = isFocused
-    ? "rgba(245, 158, 11, 0.38)"
+    const fillColor = isFocused
+      ? isAnalysisCell
+        ? "rgba(37, 99, 235, 0.42)"
+        : "rgba(245, 158, 11, 0.38)"
     : isAnalysisCell
       ? analysisFillColor
     : isSelected
       ? selectedFillColor
       : "rgba(34, 197, 94, 0.28)";
-  const strokeColor = isFocused
-    ? "#d97706"
+    const strokeColor = isFocused
+      ? isAnalysisCell
+        ? "#1d4ed8"
+        : "#d97706"
     : isAnalysisCell
       ? analysisStrokeColor
     : isSelected
@@ -1526,43 +1638,74 @@ async function loadGeoJsonFeatures(
   url,
   featureType
 ) {
-  const response =
-    await fetch(url);
+  const cacheKey =
+    `${featureType}:${url}`;
 
-  if (!response.ok) {
-    throw new Error(
-      `${url} yüklenemedi. HTTP ${response.status}`
+  if (
+    !geoJsonFeaturePromiseCache.has(
+      cacheKey
+    )
+  ) {
+    const featurePromise =
+      fetch(url)
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(
+              `${url} yüklenemedi. HTTP ${response.status}`
+            );
+          }
+
+          return response.json();
+        })
+        .then((geoJson) => {
+          const parser =
+            new GeoJSON();
+
+          const features =
+            parser.readFeatures(
+              geoJson,
+              {
+                dataProjection:
+                  "EPSG:4326",
+
+                featureProjection:
+                  "EPSG:3857",
+              }
+            );
+
+          features.forEach(
+            (feature) => {
+              feature.set(
+                "featureType",
+                featureType
+              );
+            }
+          );
+
+          return features;
+        })
+        .catch((error) => {
+          geoJsonFeaturePromiseCache.delete(
+            cacheKey
+          );
+
+          throw error;
+        });
+
+    geoJsonFeaturePromiseCache.set(
+      cacheKey,
+      featurePromise
     );
   }
 
-  const geoJson =
-    await response.json();
-
-  const parser =
-    new GeoJSON();
-
-  const features =
-    parser.readFeatures(
-      geoJson,
-      {
-        dataProjection:
-          "EPSG:4326",
-
-        featureProjection:
-          "EPSG:3857",
-      }
+  const cachedFeatures =
+    await geoJsonFeaturePromiseCache.get(
+      cacheKey
     );
 
-  features.forEach(
-    (feature) => {
-      feature.set(
-        "featureType",
-        featureType
-      );
-    }
+  return cachedFeatures.map(
+    (feature) => feature.clone()
   );
-
-  return features;
 }
 
 function getClusterExtent(
@@ -2043,8 +2186,12 @@ function getSuitabilityLocationLabel(cell) {
 }
 
 export default function CandidatePointsMap({
-  points = [],
-  regions = [],
+  mapMode = "user",
+  points = EMPTY_MAP_ITEMS,
+  chargingStations = EMPTY_MAP_ITEMS,
+  chargingStationsActive = false,
+  selectedChargingStationId = null,
+  regions = EMPTY_MAP_ITEMS,
   regionsActive = false,
   selectedPointId = null,
   candidateFocusKey = 0,
@@ -2055,12 +2202,13 @@ export default function CandidatePointsMap({
   manualPinMessage = "",
   manualPinError = "",
   suitabilityEvaluation = null,
-  analysisCells = [],
+  analysisCells = EMPTY_MAP_ITEMS,
   analysisCellsActive = false,
   selectedAnalysisCellId = null,
   focusedRecommendationCellId = null,
   onManualPinRequest,
   onPointSelect,
+  onChargingStationSelect,
   onRegionSelect,
   onAnalysisCellSelect,
 }) {
@@ -2069,6 +2217,9 @@ export default function CandidatePointsMap({
 
   const mapRef =
     useRef(null);
+
+  const automaticRegionFitKeyRef =
+    useRef("");
 
   const selectedRegionRef =
     useRef(null);
@@ -2099,7 +2250,30 @@ export default function CandidatePointsMap({
       selectedPointId
     );
 
+  const selectedChargingStationIdRef =
+    useRef(
+      selectedChargingStationId
+    );
+
   const candidateLayerRef =
+    useRef(null);
+
+  const chargingStationSourceRef =
+    useRef(
+      new VectorSource()
+    );
+
+  const chargingStationClusterSourceRef =
+    useRef(
+      new Cluster({
+        distance: 50,
+        minDistance: 24,
+        source:
+          chargingStationSourceRef.current,
+      })
+    );
+
+  const chargingStationLayerRef =
     useRef(null);
 
   const regionSourceRef =
@@ -2176,6 +2350,7 @@ export default function CandidatePointsMap({
     useRef({
       onManualPinRequest,
       onPointSelect,
+      onChargingStationSelect,
       onRegionSelect,
       onAnalysisCellSelect,
     });
@@ -2253,10 +2428,15 @@ export default function CandidatePointsMap({
     layerStatus,
     setLayerStatus,
   ] = useState({
-    poi: "loading",
-    trafo: "loading",
-    road: "loading",
+    poi: "idle",
+    trafo: "idle",
+    road: "idle",
   });
+
+  const manualPinEnabled =
+    mapMode !== "admin" &&
+    typeof onManualPinRequest ===
+      "function";
 
   const [
     layerDetail,
@@ -2375,12 +2555,14 @@ export default function CandidatePointsMap({
     callbackRef.current = {
       onManualPinRequest,
       onPointSelect,
+      onChargingStationSelect,
       onRegionSelect,
       onAnalysisCellSelect,
     };
   }, [
     onManualPinRequest,
     onPointSelect,
+    onChargingStationSelect,
     onRegionSelect,
     onAnalysisCellSelect,
   ]);
@@ -2491,106 +2673,88 @@ export default function CandidatePointsMap({
   }, [regions]);
 
   useEffect(() => {
-    let isMounted =
-      true;
+    let isMounted = true;
 
-    async function loadLayers() {
-      const layerDefinitions = [
-        {
-          key: "poi",
-          url:
-            GEOJSON_URLS.poi,
+    const layerDefinitions = [
+      {
+        key: "poi",
+        visible: poiVisible,
+        url: GEOJSON_URLS.poi,
+        sourceRef: poiSourceRef,
+      },
+      {
+        key: "trafo",
+        visible: trafoVisible,
+        url: GEOJSON_URLS.trafo,
+        sourceRef: trafoSourceRef,
+      },
+      {
+        key: "road",
+        visible: roadVisible,
+        url: GEOJSON_URLS.road,
+        sourceRef: roadSourceRef,
+      },
+    ];
 
-          sourceRef:
-            poiSourceRef,
-        },
+    layerDefinitions.forEach((definition) => {
+      const {
+        key,
+        visible,
+        url,
+        sourceRef,
+      } = definition;
 
-        {
-          key: "trafo",
-          url:
-            GEOJSON_URLS.trafo,
+      if (
+        !visible ||
+        layerStatus[key] === "ready" ||
+        layerStatus[key] === "loading"
+      ) {
+        return;
+      }
 
-          sourceRef:
-            trafoSourceRef,
-        },
+      setLayerStatus((currentStatus) => ({
+        ...currentStatus,
+        [key]: "loading",
+      }));
 
-        {
-          key: "road",
-          url:
-            GEOJSON_URLS.road,
-
-          sourceRef:
-            roadSourceRef,
-        },
-      ];
-
-      await Promise.all(
-        layerDefinitions.map(
-          async ({
-            key,
-            url,
-            sourceRef,
-          }) => {
-            try {
-              const features =
-                await loadGeoJsonFeatures(
-                  url,
-                  key
-                );
-
-              if (!isMounted) {
-                return;
-              }
-
-              sourceRef.current.clear();
-
-              sourceRef.current.addFeatures(
-                features
-              );
-
-              setLayerStatus(
-                (
-                  currentStatus
-                ) => ({
-                  ...currentStatus,
-
-                  [key]:
-                    "ready",
-                })
-              );
-            } catch (error) {
-              console.error(
-                `${key} katmanı yüklenemedi:`,
-                error
-              );
-
-              if (!isMounted) {
-                return;
-              }
-
-              setLayerStatus(
-                (
-                  currentStatus
-                ) => ({
-                  ...currentStatus,
-
-                  [key]:
-                    "error",
-                })
-              );
-            }
+      loadGeoJsonFeatures(url, key)
+        .then((features) => {
+          if (!isMounted) {
+            return;
           }
-        )
-      );
-    }
 
-    loadLayers();
+          sourceRef.current.clear();
+          sourceRef.current.addFeatures(features);
+          setLayerStatus((currentStatus) => ({
+            ...currentStatus,
+            [key]: "ready",
+          }));
+        })
+        .catch((error) => {
+          console.error(
+            `${key} katmanı yüklenemedi:`,
+            error
+          );
+
+          if (!isMounted) {
+            return;
+          }
+
+          setLayerStatus((currentStatus) => ({
+            ...currentStatus,
+            [key]: "error",
+          }));
+        });
+    });
 
     return () => {
-      isMounted =
-        false;
+      isMounted = false;
     };
-  }, []);
+  }, [
+    poiVisible,
+    roadVisible,
+    trafoVisible,
+  ]);
 
   function validateManualPinPreferences() {
     const systemType =
@@ -2933,6 +3097,24 @@ export default function CandidatePointsMap({
         zIndex: 7,
       });
 
+    const chargingStationLayer =
+      new VectorLayer({
+        source:
+          chargingStationClusterSourceRef.current,
+        style:
+          (feature) =>
+            createChargingStationClusterStyle(
+              feature,
+              selectedChargingStationIdRef.current
+            ),
+        visible:
+          chargingStationsActive,
+        renderBuffer: 120,
+        updateWhileAnimating: false,
+        updateWhileInteracting: false,
+        zIndex: 7,
+      });
+
     const suitabilityLayer =
       new VectorLayer({
         source:
@@ -2975,6 +3157,7 @@ export default function CandidatePointsMap({
           poiLayer,
           trafoLayer,
           suitabilityLayer,
+          chargingStationLayer,
           candidateLayer,
           manualPinLayer,
         ],
@@ -3055,6 +3238,8 @@ export default function CandidatePointsMap({
                       layer ===
                         candidateLayer ||
                       layer ===
+                        chargingStationLayer ||
+                      layer ===
                         manualPinLayer ||
                       layer ===
                         suitabilityLayer ||
@@ -3113,9 +3298,13 @@ export default function CandidatePointsMap({
         );
 
         setManualPinHint(
-          `${getRegionName(
-            region
-          )} bölgesi seçildi. Manuel pin ekleyebilirsiniz.`
+          manualPinEnabled
+            ? `${getRegionName(
+                region
+              )} bölgesi seçildi. Manuel pin ekleyebilirsiniz.`
+            : `${getRegionName(
+                region
+              )} bölgesi seçildi.`
         );
 
         setSelectedRegionFeature(
@@ -3262,6 +3451,17 @@ export default function CandidatePointsMap({
 
               if (
                 layer ===
+                chargingStationLayer
+              ) {
+                return {
+                  type:
+                    "charging-station-cluster",
+                  feature,
+                };
+              }
+
+              if (
+                layer ===
                 candidateLayer
               ) {
                 return {
@@ -3311,6 +3511,50 @@ export default function CandidatePointsMap({
               .onPointSelect?.(
                 candidate
               );
+
+            return;
+          }
+
+          if (
+            candidateMapHit.type ===
+            "charging-station-cluster"
+          ) {
+            const stationFeatures =
+              candidateMapHit.feature.get(
+                "features"
+              ) ?? [];
+
+            if (stationFeatures.length === 1) {
+              callbackRef.current
+                .onChargingStationSelect?.(
+                  stationFeatures[0].get(
+                    "chargingStation"
+                  )
+                );
+
+              return;
+            }
+
+            const stationExtent =
+              getClusterExtent(
+                stationFeatures
+              );
+
+            if (stationExtent) {
+              map.getView().fit(
+                stationExtent,
+                {
+                  padding: [
+                    100,
+                    100,
+                    100,
+                    100,
+                  ],
+                  maxZoom: 18,
+                  duration: 350,
+                }
+              );
+            }
 
             return;
           }
@@ -3722,6 +3966,8 @@ export default function CandidatePointsMap({
                   layer ===
                     candidateLayer ||
                   layer ===
+                    chargingStationLayer ||
+                  layer ===
                     manualPinLayer ||
                   layer ===
                     poiLayer ||
@@ -3744,6 +3990,9 @@ export default function CandidatePointsMap({
 
     candidateLayerRef.current =
       candidateLayer;
+
+    chargingStationLayerRef.current =
+      chargingStationLayer;
 
     suitabilityLayerRef.current =
       suitabilityLayer;
@@ -3798,6 +4047,9 @@ export default function CandidatePointsMap({
       candidateLayerRef.current =
         null;
 
+      chargingStationLayerRef.current =
+        null;
+
       suitabilityLayerRef.current =
         null;
 
@@ -3824,6 +4076,33 @@ export default function CandidatePointsMap({
 
     candidateLayerRef.current?.changed();
   }, [selectedPointId]);
+
+  useEffect(() => {
+    selectedChargingStationIdRef.current =
+      selectedChargingStationId;
+
+    chargingStationLayerRef.current?.changed();
+  }, [selectedChargingStationId]);
+
+  useEffect(() => {
+    const stationFeatures =
+      (Array.isArray(chargingStations)
+        ? chargingStations
+        : [])
+        .map(createChargingStationFeature)
+        .filter(Boolean);
+
+    chargingStationSourceRef.current.clear();
+    chargingStationSourceRef.current.addFeatures(
+      stationFeatures
+    );
+  }, [chargingStations]);
+
+  useEffect(() => {
+    chargingStationLayerRef.current?.setVisible(
+      Boolean(chargingStationsActive)
+    );
+  }, [chargingStationsActive]);
 
   useEffect(() => {
     const candidateFeatures =
@@ -4029,6 +4308,32 @@ export default function CandidatePointsMap({
     }
 
     if (
+      analysisCellsActive &&
+      analysisCells.length > 0
+    ) {
+      return;
+    }
+
+    const regionFitKey = [
+      regionsActive ? "active" : "inactive",
+      resolvedRegions.length,
+      resolvedRegions
+        .map((region) => getRegionId(region))
+        .filter(Boolean)
+        .join(","),
+    ].join(":");
+
+    if (
+      automaticRegionFitKeyRef.current ===
+      regionFitKey
+    ) {
+      return;
+    }
+
+    automaticRegionFitKeyRef.current =
+      regionFitKey;
+
+    if (
       !regionsActive
     ) {
       setSelectedRegion(
@@ -4087,6 +4392,8 @@ export default function CandidatePointsMap({
       regionSourceRef.current
     );
   }, [
+    analysisCells,
+    analysisCellsActive,
     regionsActive,
     resolvedRegions,
   ]);
@@ -4107,6 +4414,10 @@ export default function CandidatePointsMap({
       focusedRegionId ===
         ""
     ) {
+      if (!regionFocusKey) {
+        return;
+      }
+
       setSelectedRegion(
         null
       );
@@ -4389,7 +4700,8 @@ export default function CandidatePointsMap({
         className="candidate-left-controls"
         data-testid="candidate-left-controls"
       >
-        {!manualPinCandidate && (
+        {manualPinEnabled &&
+          !manualPinCandidate && (
           <div
             className="candidate-manual-controls"
             data-testid="candidate-manual-controls"
@@ -4461,8 +4773,8 @@ export default function CandidatePointsMap({
                 : "candidate-layer-button"
             }
             disabled={
-              layerStatus.poi !==
-              "ready"
+              layerStatus.poi ===
+              "loading"
             }
             onClick={
               togglePoiLayer
@@ -4486,8 +4798,8 @@ export default function CandidatePointsMap({
                 : "candidate-layer-button"
             }
             disabled={
-              layerStatus.trafo !==
-              "ready"
+              layerStatus.trafo ===
+              "loading"
             }
             onClick={
               toggleTrafoLayer
@@ -4511,8 +4823,8 @@ export default function CandidatePointsMap({
                 : "candidate-layer-button"
             }
             disabled={
-              layerStatus.road !==
-              "ready"
+              layerStatus.road ===
+              "loading"
             }
             onClick={() =>
               setRoadVisible(
@@ -4535,7 +4847,8 @@ export default function CandidatePointsMap({
         </div>
       </div>
 
-      {manualPinPanelOpen && (
+      {manualPinEnabled &&
+        manualPinPanelOpen && (
         <ManualPinPreferencesPanel
           selectedRegionName={
             selectedRegionName

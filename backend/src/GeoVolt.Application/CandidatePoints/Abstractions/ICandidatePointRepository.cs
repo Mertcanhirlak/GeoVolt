@@ -13,12 +13,41 @@ public interface ICandidatePointRepository
 
     Task<CandidatePoint?> GetBySourceSuitabilityCellIdAsync(long cellId, CancellationToken cancellationToken);
 
+    Task<bool> SuitabilityAnalysisRunExistsAsync(int analysisRunId, CancellationToken cancellationToken);
+
+    Task<int?> GetSuitabilityAnalysisRunGridEdgeMetersAsync(
+        int analysisRunId,
+        CancellationToken cancellationToken);
+
     Task<SuitabilityCell?> GetSuitabilityCellAsync(
         int analysisRunId,
         long cellId,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<SuitabilityCell>> GetSuitabilityCellsForPromotionAsync(
+        int analysisRunId,
+        decimal minimumScore,
+        CancellationToken cancellationToken);
+
+    Task<SuitabilityCell?> GetCanonicalSuitabilityCellAsync(
+        int studyAreaDistrictId,
+        int gridEdgeMeters,
+        int cellI,
+        int cellJ,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<SuitabilityCell>> GetCanonicalSuitabilityCellsAsync(
+        int studyAreaDistrictId,
+        int gridEdgeMeters,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlySet<long>> GetExistingSourceSuitabilityCellIdsAsync(
+        IReadOnlyCollection<long> cellIds,
+        CancellationToken cancellationToken);
+
     Task<CandidatePoint> AddAsync(CandidatePoint candidatePoint, CancellationToken cancellationToken);
+
+    Task AddRangeAsync(IReadOnlyCollection<CandidatePoint> candidatePoints, CancellationToken cancellationToken);
 
     Task<CandidatePoint> UpdateAsync(CandidatePoint candidatePoint, CancellationToken cancellationToken);
 

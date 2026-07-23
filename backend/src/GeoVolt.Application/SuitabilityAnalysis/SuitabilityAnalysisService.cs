@@ -1,6 +1,7 @@
 using GeoVolt.Application.Common.Exceptions;
 using GeoVolt.Application.SuitabilityAnalysis.Abstractions;
 using GeoVolt.Application.SuitabilityAnalysis.Models;
+using GeoVolt.Domain.Constants;
 
 namespace GeoVolt.Application.SuitabilityAnalysis;
 
@@ -20,7 +21,7 @@ public sealed class SuitabilityAnalysisService : ISuitabilityAnalysisService
     {
         var result = await _repository.GenerateGridAsync(
             districtSourceId,
-            request.GridEdgeMeters,
+            SuitabilityGridDefaults.EdgeMeters,
             cancellationToken);
 
         return result ?? throw new NotFoundException("İlçe bulunamadı.");
