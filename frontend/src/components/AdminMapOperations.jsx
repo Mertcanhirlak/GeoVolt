@@ -1246,14 +1246,52 @@ export default function AdminMapOperations({ token, hasPermission }) {
 
   return (
     <>
-      <div className="admin-map-operation-tabs">
-        <button type="button" className={activeOperation === "map" ? "is-active" : ""} onClick={() => setActiveOperation("map")}>Harita Görünümü</button>
-        {candidateAccess && <button type="button" className={activeOperation === "candidates" ? "is-active" : ""} onClick={() => {
-          setCandidateOperationMessage("");
-          setActiveOperation("candidates");
-        }}>Aday Noktalar</button>}
-        {importAccess && <button type="button" className={activeOperation === "imports" ? "is-active" : ""} onClick={() => setActiveOperation("imports")}>Veri Aktarımı</button>}
-        {hasPermission("data.import.execute") && <button type="button" className={activeOperation === "analysis" ? "is-active" : ""} onClick={() => setActiveOperation("analysis")}>Uygunluk Analizi</button>}
+      <div className="admin-user-action-grid admin-map-operation-tabs">
+        <button
+          type="button"
+          className={`admin-user-action-card ${activeOperation === "map" ? "is-active" : ""}`}
+          onClick={() => setActiveOperation("map")}
+        >
+          <span>01</span>
+          <strong>Harita Görünümü</strong>
+          <small>Adayları, semtleri, istasyonları ve analiz gridlerini haritada incele.</small>
+        </button>
+        {candidateAccess && (
+          <button
+            type="button"
+            className={`admin-user-action-card ${activeOperation === "candidates" ? "is-active" : ""}`}
+            onClick={() => {
+              setCandidateOperationMessage("");
+              setActiveOperation("candidates");
+            }}
+          >
+            <span>02</span>
+            <strong>Aday Noktalar</strong>
+            <small>Sistem, kullanıcı ve yönetici kaynaklı aday noktaları yönet.</small>
+          </button>
+        )}
+        {importAccess && (
+          <button
+            type="button"
+            className={`admin-user-action-card ${activeOperation === "imports" ? "is-active" : ""}`}
+            onClick={() => setActiveOperation("imports")}
+          >
+            <span>03</span>
+            <strong>Veri Aktarımı</strong>
+            <small>Coğrafi veri dosyalarını doğrula, hazırla ve PostGIS'e aktar.</small>
+          </button>
+        )}
+        {hasPermission("data.import.execute") && (
+          <button
+            type="button"
+            className={`admin-user-action-card ${activeOperation === "analysis" ? "is-active" : ""}`}
+            onClick={() => setActiveOperation("analysis")}
+          >
+            <span>04</span>
+            <strong>Uygunluk Analizi</strong>
+            <small>Sabit aday hexagonlarını konumsal verilere göre puanla ve karşılaştır.</small>
+          </button>
+        )}
       </div>
       {activeOperation === "map" && (
         <AdminMapOverview

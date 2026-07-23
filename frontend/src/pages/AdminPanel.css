@@ -1318,27 +1318,13 @@ body:has(.admin-page) {
 }
 
 .admin-map-operation-tabs {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 16px;
-  padding: 8px;
-  border: 1px solid #dfe7f1;
-  border-radius: 14px;
-  background: #f6f9fc;
+  margin: 0 auto 16px;
 }
 
-.admin-map-operation-tabs button {
-  border: 0;
-  border-radius: 10px;
-  padding: 10px 16px;
-  color: #475569;
-  background: transparent;
-  cursor: pointer;
-}
-
-.admin-map-operation-tabs button.is-active {
-  color: #fff;
-  background: #2563eb;
+.admin-page .admin-map-operation-tabs .admin-user-action-card.is-active {
+  border-color: color-mix(in srgb, var(--button) 58%, var(--border));
+  box-shadow: 0 12px 24px rgba(25, 163, 148, 0.16), inset 0 -4px 0 var(--button);
+  transform: translateY(-2px);
 }
 
 .admin-import-box {
@@ -1722,9 +1708,16 @@ body:has(.admin-page) {
   display: grid;
   gap: 6px;
   min-width: 170px;
-  color: #475569;
+  color: #000;
   font-size: 0.78rem;
   font-weight: 700;
+}
+
+.admin-map-overview-toolbar input,
+.admin-map-overview-toolbar select,
+.admin-map-overview-toolbar select option {
+  color: #000;
+  -webkit-text-fill-color: #000;
 }
 
 .admin-map-overview-stats {
@@ -1918,9 +1911,11 @@ body:has(.admin-page) {
     min-height: 480px;
   }
 
-  .admin-map-operation-tabs,
   .admin-import-box {
     align-items: stretch;
+  }
+
+  .admin-import-box {
     flex-direction: column;
   }
 }
