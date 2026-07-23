@@ -856,6 +856,45 @@ function createRegionSummary(summary, region, stations = []) {
   };
 }
 
+function getCompanyDistributionPercentage(
+  stationCount,
+  companyDistribution = [],
+) {
+  const totalStationCount =
+    companyDistribution.reduce(
+      (total, company) =>
+        total +
+        Math.max(
+          0,
+          Number(
+            company?.stationCount,
+          ) || 0,
+        ),
+      0,
+    );
+
+  const currentStationCount =
+    Math.max(
+      0,
+      Number(stationCount) || 0,
+    );
+
+  if (totalStationCount <= 0) {
+    return "0";
+  }
+
+  return (
+    (currentStationCount /
+      totalStationCount) *
+    100
+  ).toLocaleString(
+    "tr-TR",
+    {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    },
+  );
+}
 function createPinStyle(
   station,
   isSelected
@@ -1894,6 +1933,11 @@ export default function ExistingStationsMap({
     regionSummary,
     setRegionSummary,
   ] = useState(null);
+
+  const [
+    regionSummaryPanelOpen,
+    setRegionSummaryPanelOpen,
+  ] = useState(true);
 
   const [
     popupPixel,
@@ -3403,6 +3447,10 @@ export default function ExistingStationsMap({
       region
     );
 
+    setRegionSummaryPanelOpen(
+      true
+    );
+
     setSelectedStationId(
       null
     );
@@ -3573,6 +3621,7 @@ export default function ExistingStationsMap({
   async function clearRegionSelection(
     restoreStations = true
   ) {
+    setRegionSummaryPanelOpen(false);
     setSelectedRegion(null);
 
     setRegionSummary(null);
@@ -3919,12 +3968,29 @@ export default function ExistingStationsMap({
 
       {mapStep > 1 &&
         selectedRegion &&
+        regionSummaryPanelOpen &&
         !layersPanelOpen && (
           <>
             <aside
               className="region-summary-card"
               data-testid="region-summary-card"
             >
+              <button
+                type="button"
+                className="region-summary-close-button"
+                aria-label="Bölge bilgisi panelini kapat"
+                title="Bölge bilgisini kapat"
+                data-testid="region-summary-close-button"
+                onClick={() =>
+                  setRegionSummaryPanelOpen(
+                    false
+                  )
+                }
+              >
+                <span aria-hidden="true">
+                  ×
+                </span>
+              </button>
               <div className="region-summary-title">
                 {"B\u00D6LGE B\u0130LG\u0130S\u0130"}
               </div>
@@ -4032,11 +4098,21 @@ export default function ExistingStationsMap({
                               }
                             </strong>
 
-                            <em>
-                              {
-                                company.stationCount
-                              }
-                            </em>
+                            <em className="company-distribution-value">
+  <span>
+    {company.stationCount}
+  </span>
+
+  <small>
+    (%
+    {getCompanyDistributionPercentage(
+      company.stationCount,
+      regionSummary?.companyDistribution ||
+        [],
+    )}
+    )
+  </small>
+</em>
                           </p>
                         )
                       )}

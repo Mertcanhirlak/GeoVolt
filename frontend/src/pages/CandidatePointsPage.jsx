@@ -1370,6 +1370,11 @@ export default function CandidatePointsPage() {
   ] = useState(null);
 
   const [
+    candidateRightToolsOpen,
+    setCandidateRightToolsOpen,
+  ] = useState(false);
+
+  const [
     dataLayersOpen,
     setDataLayersOpen,
   ] = useState(true);
@@ -4518,14 +4523,23 @@ export default function CandidatePointsPage() {
   }
 
   function toggleCandidateRightTool(toolName) {
+    const nextTool =
+      activeCandidateRightTool === toolName
+        ? null
+        : toolName;
+
     setActiveCandidateRightTool(
-      (currentTool) =>
-        currentTool === toolName
-          ? null
-          : toolName,
+      nextTool,
+    );
+
+    /*
+     * Filtre, katman, bölge veya tarama paneli seçildiğinde
+     * ikon menüsü otomatik kapanır. Açık panel etkilenmez.
+     */
+    setCandidateRightToolsOpen(
+      false,
     );
   }
-
   function toggleCandidateRegions() {
     const nextValue =
       !regionsActive;
@@ -5012,14 +5026,51 @@ export default function CandidatePointsPage() {
               />
 
               <div
-                className={
+                className={[
+                  "candidate-right-tools",
+                  candidateRightToolsOpen
+                    ? "tools-open"
+                    : "",
                   activeCandidateRightTool
-                    ? "candidate-right-tools has-active-panel"
-                    : "candidate-right-tools"
-                }
+                    ? "has-active-panel"
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
                 data-testid="candidate-right-tools"
               >
+                <button
+                  type="button"
+                  className="candidate-right-tools-toggle"
+                  aria-expanded={candidateRightToolsOpen}
+                  aria-controls="candidate-right-tool-rail"
+                  aria-label={
+                    candidateRightToolsOpen
+                      ? "Sağ araç menüsünü kapat"
+                      : "Sağ araç menüsünü aç"
+                  }
+                  title={
+                    candidateRightToolsOpen
+                      ? "Araç menüsünü kapat"
+                      : "Araç menüsünü aç"
+                  }
+                  data-testid="candidate-right-tools-toggle"
+                  onClick={() =>
+                    setCandidateRightToolsOpen(
+                      (currentValue) =>
+                        !currentValue,
+                    )
+                  }
+                >
+                  <span aria-hidden="true">
+                    {candidateRightToolsOpen
+                      ? "›"
+                      : "‹"}
+                  </span>
+                </button>
+
                 <div
+                  id="candidate-right-tool-rail"
                   className="candidate-right-tool-rail"
                   role="toolbar"
                   aria-label="Aday haritası araçları"
@@ -5308,10 +5359,9 @@ export default function CandidatePointsPage() {
                 )}
               </aside>
 
-              {scanStatus ===
-                "success" &&
-                filteredCandidates.length >
-                  0 && (
+              {activeCandidateRightTool === "scan" &&
+                scanStatus === "success" &&
+                filteredCandidates.length > 0 && (
                   <aside
                     className="candidate-scan-results-panel"
                     data-testid="candidate-scan-results-panel"
