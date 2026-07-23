@@ -1,4 +1,4 @@
-﻿import React, {
+import React, {
   useEffect,
   useMemo,
   useRef,
@@ -338,6 +338,10 @@ export default function PersonalizationForm({
       neighborhoodId: "0",
       neighborhood: "Tümü",
     });
+  const [
+    isRegionDropdownOpen,
+    setIsRegionDropdownOpen,
+  ] = useState(false);
 
   const [
     formMessage,
@@ -448,32 +452,36 @@ export default function PersonalizationForm({
   const systemTypeOptions =
     useMemo(() => {
       const values =
-        new Set();
+        new Set([
+          "AC",
+          "DC",
+        ]);
 
       candidates.forEach(
         (candidate) => {
+          const systemType =
+            String(
+              candidate?.systemType ??
+                "",
+            )
+              .trim()
+              .toUpperCase();
+
           if (
-            candidate.systemType &&
-            candidate.systemType !==
-              "Veri Eksik" &&
-            candidate.systemType !==
-              "Belirtilmedi"
+            systemType === "AC" ||
+            systemType === "DC"
           ) {
             values.add(
-              candidate.systemType
+              systemType,
             );
           }
-        }
+        },
       );
 
       return [
         "Tümü",
-        ...Array.from(values).sort(
-          (first, second) =>
-            first.localeCompare(
-              second,
-              "tr-TR"
-            )
+        ...Array.from(
+          values,
         ),
       ];
     }, [candidates]);
@@ -481,32 +489,44 @@ export default function PersonalizationForm({
   const placeTypeOptions =
     useMemo(() => {
       const values =
-        new Set();
+        new Set([
+          "İş Yeri",
+          "AVM",
+          "Otopark",
+          "Akaryakıt İstasyonu",
+          "Kamu Alanı",
+          "Hastane",
+          "Üniversite",
+        ]);
 
       candidates.forEach(
         (candidate) => {
+          const placeType =
+            String(
+              candidate?.placeType ??
+                "",
+            ).trim();
+
           if (
-            candidate.placeType &&
-            candidate.placeType !==
+            placeType &&
+            placeType !==
               "Veri Eksik" &&
-            candidate.placeType !==
-              "Belirtilmedi"
+            placeType !==
+              "Belirtilmedi" &&
+            placeType !==
+              "Tümü"
           ) {
             values.add(
-              candidate.placeType
+              placeType,
             );
           }
-        }
+        },
       );
 
       return [
         "Tümü",
-        ...Array.from(values).sort(
-          (first, second) =>
-            first.localeCompare(
-              second,
-              "tr-TR"
-            )
+        ...Array.from(
+          values,
         ),
       ];
     }, [candidates]);
@@ -933,11 +953,13 @@ export default function PersonalizationForm({
     );
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(
+    event,
+  ) {
     event.preventDefault();
 
     notifySelectionChange(
-      form
+      form,
     );
 
     const hasMinimumBudget =
@@ -948,20 +970,28 @@ export default function PersonalizationForm({
 
     const budgetMin =
       hasMinimumBudget
-        ? Number(form.budgetMin)
+        ? Number(
+            form.budgetMin,
+          )
         : 0;
 
     const budgetMax =
       hasMaximumBudget
-        ? Number(form.budgetMax)
+        ? Number(
+            form.budgetMax,
+          )
         : Number.MAX_SAFE_INTEGER;
 
     if (
-      Number.isNaN(budgetMin) ||
-      Number.isNaN(budgetMax)
+      Number.isNaN(
+        budgetMin,
+      ) ||
+      Number.isNaN(
+        budgetMax,
+      )
     ) {
       setFormMessage(
-        "Bütçe alanlarına geçerli sayı giriniz."
+        "Bütçe alanlarına geçerli sayı giriniz.",
       );
 
       return;
@@ -972,7 +1002,7 @@ export default function PersonalizationForm({
       budgetMax < 0
     ) {
       setFormMessage(
-        "Bütçe değerleri negatif olamaz."
+        "Bütçe değerleri negatif olamaz.",
       );
 
       return;
@@ -983,130 +1013,71 @@ export default function PersonalizationForm({
       budgetMax
     ) {
       setFormMessage(
-        "Minimum bütçe maksimum bütçeden büyük olamaz."
+        "Minimum bütçe maksimum bütçeden büyük olamaz.",
       );
 
       return;
     }
 
-    const selectedNeighborhood =
-      form.neighborhoodId ===
-      "0"
-        ? null
-        : neighborhoodOptions.find(
-            (neighborhood) =>
-              String(
-                neighborhood.id
-              ) ===
-              String(
-                form.neighborhoodId
-              )
-          ) ?? null;
-
-    const hasBudgetFilter =
-      hasMinimumBudget ||
-      hasMaximumBudget;
-
-    const result =
-      candidates.filter(
-        (candidate) => {
-          const numericCost =
-            Number(
-              candidate.estimatedCost
-            );
-
-          const budgetMatch =
-            !hasBudgetFilter ||
-            (
-              Number.isFinite(
-                numericCost
-              ) &&
-              numericCost >=
-                budgetMin &&
-              numericCost <=
-                budgetMax
-            );
-
-          const systemMatch =
-            form.systemType ===
-              "Tümü" ||
-            candidate.systemType ===
-              form.systemType;
-
-          const placeMatch =
-            form.placeType ===
-              "Tümü" ||
-            candidate.placeType ===
-              form.placeType;
-
-          const regionMatch =
-            form.regionId ===
-              "0" ||
-            candidateMatchesRegion(
-              candidate,
-              selectedRegion
-            );
-
-          const neighborhoodMatch =
-            form.neighborhoodId ===
-              "0" ||
-            candidateMatchesNeighborhood(
-              candidate,
-              selectedNeighborhood
-            );
-
-          return (
-            budgetMatch &&
-            systemMatch &&
-            placeMatch &&
-            regionMatch &&
-            neighborhoodMatch
-          );
-        }
-      );
-
-    const sortedResult = [
-      ...result,
-    ].sort(
-      (
-        firstCandidate,
-        secondCandidate
-      ) => {
-        const firstScore =
-          firstCandidate.generalScore ??
-          0;
-
-        const secondScore =
-          secondCandidate.generalScore ??
-          0;
-
-        return (
-          secondScore -
-          firstScore
-        );
-      }
-    );
-
-    onResult?.(
-      sortedResult
-    );
-
     if (
-      sortedResult.length ===
-      0
+      typeof onResult !==
+      "function"
     ) {
       setFormMessage(
-        "Seçilen gerçek bölge ve mahalle ölçütlerine uygun aday nokta bulunamadı."
+        "Gerçek aday sorgusu başlatılamadı.",
       );
 
       return;
     }
 
     setFormMessage(
-      `${sortedResult.length} kişiselleştirilmiş aday nokta listelendi.`
+      "Gerçek aday noktalar backend üzerinden getiriliyor...",
     );
-  }
 
+    try {
+      const response =
+        await onResult({
+          regionId:
+            form.regionId,
+
+          region:
+            form.region,
+
+          neighborhoodId:
+            form.neighborhoodId,
+
+          neighborhood:
+            form.neighborhood,
+
+          systemType:
+            form.systemType,
+
+          placeType:
+            form.placeType,
+
+          budgetMin:
+            hasMinimumBudget
+              ? budgetMin
+              : "",
+
+          budgetMax:
+            hasMaximumBudget
+              ? budgetMax
+              : "",
+        });
+
+      setFormMessage(
+        response?.message ||
+          "Kişiselleştirme sorgusu tamamlandı.",
+      );
+    } catch (error) {
+      setFormMessage(
+        error instanceof Error
+          ? error.message
+          : "Kişiselleştirme sorgusu sırasında hata oluştu.",
+      );
+    }
+  }
   const regionSelected =
     Number(
       form.regionId
@@ -1262,33 +1233,112 @@ export default function PersonalizationForm({
         <label>
           Bölge
 
-          <select
-            data-testid="personalization-region-select"
-            name="regionId"
-            value={
-              form.regionId
-            }
-            onChange={
-              handleChange
-            }
-          >
-            {regionOptions.map(
-              (region) => (
-                <option
-                  key={
-                    region.id
-                  }
-                  value={
-                    String(
-                      region.id
-                    )
-                  }
-                >
-                  {region.name}
-                </option>
-              )
-            )}
-          </select>
+          <div
+  className="personalization-custom-select"
+  onBlur={(event) => {
+    if (
+      !event.currentTarget.contains(
+        event.relatedTarget,
+      )
+    ) {
+      setIsRegionDropdownOpen(false);
+    }
+  }}
+>
+  <button
+    type="button"
+    className="personalization-custom-select-trigger"
+    data-testid="personalization-region-select"
+    aria-haspopup="listbox"
+    aria-expanded={
+      isRegionDropdownOpen
+    }
+    onClick={(event) => {
+      event.preventDefault();
+
+      setIsRegionDropdownOpen(
+        (currentValue) =>
+          !currentValue,
+      );
+    }}
+  >
+    <span>
+      {regionOptions.find(
+        (region) =>
+          String(region.id) ===
+          String(form.regionId),
+      )?.name ?? "Tümü"}
+    </span>
+
+    <span
+      className={`personalization-custom-select-arrow ${
+        isRegionDropdownOpen
+          ? "is-open"
+          : ""
+      }`}
+      aria-hidden="true"
+    >
+      ▾
+    </span>
+  </button>
+
+  {isRegionDropdownOpen ? (
+    <div
+      className="personalization-custom-select-menu"
+      role="listbox"
+      data-testid="personalization-region-options"
+    >
+      {regionOptions.map(
+        (region) => {
+          const optionValue =
+            String(region.id);
+
+          const isSelected =
+            optionValue ===
+            String(form.regionId);
+
+          return (
+            <button
+              key={
+                optionValue
+              }
+              type="button"
+              role="option"
+              aria-selected={
+                isSelected
+              }
+              className={`personalization-custom-select-option ${
+                isSelected
+                  ? "is-selected"
+                  : ""
+              }`}
+              data-testid={`personalization-region-option-${optionValue}`}
+              onClick={(event) => {
+                event.preventDefault();
+
+                handleChange({
+                  target: {
+                    name:
+                      "regionId",
+
+                    value:
+                      optionValue,
+                  },
+                });
+
+                setIsRegionDropdownOpen(
+                  false,
+                );
+              }}
+            >
+              {region.name}
+            </button>
+          );
+        },
+      )}
+    </div>
+  ) : null}
+</div>
         </label>
 
         <label>
