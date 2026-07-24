@@ -19,6 +19,8 @@ public static class PermissionNames
     public const string DashboardAdminView = "dashboard.admin.view";
     public const string DataImportValidate = "data.import.validate";
     public const string DataImportExecute = "data.import.execute";
+    public const string CostRead = "cost.read";
+    public const string CostUpdate = "cost.update";
 
     public static readonly IReadOnlyList<PermissionSeed> All = new[]
     {
@@ -38,7 +40,9 @@ public static class PermissionNames
         new PermissionSeed(PermissionAssign, "Yetki atama", "Yetki"),
         new PermissionSeed(DashboardAdminView, "Genel istatistikleri görüntüleme", "Genel"),
         new PermissionSeed(DataImportValidate, "CBS veri dosyalarını doğrulama", "Veri Aktarımı"),
-        new PermissionSeed(DataImportExecute, "CBS verisini staging alanına aktarma", "Veri Aktarımı")
+        new PermissionSeed(DataImportExecute, "CBS verisini staging alanına aktarma", "Veri Aktarımı"),
+        new PermissionSeed(CostRead, "Maliyet profillerini görüntüleme", "Maliyet"),
+        new PermissionSeed(CostUpdate, "Maliyet profillerini güncelleme", "Maliyet")
     };
 }
 

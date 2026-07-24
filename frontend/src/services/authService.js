@@ -65,7 +65,8 @@ export function decodeMockToken(token) {
       fullName: payload.fullName ?? payload.name ?? payload.unique_name,
       email: payload.email,
       role: Array.isArray(payload.role) ? payload.role[0] : payload.role,
-      permissions: Array.isArray(permissions) ? permissions : []
+      permissions: Array.isArray(permissions) ? permissions : [],
+      mustChangePassword: payload.mustChangePassword === true || payload.mustChangePassword === "true"
     };
   } catch {
     return null;
@@ -96,6 +97,25 @@ export async function login(email, password) {
 
   if (!res.ok) {
     throw new Error(response.message || "E-posta veya şifre hatalı");
+  }
+
+  return normalizeAuthResponse(response);
+}
+
+export async function changePassword(token, currentPassword, newPassword, confirmNewPassword) {
+  const res = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ currentPassword, newPassword, confirmNewPassword }),
+  });
+
+  const response = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(response.message || "Şifre değiştirilemedi");
   }
 
   return normalizeAuthResponse(response);

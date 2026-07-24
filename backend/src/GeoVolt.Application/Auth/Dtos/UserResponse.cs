@@ -7,4 +7,5 @@ public sealed record UserResponse(
     string Role,
     int? CompanyId,
     string? CompanyName,
-    IReadOnlyList<string> Permissions);
+    IReadOnlyList<string> Permissions,
+    bool MustChangePassword);

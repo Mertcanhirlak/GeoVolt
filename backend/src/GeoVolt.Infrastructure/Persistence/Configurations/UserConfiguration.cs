@@ -33,6 +33,11 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .HasMaxLength(512)
             .IsRequired();
 
+        builder.Property(user => user.MustChangePassword)
+            .HasColumnName("must_change_password")
+            .HasDefaultValue(false)
+            .IsRequired();
+
         builder.Property(user => user.Role)
             .HasColumnName("role")
             .HasMaxLength(40)

@@ -33,15 +33,13 @@ public sealed class SavedCandidatePointService : ISavedCandidatePointService
         }
 
         var candidatePoints = await _candidatePointRepository.GetCandidatePointsAsync(
+            new CandidatePointQuery(),
             cancellationToken);
-
-        var candidatePointMap = candidatePoints.ToDictionary(
-            candidatePoint => candidatePoint.Id);
+        var candidatePointMap = candidatePoints.ToDictionary(candidatePoint => candidatePoint.Id);
 
         return savedIds
             .Where(candidatePointMap.ContainsKey)
-            .Select(candidatePointId =>
-                CandidatePointService.ToResponse(candidatePointMap[candidatePointId]))
+            .Select(candidatePointId => CandidatePointService.ToResponse(candidatePointMap[candidatePointId]))
             .ToList();
     }
 
@@ -88,4 +86,5 @@ public sealed class SavedCandidatePointService : ISavedCandidatePointService
             candidatePointId,
             cancellationToken);
     }
+
 }

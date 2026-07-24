@@ -1,4 +1,5 @@
 using GeoVolt.Domain.Entities;
+using GeoVolt.Domain.Constants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -20,11 +21,38 @@ public sealed class CandidatePointConfiguration : IEntityTypeConfiguration<Candi
         builder.Property(x => x.SystemType).HasMaxLength(100);
         builder.Property(x => x.PlaceType).HasMaxLength(100);
         builder.Property(x => x.Status).HasMaxLength(50);
+        builder.Property(x => x.SourceType)
+            .HasColumnName("source_type")
+            .HasMaxLength(30)
+            .HasDefaultValue(CandidatePointSourceTypes.AdminManual)
+            .IsRequired();
+        builder.Property(x => x.CreatedByUserId).HasColumnName("created_by_user_id");
+        builder.Property(x => x.SourceAnalysisRunId).HasColumnName("source_analysis_run_id");
+        builder.Property(x => x.SourceSuitabilityCellId).HasColumnName("source_suitability_cell_id");
+        builder.Property(x => x.CreatedAtUtc)
+            .HasColumnName("created_at_utc")
+            .HasDefaultValueSql("CURRENT_TIMESTAMP");
         builder.Ignore(x => x.Latitude);
         builder.Ignore(x => x.Longitude);
         builder.HasIndex(x => x.Location).HasMethod("gist");
         builder.HasIndex(x => new { x.Status, x.GeneralScore });
         builder.HasIndex(x => new { x.RegionId, x.NeighborhoodId });
         builder.HasIndex(x => x.AlgorithmVersion);
+        builder.HasIndex(x => new { x.SourceType, x.CreatedAtUtc });
+        builder.HasIndex(x => x.SourceSuitabilityCellId)
+            .IsUnique()
+            .HasFilter("source_suitability_cell_id IS NOT NULL");
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(x => x.CreatedByUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+        builder.HasOne<SuitabilityAnalysisRun>()
+            .WithMany()
+            .HasForeignKey(x => x.SourceAnalysisRunId)
+            .OnDelete(DeleteBehavior.SetNull);
+        builder.HasOne<SuitabilityCell>()
+            .WithMany()
+            .HasForeignKey(x => x.SourceSuitabilityCellId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

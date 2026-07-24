@@ -49,6 +49,16 @@ namespace GeoVolt.Infrastructure.Persistence.Migrations
                     b.Property<int?>("CostScore")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("created_by_user_id");
+
                     b.Property<int?>("DemandScore")
                         .HasColumnType("integer");
 
@@ -117,6 +127,22 @@ namespace GeoVolt.Infrastructure.Persistence.Migrations
                     b.Property<int?>("RegionId")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("SourceAnalysisRunId")
+                        .HasColumnType("integer")
+                        .HasColumnName("source_analysis_run_id");
+
+                    b.Property<long?>("SourceSuitabilityCellId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("source_suitability_cell_id");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasDefaultValue("ADMIN_MANUAL")
+                        .HasColumnName("source_type");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -137,11 +163,21 @@ namespace GeoVolt.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("AlgorithmVersion");
 
+                    b.HasIndex("CreatedByUserId");
+
                     b.HasIndex("Location");
 
                     NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Location"), "gist");
 
+                    b.HasIndex("SourceAnalysisRunId");
+
+                    b.HasIndex("SourceSuitabilityCellId")
+                        .IsUnique()
+                        .HasFilter("source_suitability_cell_id IS NOT NULL");
+
                     b.HasIndex("RegionId", "NeighborhoodId");
+
+                    b.HasIndex("SourceType", "CreatedAtUtc");
 
                     b.HasIndex("Status", "GeneralScore");
 
@@ -1517,6 +1553,12 @@ namespace GeoVolt.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(120)")
                         .HasColumnName("full_name");
 
+                    b.Property<bool>("MustChangePassword")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("must_change_password");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasMaxLength(512)
@@ -1637,6 +1679,24 @@ namespace GeoVolt.Infrastructure.Persistence.Migrations
                             Multiplier = 1.1500m,
                             VenueType = "Highway"
                         });
+                });
+
+            modelBuilder.Entity("GeoVolt.Domain.Entities.CandidatePoint", b =>
+                {
+                    b.HasOne("GeoVolt.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("GeoVolt.Domain.Entities.SuitabilityAnalysisRun", null)
+                        .WithMany()
+                        .HasForeignKey("SourceAnalysisRunId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("GeoVolt.Domain.Entities.SuitabilityCell", null)
+                        .WithMany()
+                        .HasForeignKey("SourceSuitabilityCellId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("GeoVolt.Domain.Entities.ChargingConnector", b =>

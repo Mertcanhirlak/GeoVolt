@@ -43,6 +43,11 @@ function LoginPage() {
       const data = await login(email, password);
       const signedInUser = loginUser(data.token, data.user) ?? data.user;
 
+      if (signedInUser?.mustChangePassword) {
+        navigate("/change-password", { replace: true });
+        return;
+      }
+
       const permissions = Array.isArray(signedInUser?.permissions) ? signedInUser.permissions : [];
       const canAccessManagement = signedInUser?.role !== "CompanyUser"
         && (signedInUser?.role === "Admin"

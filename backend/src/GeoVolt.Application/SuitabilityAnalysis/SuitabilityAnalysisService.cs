@@ -1,7 +1,8 @@
 using GeoVolt.Application.Common.Exceptions;
+using GeoVolt.Application.Regions.Abstractions;
 using GeoVolt.Application.SuitabilityAnalysis.Abstractions;
 using GeoVolt.Application.SuitabilityAnalysis.Models;
-using GeoVolt.Application.Regions.Abstractions;
+using GeoVolt.Domain.Constants;
 
 namespace GeoVolt.Application.SuitabilityAnalysis;
 
@@ -25,7 +26,7 @@ public sealed class SuitabilityAnalysisService : ISuitabilityAnalysisService
     {
         var result = await _repository.GenerateGridAsync(
             districtSourceId,
-            request.GridEdgeMeters,
+            SuitabilityGridDefaults.EdgeMeters,
             cancellationToken);
 
         return result ?? throw new NotFoundException("İlçe bulunamadı.");
@@ -76,11 +77,9 @@ public sealed class SuitabilityAnalysisService : ISuitabilityAnalysisService
             region.District.SourceId,
             request,
             cancellationToken);
-
         var metrics = await CalculateMetricsAsync(
             grid.AnalysisRunId,
             cancellationToken);
-
         var scoring = await CalculateScoresAsync(
             grid.AnalysisRunId,
             cancellationToken);
@@ -91,6 +90,25 @@ public sealed class SuitabilityAnalysisService : ISuitabilityAnalysisService
             grid,
             metrics,
             scoring);
+    }
+
+    public async Task<SuitabilityAnalysisMapResult> GetMapCellsAsync(
+        int analysisRunId,
+        decimal? minimumScore,
+        string? evaluationStatus,
+        bool onlyRecommended,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _repository.GetMapCellsAsync(
+            analysisRunId,
+            minimumScore,
+            evaluationStatus,
+            onlyRecommended,
+            Math.Clamp(limit, 1, 5000),
+            cancellationToken);
+
+        return result ?? throw new NotFoundException("Uygunluk analiz çalışması bulunamadı.");
     }
 
     public Task<SuitabilityLocationEvaluationResponse> EvaluateLocationAsync(

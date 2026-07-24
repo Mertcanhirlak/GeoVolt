@@ -2923,61 +2923,6 @@ button[data-suitability-close-button="true"] > * {
     ) !important;
   }
 }
-
-/* LIGHTNING MAP SINGLE ACTIVE PANEL FINAL */
-
-/*
- * Bölgesel sonuç listesi sadece Bölgeyi Tara simgesi
- * aktifken görünür.
- */
-.candidate-map:not(.right-tool-scan)
-  .candidate-scan-results-panel {
-  display: none !important;
-}
-
-/*
- * Sağ menüden bir panel açıldığında eski aday popup'ı,
- * manuel analiz kartı ve öneri detayları görünmez.
- */
-.candidate-map.right-tool-panel-open
-  .map-candidate-popup,
-.candidate-map.right-tool-panel-open
-  .location-analysis-panel,
-.candidate-map.right-tool-panel-open
-  .recommendation-analysis-details {
-  display: none !important;
-}
-
-/*
- * Yalnızca seçili sağ aracın panelinin görünmesini garanti eder.
- */
-.candidate-map:not(.right-tool-region)
-  .candidate-manual-controls,
-.candidate-map:not(.right-tool-layers)
-  .candidate-layer-controls,
-.candidate-map:not(.right-tool-filters)
-  .map-filter-overlay,
-.candidate-map:not(.right-tool-scan)
-  .candidate-scan-control-panel {
-  opacity: 0 !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-}
-
-/* Aktif olan tek panel görünür ve tıklanabilir olur. */
-.candidate-map.right-tool-region
-  .candidate-manual-controls,
-.candidate-map.right-tool-layers
-  .candidate-layer-controls,
-.candidate-map.right-tool-filters
-  .map-filter-overlay,
-.candidate-map.right-tool-scan
-  .candidate-scan-control-panel {
-  opacity: 1 !important;
-  visibility: visible !important;
-  pointer-events: auto !important;
-}
-
 /* PERSONALIZATION REGION CUSTOM DROPDOWN */
 .personalization-custom-select {
   position: relative;

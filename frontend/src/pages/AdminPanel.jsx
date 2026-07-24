@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Power } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import {
   assignAdminRolePermissions,
@@ -19,6 +18,8 @@ import {
   updateAdminUserRole
 } from "../services/adminService";
 import geovoltLogo from "../assets/geovolt-logo-transparent.png";
+import AdminCostManagement from "../components/AdminCostManagement";
+import AdminMapOperations from "../components/AdminMapOperations";
 import "./AdminPanel.css";
 
 const emptyCompanyForm = {
@@ -49,7 +50,15 @@ const maxUsersPerCompany = 2;
 
 const permissionGroups = {
   users: ["user.read", "user.create", "user.update", "user.delete", "user.role.assign"],
-  map: ["point.read", "point.create", "point.update", "point.delete"],
+  map: [
+    "point.read",
+    "point.create",
+    "point.update",
+    "point.delete",
+    "data.import.validate",
+    "data.import.execute"
+  ],
+  cost: ["cost.read", "cost.update"],
   roles: ["role.read", "role.create", "role.update", "role.delete", "permission.assign"],
   roleAssignment: ["user.role.assign"],
   status: ["dashboard.admin.view"]
@@ -63,28 +72,6 @@ function formatDate(value) {
     month: "short",
     year: "numeric"
   }).format(new Date(value));
-}
-
-function getPermissionLabel(permissionName) {
-  const labels = {
-    "user.read": "Kullanıcı listeleme",
-    "user.create": "Kullanıcı ekleme",
-    "user.update": "Kullanıcı güncelleme",
-    "user.delete": "Kullanıcı silme",
-    "user.role.assign": "Rol atama",
-    "role.read": "Rol listeleme",
-    "role.create": "Rol ekleme",
-    "role.update": "Rol güncelleme",
-    "role.delete": "Rol silme",
-    "permission.assign": "Yetki atama",
-    "point.read": "Nokta listeleme",
-    "point.create": "Nokta ekleme",
-    "point.update": "Nokta güncelleme",
-    "point.delete": "Nokta silme",
-    "dashboard.admin.view": "Genel durum"
-  };
-
-  return labels[permissionName] ?? permissionName;
 }
 
 function getRoleLabel(roleName) {
@@ -140,6 +127,10 @@ export default function AdminPanel() {
 
     if (hasAnyPermission(permissionGroups.map)) {
       tabs.push({ id: "map", label: "Harita İşlemleri" });
+    }
+
+    if (hasAnyPermission(permissionGroups.cost)) {
+      tabs.push({ id: "cost", label: "Maliyet Yönetimi" });
     }
 
     if (hasAnyPermission(permissionGroups.roles)) {
@@ -543,15 +534,8 @@ export default function AdminPanel() {
           <button type="button" className="admin-secondary-button" onClick={() => navigate("/dashboard")}>
             Harita
           </button>
-          <button
-            type="button"
-            className="admin-danger-button admin-logout-button"
-            onClick={handleLogout}
-            title="Çıkış Yap"
-            aria-label="Çıkış Yap"
-            data-testid="admin-logout-button"
-          >
-            <Power size={21} strokeWidth={2.6} aria-hidden="true" />
+          <button type="button" className="admin-danger-button" onClick={handleLogout}>
+            Çıkış
           </button>
         </div>
       </header>
@@ -993,24 +977,19 @@ export default function AdminPanel() {
       )}
 
       {activeTab === "map" && (
+        <AdminMapOperations
+          token={token}
+          hasPermission={hasPermission}
+        />
+      )}
+
+      {activeTab === "cost" && (
         <section className="admin-tab-panel">
           <div className="admin-panel admin-wide-panel">
-            <div className="admin-panel-heading">
-              <h2>Harita İşlemleri</h2>
-              <button type="button" className="admin-secondary-button" onClick={() => navigate("/dashboard")}>
-                Haritaya Git
-              </button>
-            </div>
-            <div className="admin-permission-grid">
-              {permissionGroups.map.map((permission) => (
-                <span
-                  key={permission}
-                  className={hasPermission(permission) ? "admin-permission-chip is-granted" : "admin-permission-chip"}
-                >
-                  {getPermissionLabel(permission)}
-                </span>
-              ))}
-            </div>
+            <AdminCostManagement
+              token={token}
+              canUpdate={hasPermission("cost.update")}
+            />
           </div>
         </section>
       )}

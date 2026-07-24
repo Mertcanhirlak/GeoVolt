@@ -44,7 +44,7 @@ public sealed partial class PostGisSuitabilityAnalysisRepository
 
         await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
         var previousCommandTimeout = _dbContext.Database.GetCommandTimeout();
-        _dbContext.Database.SetCommandTimeout(TimeSpan.FromMinutes(5));
+        _dbContext.Database.SetCommandTimeout(TimeSpan.FromMinutes(15));
 
         try
         {
@@ -129,13 +129,7 @@ public sealed partial class PostGisSuitabilityAnalysisRepository
                     poi_count_300_meters = poi_counts.count_300,
                     poi_count_500_meters = poi_counts.count_500,
                     poi_count_1000_meters = poi_counts.count_1000,
-                    slope_percent =
-                        CASE
-                            WHEN slope.value IS NULL
-                              OR slope.value::text IN ('NaN', 'Infinity', '-Infinity')
-                                THEN NULL
-                            ELSE ROUND(slope.value::numeric, 2)
-                        END,
+                    slope_percent = ROUND(slope.value::numeric, 2),
                     population_density_per_square_kilometer =
                         CASE
                             WHEN neighborhood.id IS NULL

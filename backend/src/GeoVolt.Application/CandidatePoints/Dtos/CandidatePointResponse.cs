@@ -17,5 +17,10 @@ public sealed record CandidatePointResponse(
     string SystemType,
     string PlaceType,
     string Status,
+    string SourceType,
+    int? CreatedByUserId,
+    int? SourceAnalysisRunId,
+    long? SourceSuitabilityCellId,
+    DateTime CreatedAtUtc,
     string AlgorithmVersion,
     DateTime? CalculatedAtUtc);

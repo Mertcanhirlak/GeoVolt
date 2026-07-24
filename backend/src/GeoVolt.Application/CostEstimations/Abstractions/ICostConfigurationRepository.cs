@@ -4,6 +4,13 @@ namespace GeoVolt.Application.CostEstimations.Abstractions;
 
 public interface ICostConfigurationRepository
 {
+    Task<IReadOnlyList<CostProfile>> GetProfilesAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<CostProfile?> GetProfileByIdAsync(
+        int id,
+        CancellationToken cancellationToken = default);
+
     Task<CostModelSetting?> GetModelSettingAsync(
         CancellationToken cancellationToken = default);
 
@@ -18,5 +25,8 @@ public interface ICostConfigurationRepository
 
     Task<VenueCostMultiplier?> GetVenueMultiplierAsync(
         string venueType,
+        CancellationToken cancellationToken = default);
+
+    Task SaveChangesAsync(
         CancellationToken cancellationToken = default);
 }

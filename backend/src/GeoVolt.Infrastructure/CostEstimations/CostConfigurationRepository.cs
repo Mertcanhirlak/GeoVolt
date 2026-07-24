@@ -16,6 +16,28 @@ public sealed class CostConfigurationRepository
         _dbContext = dbContext;
     }
 
+    public async Task<IReadOnlyList<CostProfile>> GetProfilesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext
+            .Set<CostProfile>()
+            .AsNoTracking()
+            .OrderBy(profile => profile.SystemType)
+            .ThenBy(profile => profile.PowerKw)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<CostProfile?> GetProfileByIdAsync(
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext
+            .Set<CostProfile>()
+            .FirstOrDefaultAsync(
+                profile => profile.Id == id,
+                cancellationToken);
+    }
+
     public Task<CostModelSetting?> GetModelSettingAsync(
         CancellationToken cancellationToken = default)
     {
@@ -81,5 +103,11 @@ public sealed class CostConfigurationRepository
                     multiplier.VenueType.ToUpper()
                         == normalizedVenueType,
                 cancellationToken);
+    }
+
+    public async Task SaveChangesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 }

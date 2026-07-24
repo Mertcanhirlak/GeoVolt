@@ -24,12 +24,4 @@
 		<ProjectReference Include="..\GeoVolt.Infrastructure\GeoVolt.Infrastructure.csproj" />
 	</ItemGroup>
 
-	<!-- API klasörü içindeki bağımsız importer projesini derlemeye dahil etme. -->
-	<ItemGroup>
-		<Compile Remove="tools\**\*.cs" />
-		<Content Remove="tools\**\*" />
-		<EmbeddedResource Remove="tools\**\*" />
-		<None Remove="tools\**\*" />
-	</ItemGroup>
-
 </Project>

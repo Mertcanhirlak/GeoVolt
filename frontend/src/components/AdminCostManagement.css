@@ -1,0 +1,205 @@
+.admin-cost-management {
+  display: grid;
+  gap: 22px;
+}
+
+.admin-cost-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.admin-cost-heading span {
+  color: #0f766e;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-cost-heading h2 {
+  margin: 5px 0 7px;
+  color: #0f172a;
+  font-size: clamp(1.35rem, 2vw, 1.8rem);
+}
+
+.admin-cost-heading p {
+  max-width: 680px;
+  margin: 0;
+  color: #64748b;
+}
+
+.admin-cost-note {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 18px;
+  border: 1px solid #bfdbfe;
+  border-radius: 14px;
+  background: #eff6ff;
+  color: #1e3a5f;
+}
+
+.admin-cost-note strong {
+  flex: 0 0 auto;
+}
+
+.admin-cost-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+  gap: 18px;
+}
+
+.admin-cost-profile-card {
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+  border: 1px solid #dce5ef;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+}
+
+.admin-cost-profile-card header,
+.admin-cost-profile-card header > div,
+.admin-cost-profile-card footer {
+  display: flex;
+  align-items: center;
+}
+
+.admin-cost-profile-card header {
+  justify-content: space-between;
+}
+
+.admin-cost-profile-card header > div {
+  gap: 10px;
+}
+
+.admin-cost-profile-card header strong {
+  color: #0f172a;
+  font-size: 1.15rem;
+}
+
+.admin-cost-profile-card header small,
+.admin-cost-profile-card footer small {
+  color: #64748b;
+}
+
+.admin-cost-system-badge {
+  min-width: 44px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+.admin-cost-system-badge.is-ac {
+  background: #0f766e;
+}
+
+.admin-cost-system-badge.is-dc {
+  background: #1d4ed8;
+}
+
+.admin-cost-fields {
+  display: grid;
+  gap: 13px;
+}
+
+.admin-cost-fields label {
+  display: grid;
+  gap: 7px;
+  color: #334155;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.admin-cost-input {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  border-radius: 11px;
+  background: #fff;
+}
+
+.admin-cost-input:focus-within {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+}
+
+.admin-cost-input input {
+  width: 100%;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #0f172a;
+  font: inherit;
+  font-weight: 700;
+}
+
+.admin-cost-input input:disabled {
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.admin-cost-currency-input {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.admin-cost-currency-input::-webkit-inner-spin-button,
+.admin-cost-currency-input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.admin-cost-input em {
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 11px;
+  border-left: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.admin-cost-profile-card footer {
+  min-height: 42px;
+  justify-content: flex-end;
+}
+
+.admin-cost-profile-card footer button {
+  min-width: 150px;
+}
+
+.admin-cost-empty {
+  padding: 32px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 16px;
+  background: #f8fafc;
+  color: #64748b;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .admin-cost-heading,
+  .admin-cost-note {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-cost-profile-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -90,6 +90,7 @@ public static class DependencyInjection
         services.AddScoped<IDataImportValidationService, GeoJsonDataImportValidationService>();
         services.AddScoped<IDataImportStagingService, GeoJsonDataImportStagingService>();
         services.AddScoped<IDataImportPromotionService, GeoJsonDataImportPromotionService>();
+        services.AddScoped<IDataImportQueryService, DataImportQueryService>();
         services.AddScoped<ISuitabilityAnalysisRepository, PostGisSuitabilityAnalysisRepository>();
         services.AddScoped<ITransformerRepository,PostGisTransformerRepository>();
 

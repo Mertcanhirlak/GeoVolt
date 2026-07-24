@@ -18,6 +18,8 @@ const managementPermissions = [
   "point.create",
   "point.update",
   "point.delete",
+  "cost.read",
+  "cost.update",
   "dashboard.admin.view"
 ];
 
@@ -82,6 +84,7 @@ export function AuthProvider({ children }) {
   const role = user?.role ?? null;
   const companyId = user?.companyId ?? null;
   const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
+  const mustChangePassword = user?.mustChangePassword === true;
 
   const isAdmin = role === "Admin";
   const isCompanyUser = role === "CompanyUser";
@@ -97,6 +100,7 @@ export function AuthProvider({ children }) {
         role,
         companyId,
         permissions,
+        mustChangePassword,
         isAuthenticated,
         isAdmin,
         isCompanyUser,
