@@ -524,6 +524,175 @@ function getNumberOrDefault(
   return Number(value);
 }
 
+function toFiniteNumber(value) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return null;
+  }
+
+  const numericValue = Number(value);
+
+  return Number.isFinite(numericValue)
+    ? numericValue
+    : null;
+}
+
+function clampScore(value) {
+  const numericValue =
+    toFiniteNumber(value);
+
+  if (numericValue === null) {
+    return null;
+  }
+
+  return Math.min(
+    100,
+    Math.max(0, numericValue),
+  );
+}
+
+function roundScore(value) {
+  const numericValue =
+    clampScore(value);
+
+  return numericValue === null
+    ? null
+    : Number(numericValue.toFixed(2));
+}
+
+function averageAvailableScores(values) {
+  const validValues = values
+    .map(toFiniteNumber)
+    .filter(
+      (value) =>
+        value !== null,
+    );
+
+  if (validValues.length === 0) {
+    return null;
+  }
+
+  return (
+    validValues.reduce(
+      (sum, value) =>
+        sum + value,
+      0,
+    ) /
+    validValues.length
+  );
+}
+
+function calculateManualCandidateScores({
+  costEvaluation,
+  selectedCell,
+  budget,
+}) {
+  const selectedScores =
+    selectedCell?.scores ??
+    selectedCell?.Scores ??
+    {};
+
+  const estimatedCost =
+    toFiniteNumber(
+      costEvaluation?.estimatedCost ??
+        costEvaluation?.EstimatedCost,
+    );
+
+  const budgetMax =
+    toFiniteNumber(
+      costEvaluation?.budgetMax ??
+        costEvaluation?.BudgetMax ??
+        budget,
+    );
+
+  const budgetCompatibilityScore =
+    estimatedCost !== null &&
+    estimatedCost > 0 &&
+    budgetMax !== null &&
+    budgetMax >= 0
+      ? roundScore(
+          (budgetMax /
+            estimatedCost) *
+            100,
+        )
+      : null;
+
+  const transformerScore =
+    roundScore(
+      selectedScores?.transformerScore ??
+        selectedScores?.TransformerScore,
+    );
+
+  const slopeScore =
+    roundScore(
+      selectedScores?.slopeScore ??
+        selectedScores?.SlopeScore,
+    );
+
+  const poiScore =
+    roundScore(
+      selectedScores?.poiScore ??
+        selectedScores?.PoiScore,
+    );
+
+  const populationScore =
+    roundScore(
+      selectedScores?.populationScore ??
+        selectedScores?.PopulationScore,
+    );
+
+  const stationGapScore =
+    roundScore(
+      selectedScores?.stationGapScore ??
+        selectedScores?.StationGapScore,
+    );
+
+  const costScore =
+    roundScore(
+      averageAvailableScores([
+        budgetCompatibilityScore,
+        transformerScore,
+        slopeScore,
+      ]),
+    );
+
+  const demandScore =
+    roundScore(
+      averageAvailableScores([
+        poiScore,
+        populationScore,
+        stationGapScore,
+      ]),
+    );
+
+  const generalScore =
+    roundScore(
+      selectedCell?.suitabilityScore ??
+        selectedCell?.SuitabilityScore,
+    );
+
+  return {
+    costScore,
+    demandScore,
+    generalScore,
+
+    scoreSource:
+      "manual-pin-and-suitability-api",
+
+    scoreDetails: {
+      budgetCompatibilityScore,
+      transformerScore,
+      slopeScore,
+      poiScore,
+      populationScore,
+      stationGapScore,
+    },
+  };
+}
+
 function isScoreInRange(
   score,
   min,
@@ -897,6 +1066,14 @@ function createManualCandidate(
     manualMessage:
       evaluation.message ||
       "",
+
+    scoreSource:
+      evaluation.scoreSource ||
+      "",
+
+    scoreDetails:
+      evaluation.scoreDetails ??
+      null,
 
     status:
       evaluation.status ||
@@ -4445,6 +4622,14 @@ export default function CandidatePointsPage() {
       const selectedCell =
         suitabilityResultWithCosts.selectedCell;
 
+      const calculatedScores =
+        calculateManualCandidateScores({
+          costEvaluation,
+          selectedCell,
+          budget:
+            normalizedPreferences.budget,
+        });
+
       const evaluation = {
         ...costEvaluation,
 
@@ -4476,9 +4661,40 @@ export default function CandidatePointsPage() {
         longitude:
           numericLongitude,
 
+        costScore:
+          hasNumericValue(
+            costEvaluation.costScore,
+          )
+            ? Number(
+                costEvaluation.costScore,
+              )
+            : calculatedScores.costScore,
+
+        demandScore:
+          hasNumericValue(
+            costEvaluation.demandScore,
+          )
+            ? Number(
+                costEvaluation.demandScore,
+              )
+            : calculatedScores.demandScore,
+
         generalScore:
-          selectedCell.suitabilityScore ??
+          calculatedScores.generalScore ??
           costEvaluation.generalScore,
+
+        scoreSource:
+          hasNumericValue(
+            costEvaluation.costScore,
+          ) &&
+          hasNumericValue(
+            costEvaluation.demandScore,
+          )
+            ? "manual-pin-api"
+            : calculatedScores.scoreSource,
+
+        scoreDetails:
+          calculatedScores.scoreDetails,
 
         systemType:
           costEvaluation.systemType ||
