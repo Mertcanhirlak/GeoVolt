@@ -23,6 +23,14 @@ async function getJson(path) {
     headers: getAuthHeaders()
   });
 
+  if (response.status === 401 && typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("geovolt:unauthorized", {
+        detail: { url: `${API_BASE_URL}${path}`, status: 401 }
+      })
+    );
+  }
+
   if (!response.ok) {
     throw new Error(`${path} isteği başarısız oldu: ${response.status}`);
   }

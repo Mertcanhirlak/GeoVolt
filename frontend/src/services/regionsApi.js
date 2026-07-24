@@ -8,6 +8,18 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function notifyUnauthorized(response, url) {
+  if (response.status !== 401 || typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent("geovolt:unauthorized", {
+      detail: { url, status: 401 }
+    })
+  );
+}
+
 const allRegionOption = { id: 0, name: "Tümü", boundaryGeoJson: "" };
 
 const fallbackRegions = [
@@ -440,6 +452,8 @@ async function getRegionsFromApi() {
     headers: getAuthHeaders()
   });
 
+  notifyUnauthorized(response, `${API_BASE_URL}/api/regions`);
+
   if (!response.ok) {
     throw new Error(`Bölge isteği başarısız oldu: ${response.status}`);
   }
@@ -475,6 +489,8 @@ async function getNeighborhoodsFromApi() {
   const response = await fetch(`${API_BASE_URL}/api/neighborhoods`, {
     headers: getAuthHeaders()
   });
+
+  notifyUnauthorized(response, `${API_BASE_URL}/api/neighborhoods`);
 
   if (!response.ok) {
     throw new Error(`Mahalle isteği başarısız oldu: ${response.status}`);
@@ -584,6 +600,8 @@ export async function getRegionSummary(regionId) {
     const response = await fetch(`${API_BASE_URL}/api/regions/${regionId}/summary`, {
       headers: getAuthHeaders()
     });
+
+    notifyUnauthorized(response, `${API_BASE_URL}/api/regions/${regionId}/summary`);
 
     if (!response.ok) {
       throw new Error(`Bölge özeti isteği başarısız oldu: ${response.status}`);
