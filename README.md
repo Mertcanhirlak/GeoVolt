@@ -1,4 +1,4 @@
-İşte projenizi GitHub'da öne çıkaracak, **Başarsoft stajı** vurgusu içeren, modern badges (rozetsel simgeler), mimari şeması, teknik detaylar ve şık bir düzenlemeye sahip profesyonel **`README.md`** içeriği:
+
 
 ```markdown
 # ⚡ GeoVolt — Elektrikli Araç Şarj İstasyonu Coğrafi Karar Destek Sistemi
