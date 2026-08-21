@@ -1,6 +1,3 @@
-
-
-```markdown
 # ⚡ GeoVolt — Elektrikli Araç Şarj İstasyonu Coğrafi Karar Destek Sistemi
 
 [![Basarsoft](https://img.shields.io/badge/Project-Başarsoft%20Staj%20Projesi-blue?style=for-the-badge&logo=googlemaps)](https://www.basarsoft.com.tr/)
@@ -16,6 +13,48 @@
 
 ---
 
+<div align="center">
+  <img src="docs/images/04_district_suitability_map.png" alt="GeoVolt Bölgesel Aday Nokta ve Uygunluk Haritası" width="100%" />
+  <p><i>⚡ GeoVolt — Ankara Çankaya Bölgesi Coğrafi Aday Nokta & Uygunluk Analiz Haritası</i></p>
+</div>
+
+---
+
+<details open>
+<summary>📸 <b>Uygulama Ekran Görüntüleri ve Arayüz Galerisi (Tıklayarak İnceleyin)</b></summary>
+<br>
+
+<table width="100%">
+  <tr>
+    <td width="50%" valign="top">
+      <h4 align="center">📍 1. Mevcut İstasyonlar ve Kümeleme Haritası</h4>
+      <img src="docs/images/01_station_clustering_map.png" alt="Mevcut İstasyon Haritası" width="100%" />
+      <p align="center"><i>552 aktif istasyonun kümelenmiş (cluster) görünümü ve POI, Trafo, Yol katman denetimleri.</i></p>
+    </td>
+    <td width="50%" valign="top">
+      <h4 align="center">🔷 2. 200m Altıgen Hücre (Hexagon Grid) Isı Haritası</h4>
+      <img src="docs/images/02_hexagon_grid_analysis.jpg" alt="Altıgen Hücre Analizi" width="100%" />
+      <p align="center"><i>MCDA puanlama motoru çıktısı: 80-100 (Yeşil), 50-79 (Sarı), 0-49 (Kırmızı) bölgesel uygunluk skorları.</i></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h4 align="center">📊 3. Manuel Pin & Noktasal Konum Değerlendirmesi</h4>
+      <img src="docs/images/03_location_analysis_detail.png" alt="Konum Analizi Detayı" width="100%" />
+      <p align="center"><i>Tıklanan nokta için 83.41 uygunluk skoru, trafo mesafesi (95m), yol mesafesi (34m), eğim (%4.86), tahmini kurulum maliyeti ve alternatif lokasyonlar.</i></p>
+    </td>
+    <td width="50%" valign="top">
+      <h4 align="center">⚙️ 4. GeoVolt Yönetim Paneli (Admin Dashboard)</h4>
+      <img src="docs/images/05_admin_management_panel.png" alt="Yönetim Paneli" width="100%" />
+      <p align="center"><i>Firma/Kullanıcı yönetimi, rol dağılımı, yetki atama, maliyet parametreleri ve operasyonel doluluk takibi.</i></p>
+    </td>
+  </tr>
+</table>
+
+</details>
+
+---
+
 ## 📌 Projenin Amacı ve Özeti
 
 Elektrikli araç kullanımının hızla artmasıyla birlikte şarj istasyonlarının rastgele değil, coğrafi ve teknik verilere dayalı olarak konumlandırılması kritik bir ihtiyaç haline gelmiştir. 
@@ -27,7 +66,7 @@ Elektrikli araç kullanımının hızla artmasıyla birlikte şarj istasyonları
 ## ✨ Öne Çıkan Özellikler
 
 - 📐 **Çok Kriterli Coğrafi Analiz (MCDA):** 6 farklı coğrafi veri katmanını ağırlıklandırarak bölgeleri puanlama.
-- 🔷 **Altıgen (Hexagon) Hücre Analizi:** Çankaya bölgesini 200m kenar uzunluklu hücrelere bölerek hassas bölgesel haritalama.
+- 🔷 **Altıgen (Hexagon) Hücre Analizi:** Çankaya bölgesini 200m kenar uzunluklu hücrelere bölerek hassas bölgesel haritalama ve ısı haritası.
 - 📍 **Manuel Pin & Konum Değerlendirmesi:** Haritada istenen noktaya tıklayarak o noktanın uygunluk skorunu, alt parametrelerini ve en yakın alternatif alanları inceleme.
 - 💰 **Kurulum Maliyet Analizi:** Seçilen konum için istasyon tipi ve soket tercihlerine göre tahmini yatırım ve altyapı maliyet hesabı.
 - 🚀 **Yüksek Performanslı Veri Aktarım Hattı:** PostgreSQL Binary COPY altyapısı ile 120.000+ coğrafi nesneyi saniyeler içinde veritabanına aktarma, staging ve doğrulama (validation) süreçleri.
@@ -49,7 +88,7 @@ Proje, **Clean Architecture** prensiplerine uygun olarak frontend ve backend uyg
        │     .NET 10 RESTful Web API              │
        │ ┌──────────────────────────────────────┐ │
        │ │ Clean Architecture (Domain/App/Infra)│ │
-       └─┴──────────────────┬───────────────────┴─┘
+       │ └─┴────────────────┬───────────────────┴─┘
                             │ Entity Framework Core + NetTopologySuite
                             ▼
        ┌──────────────────────────────────────────┐
@@ -116,6 +155,7 @@ GeoVolt/
 │   │   ├── pages/            # Harita, Analiz, Yönetici Panelleri
 │   │   └── services/         # API İstek Servisleri
 ├── docs/                     # API Sözleşmesi, Kurulum ve Mimari Dokümanlar
+│   └── images/               # Uygulama Ekran Görüntüleri ve Görseller
 └── README.md
 ```
 
@@ -167,4 +207,3 @@ npm run dev
 Bu proje **Başarsoft Bilgi Teknolojileri** staj programı sürecinde veri doğrulama, coğrafi bilgi sistemleri standartları ve ekip çalışması prensiplerine uygun olarak geliştirilmiştir. Süreç boyunca destek veren Başarsoft ekibine ve mentörlerimize teşekkür ederiz.
 
 🤝 **Ekip Üyeleri:** [Mertcan Hırlak](https://github.com/Mertcanhirlak), Rabia Teberik, Talha Uçar, Ilgın Bor.
-```
